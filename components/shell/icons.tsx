@@ -75,6 +75,14 @@ export const IconMonteCarlo = () => (
   </svg>
 );
 
+export const IconDividend = () => (
+  <svg {...base}>
+    <circle cx="8" cy="8" r="5.2" />
+    <path d="M11.5 4.9 C14.4 5.6 16.6 8.2 16.6 11.4 C16.6 15.1 13.6 18.1 9.9 18.1 C7.5 18.1 5.4 16.8 4.2 14.9" opacity="0.5" />
+    <path d="M8 5.6 V10.4 M6.3 9 L8 10.6 L9.7 9" />
+  </svg>
+);
+
 export const IconMarket = () => (
   <svg {...base}>
     <circle cx="10" cy="10" r="7.4" opacity="0.5" />
