@@ -82,6 +82,12 @@ export function FanChart({
       <svg
         width={W}
         height={H}
+        role="img"
+        aria-label={`Monte Carlo projection over ${Math.round(months / 12)} years. Median outcome ${fmtUSDCompact(
+          bands[bands.length - 1].p50
+        )}; 5th to 95th percentile ${fmtUSDCompact(
+          bands[bands.length - 1].p5
+        )} to ${fmtUSDCompact(bands[bands.length - 1].p95)}.`}
         onMouseMove={(e) => {
           const rect = e.currentTarget.getBoundingClientRect();
           const px = e.clientX - rect.left;

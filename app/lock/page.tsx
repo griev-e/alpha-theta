@@ -11,14 +11,34 @@ export default function LockPage() {
   const [error, setError] = useState(false);
   const [checking, setChecking] = useState(false);
   const [unlocked, setUnlocked] = useState(false);
+  const [cooldown, setCooldown] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
+  const locked = cooldown > 0;
 
   useEffect(() => {
     inputRef.current?.focus();
   }, []);
 
+  // Lockout countdown after too many wrong PINs.
   useEffect(() => {
-    if (pin.length !== PIN_LENGTH || checking) return;
+    if (cooldown <= 0) return;
+    const id = setInterval(
+      () =>
+        setCooldown((c) => {
+          if (c <= 1) {
+            setPin("");
+            inputRef.current?.focus();
+            return 0;
+          }
+          return c - 1;
+        }),
+      1000
+    );
+    return () => clearInterval(id);
+  }, [cooldown]);
+
+  useEffect(() => {
+    if (pin.length !== PIN_LENGTH || checking || locked) return;
     let cancelled = false;
     (async () => {
       setChecking(true);
@@ -33,6 +53,17 @@ export default function LockPage() {
           setUnlocked(true);
           // Full reload so the middleware re-evaluates every route.
           setTimeout(() => window.location.replace("/"), 450);
+        } else if (res.status === 429) {
+          // Brute-force lockout — surface the cooldown and stop accepting input.
+          const retryAfter = Number(res.headers.get("Retry-After")) || 900;
+          setError(true);
+          setCooldown(retryAfter);
+          setTimeout(() => {
+            if (!cancelled) {
+              setError(false);
+              setPin("");
+            }
+          }, 650);
         } else {
           setError(true);
           setTimeout(() => {
@@ -94,7 +125,13 @@ export default function LockPage() {
           transition={{ delay: 0.35 }}
           className="eyebrow mt-2"
         >
-          {unlocked ? "welcome back" : error ? "wrong pin" : "enter pin"}
+          {unlocked
+            ? "welcome back"
+            : locked
+              ? `too many tries — wait ${cooldown}s`
+              : error
+                ? "wrong pin"
+                : "enter pin"}
         </motion.div>
       </div>
 
@@ -112,9 +149,11 @@ export default function LockPage() {
         data-bwignore="true"
         data-form-type="other"
         value={pin}
-        onChange={(e) =>
-          setPin(e.target.value.replace(/\D/g, "").slice(0, PIN_LENGTH))
-        }
+        disabled={locked}
+        onChange={(e) => {
+          if (locked) return;
+          setPin(e.target.value.replace(/\D/g, "").slice(0, PIN_LENGTH));
+        }}
         className="absolute h-0 w-0 opacity-0"
         aria-label="PIN"
       />
@@ -137,7 +176,7 @@ export default function LockPage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.45 + i * 0.07 }}
               className={`flex h-16 items-center justify-center rounded-xl border text-[22px] transition-colors duration-150 ${
-                error
+                error || locked
                   ? "border-neg/60 bg-neg/[0.06] text-neg"
                   : unlocked
                     ? "border-mint/60 bg-mint/[0.08] text-mint"
@@ -170,7 +209,11 @@ export default function LockPage() {
         transition={{ delay: 0.8 }}
         className="font-mono text-[10px] uppercase tracking-[0.18em] text-faint"
       >
-        {checking ? "verifying…" : "private — authorized access only"}
+        {checking
+          ? "verifying…"
+          : locked
+            ? "locked out — too many attempts"
+            : "private — authorized access only"}
       </motion.p>
     </div>
   );

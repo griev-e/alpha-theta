@@ -117,7 +117,12 @@ export function Treemap({
   return (
     <div ref={wrapRef} style={{ height }} className="w-full">
       {W > 0 && (
-      <svg width={W} height={height}>
+      <svg
+        width={W}
+        height={height}
+        role="img"
+        aria-label={`Treemap of ${rects.length} holdings, each sized by market value and shaded by return.`}
+      >
         {rects.map((r, i) => {
           const { bg, border } = cellColor(r.item.intensity);
           const isActive = active === r.item.id;
