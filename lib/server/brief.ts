@@ -14,6 +14,33 @@ const briefCache = new Map<string, { at: number; data: BriefResponse }>();
 const BRIEF_TTL = 24 * 3600_000; // memory backstop; the date in the key rolls daily
 const CACHE_MAX = 20;
 
+/**
+ * Haiku 4.5 — the brief is a constrained, structured task (the JSON schema does
+ * the heavy lifting), so the fastest, cheapest current model is the right tool.
+ * ~5× cheaper input/output than Opus and quick enough to keep the page snappy.
+ */
+const BRIEF_MODEL = "claude-haiku-4-5";
+
+/**
+ * Cost backstop: cap how many *generations* (cache misses that actually hit the
+ * API) one warm instance will do per hour. The day+shape cache already dedupes
+ * normal use; this bounds the bill if someone churns portfolio shapes to force
+ * regeneration. Resets on cold start — accepted, like the caches above.
+ */
+const GEN_WINDOW_MS = 3600_000;
+const GEN_MAX = 40;
+let genWindowStart = Date.now();
+let genCount = 0;
+
+export function briefRateLimited(): boolean {
+  const now = Date.now();
+  if (now - genWindowStart > GEN_WINDOW_MS) {
+    genWindowStart = now;
+    genCount = 0;
+  }
+  return genCount >= GEN_MAX;
+}
+
 export function briefConfigured(): boolean {
   return !!process.env.ANTHROPIC_API_KEY;
 }
@@ -173,11 +200,17 @@ export async function generateBrief(req: BriefRequest): Promise<Brief> {
         `${p.symbol} reports ${p.earningsDate} (${(p.weight * 100).toFixed(1)}% of book)`
     );
 
-  const client = new Anthropic(); // reads ANTHROPIC_API_KEY; caller checks briefConfigured() first
+  // reads ANTHROPIC_API_KEY; caller checks briefConfigured() first. A bounded
+  // timeout means a slow provider fails fast instead of holding the lambda open
+  // for the full maxDuration.
+  const client = new Anthropic({ timeout: 30_000, maxRetries: 1 });
+  genCount += 1;
   const response = await client.messages.create({
-    model: "claude-opus-4-8",
-    max_tokens: 2000,
-    thinking: { type: "adaptive" },
+    model: BRIEF_MODEL,
+    max_tokens: 1500,
+    // The JSON schema constrains the output; thinking would only add tokens,
+    // latency, and cost for no quality gain on a structured desk note.
+    thinking: { type: "disabled" },
     system: SYSTEM,
     output_config: { format: { type: "json_schema", schema: BRIEF_SCHEMA } },
     messages: [{ role: "user", content: buildUserMessage(req, headlines, earnings) }],

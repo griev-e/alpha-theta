@@ -55,7 +55,17 @@ export function Sparkline({
   return (
     <div ref={ref} className="w-full">
       {width > 0 && (
-        <svg width={width} height={height} className="block overflow-visible">
+        <svg
+          width={width}
+          height={height}
+          className="block overflow-visible"
+          role="img"
+          aria-label={`Trend line, latest value ${last.toFixed(1)}${
+            baseline !== undefined
+              ? `, ${last < baseline ? "below" : "at or above"} the ${baseline} reference`
+              : ""
+          }.`}
+        >
           <path
             d={area}
             fill={`color-mix(in srgb, ${stroke} 10%, transparent)`}

@@ -42,7 +42,14 @@ export function Radar({
 
   return (
     <div className="flex flex-col items-center gap-3">
-      <svg width={size} height={size}>
+      <svg
+        width={size}
+        height={size}
+        role="img"
+        aria-label={`Radar chart comparing ${series
+          .map((s) => s.label)
+          .join(" and ")} across ${axes.length} factors: ${axes.join(", ")}.`}
+      >
         {rings.map((ring) => (
           <polygon
             key={ring}
