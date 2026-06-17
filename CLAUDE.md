@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-Sanctum (UI brand: "grieve") is a dark, institutional-grade personal portfolio
+grieve is a dark, institutional-grade personal portfolio
 analytics terminal. You import holdings as CSV and it computes allocation,
 risk, research, quality, factor, scenario, correlation, and Monte Carlo
 analysis. There are no accounts and no database: the portfolio lives in the
@@ -64,7 +64,7 @@ defaults (β = 1.0, σ derived from beta).
 `AppShell`.
 
 - **`lib/store.tsx`** (`usePortfolio`) is the single source of truth for the
-  portfolio. It reads/writes `localStorage` (key `sanctum.portfolio.v1`,
+  portfolio. It reads/writes `localStorage` (key `grieve.portfolio.v1`,
   migrates legacy keys), drives `useLiveData`, and memoizes the enriched
   `Portfolio` via `buildPortfolio`.
 - **`lib/analytics/build.ts`** (`buildPortfolio`) is the central enrichment
@@ -76,7 +76,7 @@ defaults (β = 1.0, σ derived from beta).
   exposes a `refresh()` that punches through every cache layer. Symbols are
   sorted into a stable key to keep the CDN cache hot.
 - **`lib/alerts/store.tsx`** (`useAlerts`) holds user-defined alert rules
-  (`localStorage` key `sanctum.alerts.v1`) and evaluates them against the live
+  (`localStorage` key `grieve.alerts.v1`) and evaluates them against the live
   portfolio via `lib/alerts/engine.ts`. Must mount inside `PortfolioProvider`.
 
 ### Server routes (`app/api/*`) — all thin cached proxies
