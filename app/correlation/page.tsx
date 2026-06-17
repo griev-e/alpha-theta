@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { Heatmap } from "@/components/charts/Heatmap";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Stat } from "@/components/ui/Stat";
 import { correlationMatrix } from "@/lib/analytics/correlation";
@@ -97,7 +98,9 @@ export default function CorrelationPage() {
           title="Which holdings move together"
           className="mb-5"
         />
-        <Heatmap symbols={corr.symbols} matrix={corr.matrix} />
+        <ErrorBoundary label="The correlation matrix">
+          <Heatmap symbols={corr.symbols} matrix={corr.matrix} />
+        </ErrorBoundary>
       </Card>
     </div>
   );

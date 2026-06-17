@@ -148,8 +148,10 @@ confidence, and UI all adapt automatically.
   external provider is down. Preserve fallback paths when editing live/server
   code.
 - **No chart libraries** — extend the SVG components in `components/charts/`.
-- The AI brief uses model `claude-opus-4-8` (`lib/server/brief.ts`); use the
-  latest Claude models when adding AI features.
+- The AI brief uses Claude Haiku 4.5 (`claude-haiku-4-5`, `lib/server/brief.ts`)
+  — the JSON schema does the heavy lifting, so the fastest/cheapest current model
+  fits, with thinking disabled for cost control. Use the latest Claude models when
+  adding AI features; pick the tier the task needs.
 - Analytics are **models, not advice** — keep methodology copy honest and
   surfaced (the regime engine, scenarios, and Monte Carlo all expose their
   assumptions in the UI).

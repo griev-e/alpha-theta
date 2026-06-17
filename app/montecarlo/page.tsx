@@ -5,16 +5,17 @@ import { FanChart } from "@/components/charts/FanChart";
 import { Histogram } from "@/components/charts/Histogram";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Ring } from "@/components/ui/Ring";
 import { Stat } from "@/components/ui/Stat";
 import { Computing } from "@/components/ui/Computing";
-import { runMonteCarlo } from "@/lib/analytics/montecarlo";
+import type { MonteCarloInputs, MonteCarloResult } from "@/lib/analytics/montecarlo";
+import { useMonteCarlo } from "@/lib/analytics/useMonteCarlo";
 import { riskReport } from "@/lib/analytics/risk";
 import { SPX } from "@/lib/data/benchmarks";
 import { fmtPct, fmtUSD, fmtUSDCompact } from "@/lib/format";
 import { usePortfolio } from "@/lib/store";
-import { useAsyncCompute } from "@/lib/useAsyncCompute";
 
 export default function MonteCarloPage() {
   const { ready, portfolio } = usePortfolio();
@@ -34,9 +35,9 @@ export default function MonteCarloPage() {
       ? Math.round(rawTarget / 1000) * 1000
       : Math.max(100, Math.round(rawTarget / 100) * 100);
 
-  const { value: result, pending } = useAsyncCompute(() => {
+  const mcInputs = useMemo<MonteCarloInputs | null>(() => {
     if (!portfolio || !risk) return null;
-    return runMonteCarlo({
+    return {
       initialValue: portfolio.totalValue,
       mu: risk.expectedReturn,
       sigma: risk.volatility,
@@ -44,8 +45,10 @@ export default function MonteCarloPage() {
       monthlyContribution: contribution,
       targetValue: target,
       paths: 3000,
-    });
+    };
   }, [portfolio, risk, years, contribution, target]);
+
+  const { result, pending } = useMonteCarlo(mcInputs);
 
   if (!ready) return null;
   if (!portfolio || !risk) return <EmptyState page="Monte Carlo simulation" />;
@@ -126,7 +129,9 @@ export default function MonteCarloPage() {
         {!result ? (
           <div className="panel h-[480px]" />
         ) : (
-          <ResultsView result={result} target={target} years={years} prob={prob} />
+          <ErrorBoundary label="The projection">
+            <ResultsView result={result} target={target} years={years} prob={prob} />
+          </ErrorBoundary>
         )}
       </div>
     </div>
@@ -139,7 +144,7 @@ function ResultsView({
   years,
   prob,
 }: {
-  result: NonNullable<ReturnType<typeof runMonteCarlo>>;
+  result: MonteCarloResult;
   target: number;
   years: number;
   prob: number;

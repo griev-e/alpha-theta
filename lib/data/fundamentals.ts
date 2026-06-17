@@ -215,7 +215,12 @@ const ROWS: Row[] = [
   { s: "VXUS", n: "Vanguard Total International Stock ETF", sec: "Diversified", ind: "International ex-US ETF", cap: 110, beta: 0.85, vol: 0.15, rg: 0.045, eg: 0.08, fg: 0.06, pe: 14.5, fy: 0.052, roic: 0.10, om: 0.13, gm: 0.38, dy: 0.029, r12: 0.14, rt: "Hold", pt: 91, an: 0, ins: "Neutral", insNet: 0, ed: null, eu: 0.40, ap: 0.28, em: 0.25, fundSec: { Financials: 0.22, Industrials: 0.14, Technology: 0.13, "Consumer Discretionary": 0.11, "Health Care": 0.09, "Consumer Staples": 0.07, Materials: 0.07, Energy: 0.05, "Communication Services": 0.05, Utilities: 0.03, "Real Estate": 0.02 } },
 ];
 
-const BY_SYMBOL = new Map(ROWS.map((r) => [r.s, mk(r)]));
+// Index the raw rows (cheap — references only). The full Fundamentals objects
+// are materialized lazily, per symbol, on first lookup: a typical portfolio
+// touches a handful of names, so we don't pay to build all ~100 snapshots at
+// module load. Materialized rows are memoized in `BUILT`.
+const ROW_BY_SYMBOL = new Map(ROWS.map((r) => [r.s, r]));
+const BUILT = new Map<string, Fundamentals>();
 
 // Alias common share-class / formatting variants.
 const ALIASES: Record<string, string> = {
@@ -227,11 +232,17 @@ const ALIASES: Record<string, string> = {
 
 export function getFundamentals(symbol: string): Fundamentals | null {
   const key = ALIASES[symbol] ?? symbol;
-  return BY_SYMBOL.get(key) ?? null;
+  const cached = BUILT.get(key);
+  if (cached) return cached;
+  const row = ROW_BY_SYMBOL.get(key);
+  if (!row) return null;
+  const built = mk(row);
+  BUILT.set(key, built);
+  return built;
 }
 
 export function knownSymbols(): string[] {
-  return [...BY_SYMBOL.keys()];
+  return [...ROW_BY_SYMBOL.keys()];
 }
 
 /** Conservative defaults used in math (never displayed as real data) for unknown tickers. */

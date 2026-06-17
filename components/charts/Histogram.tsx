@@ -14,9 +14,17 @@ export function Histogram({
   height?: number;
 }) {
   const max = Math.max(...bins.map((b) => b.count), 1);
+  const total = bins.reduce((s, b) => s + b.count, 0);
   return (
     <div>
-      <div className="flex items-end gap-[2px]" style={{ height }}>
+      <div
+        className="flex items-end gap-[2px]"
+        style={{ height }}
+        role="img"
+        aria-label={`Distribution of ${total} simulated outcomes from ${fmtUSDCompact(
+          bins[0]?.x0 ?? 0
+        )} to ${fmtUSDCompact(bins[bins.length - 1]?.x1 ?? 0)}.`}
+      >
         {bins.map((b, i) => {
           const aboveTarget = target > 0 && b.x0 >= target;
           return (

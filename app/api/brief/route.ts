@@ -4,13 +4,15 @@ import type { BriefPosition, BriefRequest } from "@/lib/intelligence/types";
 import {
   briefConfigured,
   briefFingerprint,
+  briefRateLimited,
   generateBrief,
   getCachedBrief,
   setCachedBrief,
 } from "@/lib/server/brief";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+// Haiku 4.5 without thinking returns well inside this; the client also caps at 30s.
+export const maxDuration = 45;
 
 const SYMBOL_RE = /[^A-Z0-9.\-]/g;
 
@@ -107,6 +109,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(
       { ...cached, cached: true },
       { headers: { "Cache-Control": "no-store" } }
+    );
+  }
+
+  // Cost backstop: refuse a fresh generation once the hourly cap is hit.
+  if (briefRateLimited()) {
+    return NextResponse.json(
+      { error: "brief provider rate limited" },
+      { status: 429, headers: { "Cache-Control": "no-store" } }
     );
   }
 

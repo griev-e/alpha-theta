@@ -7,7 +7,9 @@
   --color-edge2: rgba(255, 255, 255, 0.16);
   --color-ink: #ededed;
   --color-mute: #a1a1a1;
-  --color-faint: #666666;
+  /* ~5:1 on the near-black background — clears WCAG AA for body text, where
+     the previous #666 sat just under the 4.5:1 line. */
+  --color-faint: #7c7c7c;
   --color-mint: #5eead4;
   --color-pos: #34d399;
   --color-neg: #fb7185;

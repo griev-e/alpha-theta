@@ -60,7 +60,12 @@ export function Scatter({
   return (
     <div ref={containerRef} style={{ height }} className="w-full">
       {W > 0 && (
-        <svg width={W} height={H}>
+        <svg
+          width={W}
+          height={H}
+          role="img"
+          aria-label={`Scatter plot of ${yLabel} versus ${xLabel} across ${points.length} holdings.`}
+        >
           <line x1={x(xMid)} x2={x(xMid)} y1={PAD.t} y2={H - PAD.b} stroke="rgba(148,163,184,0.1)" strokeDasharray="4 5" />
           <line x1={PAD.l} x2={W - PAD.r} y1={y(yMid)} y2={y(yMid)} stroke="rgba(148,163,184,0.1)" strokeDasharray="4 5" />
 

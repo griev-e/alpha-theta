@@ -18,9 +18,12 @@ export function Computing({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.15 }}
+          role="status"
+          aria-live="polite"
+          aria-busy="true"
           className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 rounded-[18px] bg-black/55 backdrop-blur-[3px]"
         >
-          <svg width="34" height="34" viewBox="0 0 34 34" className="animate-spin" style={{ animationDuration: "0.9s" }}>
+          <svg width="34" height="34" viewBox="0 0 34 34" className="animate-spin" style={{ animationDuration: "0.9s" }} aria-hidden="true">
             <circle
               cx="17"
               cy="17"
