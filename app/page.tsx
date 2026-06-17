@@ -7,6 +7,7 @@ import { Treemap } from "@/components/charts/Treemap";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { Delta, deltaToneClass } from "@/components/ui/Delta";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Stat } from "@/components/ui/Stat";
 import { TickerLogo } from "@/components/ui/TickerLogo";
@@ -232,7 +233,9 @@ export default function OverviewPage() {
             }
             className="mb-4"
           />
-          <Treemap items={treemapItems} height={340} />
+          <ErrorBoundary label="The holdings map">
+            <Treemap items={treemapItems} height={340} />
+          </ErrorBoundary>
         </Card>
 
         <Card className="px-5 py-5" i={2}>
@@ -258,11 +261,13 @@ export default function OverviewPage() {
             }
             className="mb-4"
           />
-          <Donut
-            slices={mixSlices}
-            centerLabel="Total"
-            centerValue={fmtUSDCompact(portfolio.totalValue)}
-          />
+          <ErrorBoundary label="The allocation chart">
+            <Donut
+              slices={mixSlices}
+              centerLabel="Total"
+              centerValue={fmtUSDCompact(portfolio.totalValue)}
+            />
+          </ErrorBoundary>
           <div className="mt-4 grid grid-cols-3 gap-3 border-t border-edge pt-4">
             <Stat
               label="Top holding"

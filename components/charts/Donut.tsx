@@ -43,7 +43,13 @@ export function Donut({
   return (
     <div className="flex items-center gap-6 flex-wrap justify-center">
       <div className="relative" style={{ width: size, height: size }}>
-        <svg width={size} height={size} className="-rotate-90">
+        <svg
+          width={size}
+          height={size}
+          className="-rotate-90"
+          role="img"
+          aria-label={`${centerLabel} ${centerValue}, across ${arcs.length} segments.`}
+        >
           {arcs.map((a, i) => (
             <motion.circle
               key={a.id}

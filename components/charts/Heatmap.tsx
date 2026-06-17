@@ -54,6 +54,8 @@ export function Heatmap({
           gridTemplateColumns: `minmax(44px, auto) repeat(${n}, minmax(0, 1fr))`,
           maxWidth,
         }}
+        role="img"
+        aria-label={`Estimated correlation matrix across ${n} holdings (${symbols.join(", ")}).`}
         onMouseLeave={() => setHover(null)}
       >
         {/* header row */}
