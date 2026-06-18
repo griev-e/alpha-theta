@@ -8,14 +8,14 @@ export type PatchNote = {
 // Newest first. Add an entry here whenever a notable change ships.
 export const PATCH_NOTES: PatchNote[] = [
   {
-    version: "1.9",
-    date: "2026-06",
+    version: "1.11",
+    date: "2026-06-18",
     title: "Patch notes",
     changes: ["Added this Patch Notes tab under Data to track what's shipped."],
   },
   {
-    version: "1.8",
-    date: "2026-05",
+    version: "1.10",
+    date: "2026-06-17",
     title: "Tests, perf, and resilience",
     changes: [
       "Added test coverage, performance, and security hardening across the app.",
@@ -23,8 +23,8 @@ export const PATCH_NOTES: PatchNote[] = [
     ],
   },
   {
-    version: "1.7",
-    date: "2026-04",
+    version: "1.9",
+    date: "2026-06-17",
     title: "Quality tab overhaul",
     changes: [
       "Rebuilt the Quality tab with a categorized scorecard.",
@@ -32,8 +32,8 @@ export const PATCH_NOTES: PatchNote[] = [
     ],
   },
   {
-    version: "1.6",
-    date: "2026-04",
+    version: "1.8",
+    date: "2026-06-17",
     title: "Market Analysis refinements",
     changes: [
       "Redesigned the regime dial as the page centerpiece.",
@@ -41,48 +41,58 @@ export const PATCH_NOTES: PatchNote[] = [
     ],
   },
   {
-    version: "1.5",
-    date: "2026-03",
+    version: "1.7",
+    date: "2026-06-17",
     title: "Research, search-first",
-    changes: ["Overhauled Research into a search-first terminal for any ticker."],
+    changes: [
+      "Overhauled Research into a search-first terminal for any ticker.",
+      "Tab-by-tab UI and analytics refinements across the app.",
+      "Renamed the project from Sanctum to grieve and stopped the lock-screen logo spin.",
+    ],
+  },
+  {
+    version: "1.6",
+    date: "2026-06-16",
+    title: "Rebalance tool",
+    changes: ["Added the portfolio rebalancer / cash-deployment tool."],
+  },
+  {
+    version: "1.5",
+    date: "2026-06-12",
+    title: "Intelligence tab",
+    changes: [
+      "Added the Intelligence tab: AI daily brief, news, earnings, and alerts.",
+      "Fact-checked the market analysis engine; fixed a sign bug and misleading copy.",
+      "Codebase sweep: dead code, small bugs, and hot-path cleanups.",
+    ],
   },
   {
     version: "1.4",
-    date: "2026-03",
-    title: "Cross-tab refinements",
-    changes: ["Tab-by-tab UI and analytics refinements across the app."],
-  },
-  {
-    version: "1.3",
-    date: "2026-02",
-    title: "Rebrand to grieve",
-    changes: ["Renamed the project from Sanctum to grieve.", "Stopped the lock-screen logo spin."],
-  },
-  {
-    version: "1.2",
-    date: "2026-01",
-    title: "Rebalance and Intelligence",
+    date: "2026-06-11",
+    title: "Dividends, Market Analysis, and UI redesign",
     changes: [
-      "Added the portfolio rebalancer / cash-deployment tool.",
-      "Added the Intelligence tab: AI daily brief, news, earnings, and alerts.",
+      "Added the Dividends tab: income quality and durability engine.",
+      "Added the Market Analysis tab with an adaptive regime engine.",
+      "Redesigned the UI in a Vercel-inspired layout with Geist, and rebranded to grieve.",
+      "Redesigned the All Positions table, added holdings logos, and compacted the correlation matrix.",
     ],
   },
   {
     version: "1.1",
-    date: "2025-12",
-    title: "Market Analysis and Dividends",
+    date: "2026-06-10",
+    title: "Live data",
     changes: [
-      "Added the Market Analysis tab with an adaptive regime engine.",
-      "Added the Dividends tab: income quality and durability engine.",
+      "Added live data: Yahoo-backed quotes and fundamentals with offline snapshot fallback.",
+      "Rebrand and theme pass, plus a round of UX fixes.",
     ],
   },
   {
     version: "1.0",
-    date: "2025-10",
+    date: "2026-06-10",
     title: "Initial release",
     changes: [
       "Launched the portfolio analytics terminal: allocation, risk, research, correlation, scenarios, and Monte Carlo.",
-      "CSV import, live quotes and fundamentals with offline snapshot fallback, PIN lock screen.",
+      "CSV import and PIN lock screen.",
     ],
   },
 ];
