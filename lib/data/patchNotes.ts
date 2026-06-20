@@ -8,6 +8,14 @@ export type PatchNote = {
 // Newest first. Add an entry here whenever a notable change ships.
 export const PATCH_NOTES: PatchNote[] = [
   {
+    version: "1.14",
+    date: "2026-06-20",
+    title: "Aligned Intelligence cards",
+    changes: [
+      "On the Intelligence page, the Holdings news card now matches the height of the Earnings calendar beside it and scrolls its headlines internally, instead of stretching the row to fit the news list.",
+    ],
+  },
+  {
     version: "1.13",
     date: "2026-06-20",
     title: "Steadier Portfolio Mix legend",
