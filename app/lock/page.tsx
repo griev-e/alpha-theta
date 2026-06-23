@@ -99,14 +99,12 @@ export default function LockPage() {
     >
       <motion.div
         className="relative z-30"
+        style={{ willChange: "transform, opacity" }}
         initial={{ opacity: 0, scale: 0.7 }}
         animate={{
           opacity: 1,
           scale: unlocked ? 2.3 : 1,
           y: unlocked ? -4 : 0,
-          filter: unlocked
-            ? "drop-shadow(0 0 30px rgba(255,255,255,0.7))"
-            : "drop-shadow(0 0 0px rgba(255,255,255,0))",
         }}
         transition={{
           duration: unlocked ? 1.2 : 0.9,
@@ -236,13 +234,15 @@ export default function LockPage() {
       {unlocked && (
         <>
           <div className="pointer-events-none fixed inset-0 z-10 flex items-center justify-center">
-            {/* Core bloom — a white glow expanding from behind the sigil. */}
+            {/* Core bloom — a white glow expanding from behind the sigil. Only
+                transform + opacity animate, so it composites on the GPU. */}
             <motion.div
               initial={{ scale: 0.12, opacity: 0 }}
               animate={{ scale: 3.6, opacity: [0, 0.55, 0] }}
               transition={{ duration: 1.25, ease: "easeOut", times: [0, 0.38, 1] }}
               className="absolute h-[540px] w-[540px] rounded-full"
               style={{
+                willChange: "transform, opacity",
                 background:
                   "radial-gradient(circle, rgba(255,255,255,0.55) 0%, rgba(255,255,255,0.14) 36%, rgba(255,255,255,0) 64%)",
               }}
@@ -253,6 +253,7 @@ export default function LockPage() {
               animate={{ scale: 6, opacity: [0, 0.6, 0] }}
               transition={{ duration: 1.15, ease: [0.16, 1, 0.3, 1], times: [0, 0.2, 1] }}
               className="absolute h-[160px] w-[160px] rounded-full border border-white/70"
+              style={{ willChange: "transform, opacity" }}
             />
             <motion.div
               initial={{ scale: 0.3, opacity: 0 }}
@@ -264,6 +265,7 @@ export default function LockPage() {
                 delay: 0.16,
               }}
               className="absolute h-[160px] w-[160px] rounded-full border border-white/40"
+              style={{ willChange: "transform, opacity" }}
             />
           </div>
 
@@ -271,7 +273,7 @@ export default function LockPage() {
               glowing sigil too, leaving a clean black frame for the reload. */}
           <motion.div
             className="pointer-events-none fixed inset-0 z-40"
-            style={{ background: "var(--color-void)" }}
+            style={{ background: "var(--color-void)", willChange: "opacity" }}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.6, delay: 0.82, ease: [0.4, 0, 1, 1] }}

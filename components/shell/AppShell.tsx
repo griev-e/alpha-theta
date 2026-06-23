@@ -3,14 +3,7 @@
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import {
-  useEffect,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-  type ReactNode,
-} from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { fmtUSDCompact } from "@/lib/format";
 import { usePortfolio } from "@/lib/store";
 import {
@@ -52,12 +45,6 @@ const NAV = [
 ];
 
 const GROUPS = ["Portfolio", "Analysis", "Simulation", "Data"];
-
-// Runs before paint on the client (so the entrance veil can cover the very
-// first frame), but degrades to useEffect on the server to avoid React's
-// "useLayoutEffect does nothing on the server" warning.
-const useIsoLayoutEffect =
-  typeof window !== "undefined" ? useLayoutEffect : useEffect;
 
 /** Big cursive alpha — the thing the whole app is chasing. */
 export function Sigil({ size = 26 }: { size?: number }) {
@@ -306,34 +293,10 @@ export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const { portfolio, isDemo, ready, live, refreshLive } = usePortfolio();
 
-  // Entrance reveal handed off from the lock screen. The lock page sets a
-  // one-shot sessionStorage flag right before its full-reload navigation; we
-  // pick it up here and fade the app out of the same black the lock screen
-  // faded into, so the two screens read as one continuous motion.
-  //   idle   → no entrance (normal load / navigation)
-  //   cover  → black veil over the first painted frame
-  //   reveal → veil fades away, uncovering the app
-  const [entrance, setEntrance] = useState<"idle" | "cover" | "reveal">("idle");
-  useIsoLayoutEffect(() => {
-    let raf1 = 0;
-    let raf2 = 0;
-    try {
-      if (sessionStorage.getItem("alpha.entrance") === "1") {
-        sessionStorage.removeItem("alpha.entrance");
-        setEntrance("cover");
-        // Two frames: paint the cover, then start the fade-out.
-        raf1 = requestAnimationFrame(() => {
-          raf2 = requestAnimationFrame(() => setEntrance("reveal"));
-        });
-      }
-    } catch {
-      /* storage unavailable — no entrance, just render normally */
-    }
-    return () => {
-      cancelAnimationFrame(raf1);
-      cancelAnimationFrame(raf2);
-    };
-  }, []);
+  // The entrance reveal from the lock screen is handled outside React, by a
+  // render-blocking script + CSS overlay in app/layout.tsx, so it covers the
+  // very first painted frame after the reload (no flash of app behind it) and
+  // fades with a GPU-composited opacity transition. See #alpha-entrance.
 
   // The lock screen and the print/export report render bare — no sidebar, no
   // nav, no top bar — so the report is a clean, self-contained document.
@@ -352,43 +315,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       : "connecting";
 
   return (
-    <>
-      {entrance !== "idle" && (
-        <motion.div
-          className="pointer-events-none fixed inset-0 z-[100] flex items-center justify-center"
-          style={{ background: "var(--color-void)" }}
-          initial={{ opacity: 1 }}
-          animate={{ opacity: entrance === "reveal" ? 0 : 1 }}
-          transition={{ duration: 0.95, ease: [0.4, 0, 0.2, 1] }}
-          onAnimationComplete={() =>
-            setEntrance((e) => (e === "reveal" ? "idle" : e))
-          }
-        >
-          {/* Picks up where the lock screen's sigil left off (scaled ~2.3, lit
-              by a soft white glow) and dissolves — the visual thread that makes
-              the two screens read as one continuous motion. */}
-          <motion.div
-            initial={{
-              opacity: 0.55,
-              scale: 2.3,
-              filter: "drop-shadow(0 0 30px rgba(255,255,255,0.7))",
-            }}
-            animate={{
-              opacity: entrance === "reveal" ? 0 : 0.55,
-              scale: entrance === "reveal" ? 2.6 : 2.3,
-              filter:
-                entrance === "reveal"
-                  ? "drop-shadow(0 0 8px rgba(255,255,255,0))"
-                  : "drop-shadow(0 0 30px rgba(255,255,255,0.7))",
-            }}
-            transition={{ duration: 0.95, ease: "easeOut" }}
-          >
-            <Sigil size={64} />
-          </motion.div>
-        </motion.div>
-      )}
-
-      <div className="min-h-screen lg:grid lg:grid-cols-[240px_1fr]">
+    <div className="min-h-screen lg:grid lg:grid-cols-[240px_1fr]">
         {/* Desktop sidebar */}
       <aside className="hidden lg:flex sticky top-0 h-screen flex-col border-r border-edge bg-[#050505]">
         <div className="flex items-center gap-2.5 px-4 pb-3 pt-4">
@@ -491,7 +418,6 @@ export function AppShell({ children }: { children: ReactNode }) {
           </motion.div>
         </main>
       </div>
-      </div>
-    </>
+    </div>
   );
 }
