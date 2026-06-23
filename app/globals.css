@@ -27,6 +27,29 @@ html {
   color-scheme: dark;
 }
 
+/* Unlock entrance overlay — driven by a render-blocking script in layout.tsx
+   (toggles .alpha-entering / .alpha-revealing on <html>). Idle: invisible and
+   inert. On entrance it covers the first painted frame in pure black, then
+   fades away via a compositor-only opacity transition so the hand-off from the
+   lock screen stays seamless and smooth. */
+#alpha-entrance {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483647;
+  background: var(--color-void);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+.alpha-entering #alpha-entrance {
+  opacity: 1;
+  visibility: visible;
+}
+.alpha-entering.alpha-revealing #alpha-entrance {
+  opacity: 0;
+  transition: opacity 0.9s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
 body {
   background: var(--color-void);
   color: var(--color-ink);
