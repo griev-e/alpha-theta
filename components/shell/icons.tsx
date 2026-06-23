@@ -112,6 +112,16 @@ export const IconImport = () => (
   </svg>
 );
 
+export const IconOptimizer = () => (
+  <svg {...base}>
+    <path d="M3 16.5 V3.5" opacity="0.55" />
+    <path d="M3 16.5 H16.8" opacity="0.55" />
+    {/* efficient-frontier arc rising into an optimum */}
+    <path d="M3.6 15.4 C7 11 9.5 7.6 15.6 5.4" />
+    <circle cx="13" cy="6.2" r="1.7" fill="currentColor" stroke="none" />
+  </svg>
+);
+
 export const IconRebalance = () => (
   <svg {...base}>
     <path d="M3 6.6 H17" />

@@ -105,6 +105,7 @@ Maps as a warm-lambda cache. Provider code (`yahoo-finance2`, Anthropic SDK) is
 | `/api/dividends` | `lib/server/dividends.ts` | Dividend history/projection. |
 | `/api/brief` | `lib/server/brief.ts` | AI daily brief (Anthropic). POSTs the in-browser portfolio snapshot since holdings never persist server-side. Caches one brief per day per portfolio shape. |
 | `/api/allocate` | `lib/server/allocator.ts` | AI dry-powder allocator for the Rebalance page (Anthropic). POSTs a fundamentals-enriched snapshot; returns a structured cash-deployment plan. Caches one plan per day per portfolio shape. |
+| `/api/optimize` | `lib/server/optimizer.ts` | AI optimizer review for the Optimizer page (Anthropic, Sonnet 4.6). The optimal weights are solved client-side; this POSTs the before/after metrics + largest shifts and returns a structured construction read. Caches one review per day per objective + portfolio shape. |
 | `/api/auth` | `lib/server/rateLimit.ts` | Validates the PIN, sets the auth cookie. A fixed-window limiter throttles brute force (locks a client after a handful of wrong PINs). |
 
 `middleware.ts` enforces the PIN gate: pages redirect to `/lock`, APIs return
@@ -116,7 +117,12 @@ All pure, client-side, model-based estimates. Methodology notes live next to the
 math. Key pieces: `risk.ts`, `correlation.ts` (single-market-factor model with
 sector affinity), `quality.ts` (weighted scorecard vs S&P 500; multiples use
 weighted harmonic mean), `factors.ts`, `scenarios.ts`, `montecarlo.ts` (seeded
-GBM — deterministic per portfolio), `rebalance.ts`, `dividends/`.
+GBM — deterministic per portfolio), `rebalance.ts`, `dividends/`. The
+**optimizer** lives in `lib/optimizer/optimize.ts` — a deterministic constrained
+solver (projected gradient ascent on a capped simplex, plus cyclical coordinate
+descent for risk parity) over the same factor covariance and CAPM expected
+returns, producing optimal weights, an efficient frontier, and a trade list for
+eight objectives.
 
 **The market regime engine (`lib/analytics/regime/`)** is the most involved
 subsystem. It turns ~23 daily index series into 8 analytical layers
@@ -136,9 +142,9 @@ confidence, and UI all adapt automatically.
 - `app/*/page.tsx` — one route per nav item. The nav list is defined in
   `components/shell/AppShell.tsx` (`NAV` array, grouped under **Portfolio** /
   **Analysis** / **Simulation** / **Data**) — add routes there. Current items:
-  Overview (`/`), Intelligence, Risk, Research, Dividends, Rebalance; Market
-  Analysis, Quality, Benchmark & Factors, Correlation; Scenarios, Monte Carlo;
-  Export Report (`/report`), Import & Data (`/import`), Patch Notes.
+  Overview (`/`), Intelligence, Risk, Research, Dividends, Rebalance; Optimizer,
+  Market Analysis, Quality, Benchmark & Factors, Correlation; Scenarios, Monte
+  Carlo; Export Report (`/report`), Import & Data (`/import`), Patch Notes.
 - **`/report`** renders a print-optimized, full-portfolio dossier and exports it
   via the browser's native `window.print()` (→ Save as PDF). Toolbar/nav chrome
   is hidden with `no-print` classes — there is no PDF library. It recomputes
@@ -182,8 +188,12 @@ confidence, and UI all adapt automatically.
   fits, with thinking disabled for cost control. The dry-powder allocator
   (`lib/server/allocator.ts`) instead uses Opus 4.8 (`claude-opus-4-8`) with
   adaptive thinking: allocation is a genuine reasoning task (concentration,
-  valuation, quality, diversification), so it earns the most capable model. Use
-  the latest Claude models when adding AI features; pick the tier the task needs.
+  valuation, quality, diversification), so it earns the most capable model. The
+  optimizer review (`lib/server/optimizer.ts`) uses Sonnet 4.6
+  (`claude-sonnet-4-6`) with adaptive thinking — the optimal weights are already
+  solved, so the model only reasons about a grounded result; the mid-tier earns
+  its keep. Use the latest Claude models when adding AI features; pick the tier
+  the task needs.
 - Analytics are **models, not advice** — keep methodology copy honest and
   surfaced (the regime engine, scenarios, and Monte Carlo all expose their
   assumptions in the UI).
