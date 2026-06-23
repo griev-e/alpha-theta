@@ -293,6 +293,11 @@ export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const { portfolio, isDemo, ready, live, refreshLive } = usePortfolio();
 
+  // The entrance reveal from the lock screen is handled outside React, by a
+  // render-blocking script + CSS overlay in app/layout.tsx, so it covers the
+  // very first painted frame after the reload (no flash of app behind it) and
+  // fades with a GPU-composited opacity transition. See #alpha-entrance.
+
   // The lock screen and the print/export report render bare — no sidebar, no
   // nav, no top bar — so the report is a clean, self-contained document.
   if (pathname === "/lock" || pathname === "/report") {
@@ -311,7 +316,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="min-h-screen lg:grid lg:grid-cols-[240px_1fr]">
-      {/* Desktop sidebar */}
+        {/* Desktop sidebar */}
       <aside className="hidden lg:flex sticky top-0 h-screen flex-col border-r border-edge bg-[#050505]">
         <div className="flex items-center gap-2.5 px-4 pb-3 pt-4">
           <Link href="/" className="flex items-center gap-2.5">

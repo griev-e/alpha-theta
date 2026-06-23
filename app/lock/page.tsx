@@ -51,8 +51,19 @@ export default function LockPage() {
         if (cancelled) return;
         if (res.ok) {
           setUnlocked(true);
-          // Full reload so the middleware re-evaluates every route.
-          setTimeout(() => window.location.replace("/"), 450);
+          // Hand the entrance off to the app shell across the reload: it reads
+          // this flag and plays a matching reveal so the two screens feel like
+          // one continuous motion (see AppShell). sessionStorage survives the
+          // navigation but is scoped to this tab and one-shot.
+          try {
+            sessionStorage.setItem("alpha.entrance", "1");
+          } catch {
+            /* private mode / disabled storage — entrance just no-ops */
+          }
+          // Full reload so the middleware re-evaluates every route. Timed to
+          // land after the unlock veil has fully covered the screen, so the
+          // swap to the app is invisible.
+          setTimeout(() => window.location.replace("/"), 1450);
         } else if (res.status === 429) {
           // Brute-force lockout — surface the cooldown and stop accepting input.
           const retryAfter = Number(res.headers.get("Retry-After")) || 900;
@@ -87,17 +98,27 @@ export default function LockPage() {
       onClick={() => inputRef.current?.focus()}
     >
       <motion.div
+        className="relative z-30"
+        style={{ willChange: "transform, opacity" }}
         initial={{ opacity: 0, scale: 0.7 }}
         animate={{
           opacity: 1,
-          scale: unlocked ? 1.15 : 1,
+          scale: unlocked ? 2.3 : 1,
+          y: unlocked ? -4 : 0,
         }}
-        transition={{ duration: 0.9, ease: [0.22, 1, 0.36, 1] }}
+        transition={{
+          duration: unlocked ? 1.2 : 0.9,
+          ease: unlocked ? [0.16, 1, 0.3, 1] : [0.22, 1, 0.36, 1],
+        }}
       >
         <Sigil size={64} />
       </motion.div>
 
-      <div className="text-center">
+      <motion.div
+        className="relative z-30 text-center"
+        animate={{ opacity: unlocked ? 0 : 1, y: unlocked ? -18 : 0 }}
+        transition={{ duration: 0.7, ease: [0.4, 0, 1, 1] }}
+      >
         <motion.h1
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
@@ -128,7 +149,7 @@ export default function LockPage() {
                 : "wrong pin"}
           </motion.div>
         )}
-      </div>
+      </motion.div>
 
       {/* Hidden input drives the boxes; digits render censored. */}
       {/* type="text" (not "password") so browsers and password managers
@@ -159,12 +180,14 @@ export default function LockPage() {
 
       <motion.div
         animate={
-          error
-            ? { x: [0, -10, 10, -7, 7, -3, 0] }
-            : { x: 0 }
+          unlocked
+            ? { opacity: 0, y: -10, scale: 0.4 }
+            : error
+              ? { x: [0, -10, 10, -7, 7, -3, 0] }
+              : { x: 0 }
         }
-        transition={{ duration: 0.45 }}
-        className="mt-2 flex gap-3"
+        transition={{ duration: unlocked ? 0.7 : 0.45, ease: [0.5, 0, 0.75, 0] }}
+        className="relative z-30 mt-2 flex gap-3"
       >
         {Array.from({ length: PIN_LENGTH }).map((_, i) => {
           const filled = i < pin.length;
@@ -201,6 +224,62 @@ export default function LockPage() {
           );
         })}
       </motion.div>
+
+      {/* Unlock choreography. All overlays mount only on success and play once.
+          A soft white bloom swells from the sigil while two thin light rings
+          ripple outward; the veil then washes the whole screen to pure black
+          just after, so the hard navigation to the app is hidden inside the
+          dark. The app shell fades back out of that same black on the other
+          side, with the sigil dissolving from where it left off. */}
+      {unlocked && (
+        <>
+          <div className="pointer-events-none fixed inset-0 z-10 flex items-center justify-center">
+            {/* Core bloom — a white glow expanding from behind the sigil. Only
+                transform + opacity animate, so it composites on the GPU. */}
+            <motion.div
+              initial={{ scale: 0.12, opacity: 0 }}
+              animate={{ scale: 3.6, opacity: [0, 0.55, 0] }}
+              transition={{ duration: 1.25, ease: "easeOut", times: [0, 0.38, 1] }}
+              className="absolute h-[540px] w-[540px] rounded-full"
+              style={{
+                willChange: "transform, opacity",
+                background:
+                  "radial-gradient(circle, rgba(255,255,255,0.55) 0%, rgba(255,255,255,0.14) 36%, rgba(255,255,255,0) 64%)",
+              }}
+            />
+            {/* Two light rings rippling outward at different speeds for depth. */}
+            <motion.div
+              initial={{ scale: 0.3, opacity: 0 }}
+              animate={{ scale: 6, opacity: [0, 0.6, 0] }}
+              transition={{ duration: 1.15, ease: [0.16, 1, 0.3, 1], times: [0, 0.2, 1] }}
+              className="absolute h-[160px] w-[160px] rounded-full border border-white/70"
+              style={{ willChange: "transform, opacity" }}
+            />
+            <motion.div
+              initial={{ scale: 0.3, opacity: 0 }}
+              animate={{ scale: 8.5, opacity: [0, 0.4, 0] }}
+              transition={{
+                duration: 1.25,
+                ease: [0.16, 1, 0.3, 1],
+                times: [0, 0.22, 1],
+                delay: 0.16,
+              }}
+              className="absolute h-[160px] w-[160px] rounded-full border border-white/40"
+              style={{ willChange: "transform, opacity" }}
+            />
+          </div>
+
+          {/* Final wash to black — sits above everything so it covers the
+              glowing sigil too, leaving a clean black frame for the reload. */}
+          <motion.div
+            className="pointer-events-none fixed inset-0 z-40"
+            style={{ background: "var(--color-void)", willChange: "opacity" }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.6, delay: 0.82, ease: [0.4, 0, 1, 1] }}
+          />
+        </>
+      )}
     </div>
   );
 }
