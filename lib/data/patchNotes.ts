@@ -8,6 +8,17 @@ export type PatchNote = {
 // Newest first. Add an entry here whenever a notable change ships.
 export const PATCH_NOTES: PatchNote[] = [
   {
+    version: "1.15",
+    date: "2026-06-23",
+    title: "AI Optimizer",
+    changes: [
+      "Added an Optimizer tab under Analysis: an institutional portfolio-construction tool that solves for optimal weights on your holdings against the terminal's factor risk model.",
+      "Eight objective presets — maximum Sharpe, minimum volatility, risk parity, max diversification, maximum return, income, quality tilt, and equal weight — with position-cap and drop-threshold guardrails.",
+      "Plots the efficient frontier with your current and optimized portfolios, shows the before → after risk/return metrics, and generates a rebalance order ticket.",
+      "Claude Sonnet 4.6 reviews each optimization and writes the construction desk note: the thesis, the tradeoffs you take on, the residual risk, and a calibrated verdict.",
+    ],
+  },
+  {
     version: "1.14",
     date: "2026-06-20",
     title: "Aligned Intelligence cards",
