@@ -26,12 +26,14 @@ const CACHE_MAX = 24;
  * dry-powder allocator's blank-slate sizing (the optimal weights are already
  * computed). Sonnet 4.6 is the right tier: strong reasoning at a third of Opus's
  * cost, with adaptive thinking to reason through the tradeoffs before committing.
- * Effort is `medium`, same as the allocator: a full `high`-effort thinking pass
- * routinely ran past the serverless function's deadline (504s at the platform
- * edge, observed in production) before it ever reached the JSON write.
+ * Effort is `low`: `medium` and `high` both routinely ran past the deadline
+ * (504s at the platform edge, observed in production) before reaching the JSON
+ * write. The schema does the structural heavy lifting and the task is grounded
+ * in a solution that's already computed, so `low` is enough reasoning headroom
+ * while keeping the call inside the ~30s latency target.
  */
 const OPTIMIZER_MODEL = "claude-sonnet-4-6";
-const OPTIMIZER_EFFORT = "medium" as const;
+const OPTIMIZER_EFFORT = "low" as const;
 
 /**
  * Cost backstop: cap fresh generations (cache misses that hit the API) per warm
@@ -233,15 +235,16 @@ function buildUserMessage(req: OptimizerRequest): string {
   ].join("\n");
 }
 
-// Hard wall-clock deadline for the whole call, comfortably inside the route's
-// maxDuration (60s) so a slow turn raises a catchable abort instead of the
-// platform killing the function outright and returning a bare 504. The SDK's
-// own `timeout` option resets on every streamed chunk (it's an idle timeout,
-// not a total one) — adaptive thinking streams deltas the whole time it's
-// "thinking", so that option alone never fires here and the request was
-// riding all the way to the platform's hard cutoff. This timer fires on
-// elapsed time regardless of stream activity.
-const DEADLINE_MS = 50_000;
+// Hard wall-clock deadline for the whole call. `low` effort comfortably lands
+// in single-digit-to-low-teens seconds for this prompt size, so 30s is a
+// generous ceiling that still fires well inside the route's maxDuration (60s)
+// — a slow turn raises a catchable abort instead of the platform killing the
+// function outright and returning a bare 504. The SDK's own `timeout` option
+// resets on every streamed chunk (it's an idle timeout, not a total one) —
+// adaptive thinking streams deltas the whole time it's "thinking", so that
+// option alone never fires here. This timer fires on elapsed time regardless
+// of stream activity.
+const DEADLINE_MS = 30_000;
 
 export async function generateOptimization(
   req: OptimizerRequest
@@ -249,7 +252,7 @@ export async function generateOptimization(
   // reads ANTHROPIC_API_KEY; caller checks optimizerConfigured() first. No
   // retry budget: a retry on a near-deadline request would blow through the
   // ceiling anyway.
-  const client = new Anthropic({ timeout: 45_000, maxRetries: 0 });
+  const client = new Anthropic({ timeout: 30_000, maxRetries: 0 });
   genCount += 1;
   const controller = new AbortController();
   const deadline = setTimeout(() => controller.abort(), DEADLINE_MS);
@@ -258,8 +261,9 @@ export async function generateOptimization(
       {
         model: OPTIMIZER_MODEL,
         // Thinking tokens count against max_tokens — too tight a cap truncates
-        // the run before the structured JSON gets written.
-        max_tokens: 8_000,
+        // the run before the structured JSON gets written. `low` effort uses
+        // much less of this than `medium` did, but the cap stays generous.
+        max_tokens: 6_000,
         // Adaptive thinking lets the model reason through the tradeoffs; the
         // schema constrains the final shape, so no reasoning leaks into the
         // JSON.
