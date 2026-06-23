@@ -958,10 +958,24 @@ function useOptimizerReview(
         });
         return;
       }
-      if (!res.ok) throw new Error(`status ${res.status}`);
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        throw new Error(
+          typeof body?.error === "string"
+            ? `${body.error} (${res.status})`
+            : `status ${res.status}`
+        );
+      }
       setState({ kind: "ready", data: (await res.json()) as OptimizerResponse });
-    } catch {
-      setState({ kind: "error", message: "AI optimizer unreachable." });
+    } catch (err) {
+      console.error("optimizer review failed:", err);
+      setState({
+        kind: "error",
+        message:
+          err instanceof Error && err.message
+            ? `AI optimizer unavailable: ${err.message}`
+            : "AI optimizer unreachable.",
+      });
     }
   }, []);
 
