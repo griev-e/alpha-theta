@@ -1,0 +1,106 @@
+import { describe, expect, it } from "vitest";
+import { holding, makePortfolio } from "../__tests__/factory";
+import { SPX } from "../data/benchmarks";
+import { riskReport } from "./risk";
+
+// SPY (β 1.0) + XOM (β 0.85), equal dollar, no cash.
+function twoStock(cash = 0) {
+  return makePortfolio(
+    [
+      holding({ symbol: "SPY", shares: 10, price: 100 }),
+      holding({ symbol: "XOM", shares: 10, price: 100 }),
+    ],
+    cash
+  );
+}
+
+describe("riskReport", () => {
+  it("computes concentration metrics on the invested book", () => {
+    const r = riskReport(twoStock(), SPX.sectorWeights);
+    expect(r.topWeight).toBeCloseTo(0.5, 6);
+    expect(r.top3Weight).toBeCloseTo(1, 6);
+    expect(r.hhi).toBeCloseTo(0.5, 6);
+    expect(r.effectiveN).toBeCloseTo(2, 6);
+  });
+
+  it("weights beta by total value, so cash drags it down", () => {
+    const noCash = riskReport(twoStock(0), SPX.sectorWeights);
+    expect(noCash.beta).toBeCloseTo(0.925, 3); // 0.5·1.0 + 0.5·0.85
+
+    const halfCash = riskReport(twoStock(2000), SPX.sectorWeights);
+    expect(halfCash.beta).toBeCloseTo(0.4625, 3); // cash has β 0
+    expect(halfCash.beta).toBeLessThan(noCash.beta);
+  });
+
+  it("derives a positive volatility and a finite Sharpe", () => {
+    const r = riskReport(twoStock(), SPX.sectorWeights);
+    expect(r.volatility).toBeGreaterThan(0);
+    expect(Number.isFinite(r.sharpe)).toBe(true);
+    expect(r.expectedReturn).toBeGreaterThan(0.04); // above the risk-free rate
+  });
+
+  it("spreads fund holdings across sectors via look-through", () => {
+    const r = riskReport(twoStock(), SPX.sectorWeights);
+    const total = r.sectors.reduce((s, x) => s + x.weight, 0);
+    expect(total).toBeCloseTo(1, 4); // invested book fully accounted for
+    // SPY's look-through means Energy isn't the only sector present
+    expect(r.sectors.length).toBeGreaterThan(1);
+  });
+
+  it("apportions risk so contributions sum to one", () => {
+    const r = riskReport(twoStock(), SPX.sectorWeights);
+    const shareSum = r.contributions.reduce((s, c) => s + c.share, 0);
+    expect(shareSum).toBeCloseTo(1, 4);
+    expect(r.contributions).toHaveLength(2);
+  });
+
+  it("keeps every risk-contribution share non-negative on a tricky book", () => {
+    // SPY's diagonal is floored (β·σ_m > σ_SPY); with the old non-PSD covariance
+    // a marginal contribution share could come out negative. The structural PSD
+    // covariance keeps them all ≥ 0 while still summing to 1.
+    const r = riskReport(
+      makePortfolio([
+        holding({ symbol: "SPY", shares: 10, price: 100 }),
+        holding({ symbol: "NVDA", shares: 10, price: 100 }),
+        holding({ symbol: "AMD", shares: 10, price: 100 }),
+        holding({ symbol: "XOM", shares: 10, price: 100 }),
+      ]),
+      SPX.sectorWeights
+    );
+    for (const c of r.contributions) expect(c.share).toBeGreaterThanOrEqual(-1e-9);
+    const shareSum = r.contributions.reduce((s, c) => s + c.share, 0);
+    expect(shareSum).toBeCloseTo(1, 6);
+  });
+
+  it("tracks coverage as the weight of names with fundamentals", () => {
+    expect(riskReport(twoStock(0), SPX.sectorWeights).coveragePct).toBeCloseTo(1, 6);
+    expect(riskReport(twoStock(2000), SPX.sectorWeights).coveragePct).toBeCloseTo(
+      0.5,
+      6
+    );
+  });
+
+  it("collapses to a single name cleanly", () => {
+    const r = riskReport(
+      makePortfolio([holding({ symbol: "SPY", shares: 10, price: 100 })]),
+      SPX.sectorWeights
+    );
+    expect(r.topWeight).toBeCloseTo(1, 6);
+    expect(r.hhi).toBeCloseTo(1, 6);
+    expect(r.effectiveN).toBeCloseTo(1, 6);
+    expect(r.beta).toBeCloseTo(1.0, 6); // SPY β
+  });
+
+  it("handles an unknown ticker on conservative defaults without throwing", () => {
+    const r = riskReport(
+      makePortfolio([
+        holding({ symbol: "SPY", shares: 10, price: 100 }),
+        holding({ symbol: "ZZZZ", shares: 10, price: 100 }),
+      ]),
+      SPX.sectorWeights
+    );
+    expect(r.coveragePct).toBeCloseTo(0.5, 6); // only SPY is covered
+    expect(Number.isFinite(r.beta)).toBe(true);
+    expect(r.beta).toBeGreaterThan(0);
+  });
+});

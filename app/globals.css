@@ -1,0 +1,383 @@
+@import "tailwindcss";
+
+@theme {
+  --color-void: #000000;
+  --color-panel: #0a0a0a;
+  --color-edge: rgba(255, 255, 255, 0.08);
+  --color-edge2: rgba(255, 255, 255, 0.16);
+  --color-ink: #ededed;
+  --color-mute: #a1a1a1;
+  /* ~5:1 on the near-black background — clears WCAG AA for body text, where
+     the previous #666 sat just under the 4.5:1 line. */
+  --color-faint: #7c7c7c;
+  --color-mint: #5eead4;
+  --color-pos: #34d399;
+  --color-neg: #fb7185;
+  --color-warn: #fbbf24;
+  --color-vio: #a78bfa;
+  --color-sky: #7dd3fc;
+
+  --font-display: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, "SF Mono", monospace;
+}
+
+html {
+  background: var(--color-void);
+  color-scheme: dark;
+}
+
+/* Unlock entrance overlay — driven by a render-blocking script in layout.tsx
+   (toggles .alpha-entering / .alpha-revealing on <html>). Idle: invisible and
+   inert. On entrance it covers the first painted frame in pure black, then
+   fades away via a compositor-only opacity transition so the hand-off from the
+   lock screen stays seamless and smooth. */
+#alpha-entrance {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483647;
+  background: var(--color-void);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+.alpha-entering #alpha-entrance {
+  opacity: 1;
+  visibility: visible;
+}
+.alpha-entering.alpha-revealing #alpha-entrance {
+  opacity: 0;
+  transition: opacity 0.9s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+body {
+  background: var(--color-void);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background: rgba(94, 234, 212, 0.25);
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.16) transparent;
+}
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+*::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.16);
+  border-radius: 8px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.font-display {
+  font-family: var(--font-display);
+}
+
+/* Numerals align in tables and tickers. */
+.tnum {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Quiet metadata label, Vercel-style: small, gray, sentence case. */
+.eyebrow {
+  font-family: var(--font-sans);
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  color: var(--color-faint);
+}
+
+/* Flat card surface */
+.panel {
+  background: var(--color-panel);
+  border: 1px solid var(--color-edge);
+  border-radius: 12px;
+}
+.panel-hover {
+  transition: border-color 150ms ease;
+}
+.panel-hover:hover {
+  border-color: var(--color-edge2);
+}
+
+/* Primary / secondary buttons */
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 32px;
+  padding: 0 14px;
+  border-radius: 8px;
+  background: var(--color-ink);
+  color: #000;
+  font-size: 13px;
+  font-weight: 500;
+  transition: background 150ms ease;
+}
+.btn-primary:hover {
+  background: #ffffff;
+}
+.btn-primary:disabled {
+  opacity: 0.4;
+}
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 32px;
+  padding: 0 14px;
+  border-radius: 8px;
+  border: 1px solid var(--color-edge2);
+  background: transparent;
+  color: var(--color-mute);
+  font-size: 13px;
+  font-weight: 500;
+  transition: color 150ms ease, border-color 150ms ease;
+}
+.btn-secondary:hover {
+  color: var(--color-ink);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+/* Keyboard hint chip */
+.kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border-radius: 4px;
+  border: 1px solid var(--color-edge2);
+  background: rgba(255, 255, 255, 0.04);
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--color-faint);
+}
+
+/* Range inputs (scenario & monte carlo controls) */
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  border-radius: 4px;
+  background: linear-gradient(
+    90deg,
+    rgba(94, 234, 212, 0.5),
+    rgba(167, 139, 250, 0.5)
+  );
+  outline: none;
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #ededed;
+  border: 3px solid #000000;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.25);
+  cursor: pointer;
+  transition: transform 120ms ease;
+}
+input[type="range"]::-webkit-slider-thumb:hover {
+  transform: scale(1.15);
+}
+input[type="range"]::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #ededed;
+  border: 3px solid #000000;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.25);
+  cursor: pointer;
+}
+
+/* ── Export / print report ─────────────────────────────────────────────
+   A self-contained light-theme "document" that looks like a printable sheet
+   on screen and prints cleanly to PDF. Everything is scoped under
+   .report-doc so the dark app theme never leaks in. */
+.report-shell {
+  min-height: 100vh;
+  background: #0a0a0a;
+  padding: 24px 16px 96px;
+}
+.report-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  max-width: 940px;
+  margin: 0 auto 20px;
+}
+.report-doc {
+  width: 100%;
+  max-width: 940px;
+  margin: 0 auto;
+  background: #ffffff;
+  color: #18181b;
+  border-radius: 8px;
+  padding: 48px 56px;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  line-height: 1.5;
+  color-scheme: light;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+.report-doc h1 {
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: #09090b;
+}
+.report-doc h2 {
+  font-size: 15px;
+  font-weight: 700;
+  margin: 30px 0 10px;
+  padding-bottom: 6px;
+  border-bottom: 2px solid #18181b;
+  color: #09090b;
+}
+.report-doc h3 {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin: 16px 0 6px;
+  color: #52525b;
+}
+.report-doc p {
+  color: #3f3f46;
+  margin: 4px 0;
+}
+.report-doc .muted {
+  color: #71717a;
+}
+.report-doc table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 8px 0 6px;
+  font-variant-numeric: tabular-nums;
+}
+.report-doc th,
+.report-doc td {
+  text-align: right;
+  padding: 4px 8px;
+  border-bottom: 1px solid #e4e4e7;
+  white-space: nowrap;
+}
+.report-doc th:first-child,
+.report-doc td:first-child {
+  text-align: left;
+}
+.report-doc thead {
+  display: table-header-group;
+}
+.report-doc th {
+  font-size: 9.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #71717a;
+  font-weight: 600;
+  border-bottom: 1.5px solid #d4d4d8;
+}
+.report-doc td.wrap {
+  white-space: normal;
+}
+.report-doc .pos {
+  color: #047857;
+}
+.report-doc .neg {
+  color: #be123c;
+}
+.report-doc .kpis {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1px;
+  background: #e4e4e7;
+  border: 1px solid #e4e4e7;
+  border-radius: 6px;
+  overflow: hidden;
+  margin: 12px 0;
+}
+.report-doc .kpi {
+  background: #fff;
+  padding: 10px 12px;
+}
+.report-doc .kpi .label {
+  font-size: 9.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #71717a;
+}
+.report-doc .kpi .value {
+  font-size: 16px;
+  font-weight: 700;
+  margin-top: 2px;
+  color: #09090b;
+}
+.report-doc .avoid-break {
+  break-inside: avoid;
+}
+.report-doc .note {
+  border-left: 3px solid #d4d4d8;
+  padding: 4px 0 4px 12px;
+  color: #71717a;
+  font-size: 11px;
+}
+
+@media print {
+  @page {
+    margin: 14mm;
+  }
+  html,
+  body {
+    background: #ffffff !important;
+  }
+  .no-print {
+    display: none !important;
+  }
+  .report-shell {
+    padding: 0;
+    background: #ffffff;
+  }
+  .report-doc {
+    max-width: none;
+    margin: 0;
+    padding: 0;
+    border-radius: 0;
+    box-shadow: none;
+    font-size: 10px;
+  }
+  .report-doc h2 {
+    margin-top: 20px;
+  }
+}
+
+/* Text inputs */
+.field {
+  background: var(--color-panel);
+  border: 1px solid var(--color-edge2);
+  border-radius: 8px;
+  padding: 7px 12px;
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  color: var(--color-ink);
+  outline: none;
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+  width: 100%;
+}
+.field:focus {
+  border-color: rgba(255, 255, 255, 0.35);
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.06);
+}
