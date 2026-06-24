@@ -1,4 +1,4 @@
-import type { AnalystRating, InsiderSignal, Sector } from "@/lib/types";
+import type { AnalystRating, InsiderSignal, Region, Sector } from "@/lib/types";
 
 /** A live quote from the /api/quotes proxy (extended-hours aware). */
 export interface LiveQuote {
@@ -21,14 +21,22 @@ export interface FundamentalsPatch {
   industry?: string;
   marketCap?: number;
   beta?: number;
+  /** Annualized realized volatility, computed from price history. */
+  volatility?: number;
   revenueGrowth?: number;
   epsGrowth?: number;
+  /** Free-cash-flow growth (FMP `financial-growth`, or derived from Yahoo statements). */
+  fcfGrowth?: number;
   forwardPE?: number;
   fcfYield?: number;
   operatingMargin?: number;
   grossMargin?: number;
+  /** Return on invested capital (FMP `key-metrics`, or derived from Yahoo statements). */
+  roic?: number;
   dividendYield?: number;
   return12m?: number;
+  /** Revenue-by-region mix (FMP geographic segmentation), normalized to 1. */
+  regions?: Partial<Record<Region, number>>;
   analyst?: {
     rating?: AnalystRating;
     priceTarget?: number;

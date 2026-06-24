@@ -129,7 +129,100 @@ const RATING: Record<string, AnalystRating> = {
 const num = (v: unknown): number | undefined =>
   typeof v === "number" && Number.isFinite(v) ? v : undefined;
 
-export async function fetchFundamentalsPatch(
+/** Annualized realized volatility from a close series (daily bars → ×√252). */
+export function annualizedVol(closes: number[]): number | undefined {
+  if (closes.length < 20) return undefined;
+  const rets: number[] = [];
+  for (let i = 1; i < closes.length; i++) {
+    if (closes[i - 1] > 0 && closes[i] > 0) rets.push(Math.log(closes[i] / closes[i - 1]));
+  }
+  if (rets.length < 19) return undefined;
+  const mean = rets.reduce((s, r) => s + r, 0) / rets.length;
+  const variance = rets.reduce((s, r) => s + (r - mean) ** 2, 0) / (rets.length - 1);
+  const vol = Math.sqrt(variance) * Math.sqrt(252);
+  return Number.isFinite(vol) && vol > 0 ? vol : undefined;
+}
+
+async function fetchVolatility(symbol: string): Promise<number | undefined> {
+  const series = await fetchHistory(symbol, "1y");
+  if (!series) return undefined;
+  return annualizedVol(series.points.map((p) => p.c));
+}
+
+/** YoY free-cash-flow growth from statements newest-first; FCF = CFO + capex. */
+export function fcfGrowthFromStatements(
+  rows: { cfo?: number; capex?: number }[]
+): number | undefined {
+  if (rows.length < 2) return undefined;
+  const fcf = (r: { cfo?: number; capex?: number }) =>
+    r.cfo !== undefined && r.capex !== undefined ? r.cfo + r.capex : undefined;
+  const cur = fcf(rows[0]);
+  const prev = fcf(rows[1]);
+  if (cur === undefined || prev === undefined || prev === 0) return undefined;
+  const g = (cur - prev) / Math.abs(prev);
+  return Number.isFinite(g) ? g : undefined;
+}
+
+/** ROIC = NOPAT / invested capital, from the latest income + balance sheet. */
+export function roicFrom(p: {
+  ebit?: number;
+  incomeBeforeTax?: number;
+  incomeTaxExpense?: number;
+  equity?: number;
+  debt?: number;
+}): number | undefined {
+  if (p.ebit === undefined || p.equity === undefined) return undefined;
+  const invested = p.equity + (p.debt ?? 0);
+  if (invested <= 0) return undefined;
+  let taxRate = 0.21;
+  if (p.incomeBeforeTax && p.incomeBeforeTax > 0 && p.incomeTaxExpense !== undefined)
+    taxRate = Math.min(0.5, Math.max(0, p.incomeTaxExpense / p.incomeBeforeTax));
+  const nopat = p.ebit * (1 - taxRate);
+  const roic = nopat / invested;
+  return Number.isFinite(roic) ? roic : undefined;
+}
+
+/** Best-effort ROIC / FCF growth from Yahoo's statement modules (separately guarded). */
+async function deriveStatementMetrics(
+  symbol: string
+): Promise<{ roic?: number; fcfGrowth?: number }> {
+  try {
+    const s = await yf.quoteSummary(symbol, {
+      modules: [
+        "cashflowStatementHistory",
+        "incomeStatementHistory",
+        "balanceSheetHistory",
+      ],
+    });
+    const cf = s.cashflowStatementHistory?.cashflowStatements ?? [];
+    const fcfGrowth = fcfGrowthFromStatements(
+      cf.map((r) => {
+        const row = r as unknown as Record<string, unknown>;
+        return {
+          cfo: num(row.totalCashFromOperatingActivities),
+          capex: num(row.capitalExpenditures),
+        };
+      })
+    );
+
+    const inc = (s.incomeStatementHistory?.incomeStatementHistory ?? [])[0] as
+      | unknown as Record<string, unknown> | undefined;
+    const bal = (s.balanceSheetHistory?.balanceSheetStatements ?? [])[0] as
+      | unknown as Record<string, unknown> | undefined;
+    const roic = roicFrom({
+      ebit: num(inc?.ebit) ?? num(inc?.operatingIncome),
+      incomeBeforeTax: num(inc?.incomeBeforeTax),
+      incomeTaxExpense: num(inc?.incomeTaxExpense),
+      equity: num(bal?.totalStockholderEquity),
+      debt: (num(bal?.shortLongTermDebt) ?? 0) + (num(bal?.longTermDebt) ?? 0),
+    });
+    return { roic, fcfGrowth };
+  } catch {
+    return {};
+  }
+}
+
+export async function fetchYahooPatch(
   symbol: string
 ): Promise<FundamentalsPatch | null> {
   const now = Date.now();
@@ -251,8 +344,29 @@ export async function fetchFundamentalsPatch(
     patch = null; // symbol unknown to Yahoo, or API drift — caller falls back
   }
 
+  // Enrich, each independently guarded so a failure never voids the core patch:
+  // realized volatility from price history, plus best-effort ROIC / FCF growth
+  // from the statement modules.
+  if (patch && !isFundType(patch)) {
+    const [vol, stmt] = await Promise.all([
+      fetchVolatility(symbol),
+      deriveStatementMetrics(symbol),
+    ]);
+    if (vol !== undefined) patch.volatility = vol;
+    if (stmt.roic !== undefined) patch.roic = stmt.roic;
+    if (stmt.fcfGrowth !== undefined) patch.fcfGrowth = stmt.fcfGrowth;
+  } else if (patch) {
+    const vol = await fetchVolatility(symbol);
+    if (vol !== undefined) patch.volatility = vol;
+  }
+
   fundCache.set(symbol, { at: now, data: patch });
   return patch;
+}
+
+/** Funds/ETFs have no company statements to derive ROIC / FCF growth from. */
+function isFundType(patch: FundamentalsPatch): boolean {
+  return patch.sector === "Diversified" || patch.industry === "Fund / ETF";
 }
 
 const str = (v: unknown): string | undefined =>

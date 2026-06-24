@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { fetchFundamentalsPatch, sanitizeSymbols } from "@/lib/server/yahoo";
+import { fetchFundamentalsPatch } from "@/lib/server/fundamentals";
+import { sanitizeSymbols } from "@/lib/server/yahoo";
 import type { FundamentalsPatch } from "@/lib/live/types";
 
 export const dynamic = "force-dynamic";

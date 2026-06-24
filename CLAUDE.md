@@ -42,6 +42,11 @@ Carlo, the regime engine and its `mathx` helpers, CSV parsing, fundamentals).
   casual visitors out, not to be hardened auth.
 - `ANTHROPIC_API_KEY` — enables the AI daily brief on the Intelligence page.
   When unset, the brief section degrades gracefully and everything else works.
+- `FMP_API_KEY` — optional Financial Modeling Prep key. When set, fundamentals
+  are enriched with FMP's ROIC, FCF growth and revenue-by-region mix (the fields
+  Yahoo's keyless feed can't cleanly provide). When unset, the app runs on Yahoo
+  alone — see `lib/server/fmp.ts`. Mind the free tier's 250-requests/day budget;
+  enrichment is per-symbol and 12h-cached.
 
 ## Architecture
 
@@ -55,10 +60,15 @@ this before touching anything in `lib/analytics` or `lib/live`:
 2. **Live quotes / fundamentals** — Yahoo Finance (unofficial, keyless) via
    `yahoo-finance2`, proxied through `/api/quotes` and `/api/fundamentals`.
    Live values overlay the snapshot field-by-field where the provider returns
-   them.
+   them. The `/api/fundamentals` orchestrator (`lib/server/fundamentals.ts`)
+   also derives **realized volatility** from price history and **ROIC / FCF
+   growth** from Yahoo's statement modules, and — when `FMP_API_KEY` is set —
+   overrides ROIC, FCF growth and **region mix** with FMP's cleaner values.
 3. **Bundled snapshot** — `lib/data/fundamentals.ts` (~90 tickers + major ETFs)
-   is the offline fallback and fills any field the provider didn't return
-   (ROIC, FCF growth, region mixes, per-name volatility).
+   is the offline fallback and fills any field the providers didn't return.
+   Historically the only source for ROIC, FCF growth, region mixes and per-name
+   volatility; those are now fetched/derived live (tier 2) where available, with
+   the snapshot as backstop.
 
 When the live feed fails, the app silently falls back down the tiers (amber
 status dot in the sidebar). Unknown tickers degrade gracefully: with live data
@@ -97,7 +107,7 @@ Maps as a warm-lambda cache. Provider code (`yahoo-finance2`, Anthropic SDK) is
 | Route | Backed by | Notes |
 | --- | --- | --- |
 | `/api/quotes` | `lib/server/yahoo.ts` | Live prices, 60s CDN cache, `?fresh=1` bypasses caches. Extended-hours aware. |
-| `/api/fundamentals` | `lib/server/yahoo.ts` | Fundamentals patch, 12h cache. |
+| `/api/fundamentals` | `lib/server/fundamentals.ts` (Yahoo + optional FMP) | Fundamentals patch, 12h cache. Adds realized vol, ROIC, FCF growth, region mix. |
 | `/api/history` | `lib/server/yahoo.ts` | Adjusted-close price history for one symbol (`?symbol=&range=1m\|6m\|1y\|5y`), 10min cache. Powers the Research price chart. |
 | `/api/search` | `lib/server/yahoo.ts` | Ticker / company lookup for the Research terminal, 6h cache. Failures return an empty list, never a 5xx. |
 | `/api/market` | `lib/server/marketData.ts` | Market regime report (see below), 5min cache. |

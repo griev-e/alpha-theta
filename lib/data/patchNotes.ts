@@ -8,6 +8,16 @@ export type PatchNote = {
 // Newest first. Add an entry here whenever a notable change ships.
 export const PATCH_NOTES: PatchNote[] = [
   {
+    version: "1.23",
+    date: "2026-06-24",
+    title: "Live fundamentals — volatility, ROIC, FCF growth, region mix",
+    changes: [
+      "The fields that used to come only from the hand-maintained snapshot are now pulled live. Realized volatility is computed from Yahoo price history; ROIC and FCF growth are derived from Yahoo's statement modules; all three overlay the snapshot field-by-field where available.",
+      "Optional Financial Modeling Prep integration: set FMP_API_KEY and ROIC, FCF growth and a real revenue-by-region mix are sourced from FMP — the fields Yahoo's keyless feed can't cleanly provide. With no key, the app runs on Yahoo alone, unchanged. Kept to three calls per symbol and 12h-cached to respect the free tier.",
+      "Groundwork for retiring the static snapshot: fundamentals now flow through a Yahoo + FMP orchestrator (lib/server/fundamentals.ts), with the snapshot demoted to a pure offline backstop.",
+    ],
+  },
+  {
     version: "1.22",
     date: "2026-06-24",
     title: "Discover — risk-aware stock idea engine",
