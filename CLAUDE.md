@@ -111,6 +111,12 @@ Maps as a warm-lambda cache. Provider code (`yahoo-finance2`, Anthropic SDK) is
 `middleware.ts` enforces the PIN gate: pages redirect to `/lock`, APIs return
 401, and `/api/auth` is always allowed through.
 
+`lib/server/cost.ts` has the per-model $/Mtok pricing table and `usdCost()`,
+which turns an Anthropic `usage` object into a USD estimate (cache writes at
+1.25× input, cache reads at 0.1×). `brief.ts` and `optimizer.ts` surface this
+as `costUSD` in their response so the UI can show what each AI call cost.
+When adding a new Anthropic-backed model, add its pricing here too.
+
 ### Analytics modules (`lib/analytics/*`)
 
 All pure, client-side, model-based estimates. Methodology notes live next to the
