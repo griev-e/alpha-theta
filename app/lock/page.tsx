@@ -126,6 +126,9 @@ export default function LockPage() {
           className="font-display text-[22px] font-semibold tracking-[0.22em] text-ink"
         >
           alpha
+          <span className="ml-2 font-mono text-[15px] font-normal tracking-normal text-faint">
+            /ăl′fə/
+          </span>
         </motion.h1>
         <motion.p
           initial={{ opacity: 0, y: 6 }}
@@ -133,6 +136,7 @@ export default function LockPage() {
           transition={{ delay: 0.3 }}
           className="eyebrow mt-2"
         >
+          <span className="italic text-muted">noun</span>{" "}
           a measure of risk-adjusted excess return
         </motion.p>
         {(unlocked || locked || error) && (
