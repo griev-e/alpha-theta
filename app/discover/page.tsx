@@ -3,9 +3,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import Link from "next/link";
+import { Radar } from "@/components/charts/Radar";
+import { AnimatedNumber } from "@/components/ui/AnimatedNumber";
 import { Card } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { Meter } from "@/components/ui/Meter";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { TickerLogo } from "@/components/ui/TickerLogo";
 import {
@@ -20,7 +21,7 @@ import { fmtMultiple, fmtPct } from "@/lib/format";
 import { usePortfolio } from "@/lib/store";
 import type { Sector } from "@/lib/types";
 
-/** Muted dots in the sector menu only — cards stay monochrome. */
+/** Muted dots in the sector menu only — the rest of the page is monochrome + one accent. */
 const SECTOR_COLOR: Record<Sector, string> = {
   Technology: "#6ea8fe",
   "Communication Services": "#b58cff",
@@ -37,9 +38,7 @@ const SECTOR_COLOR: Record<Sector, string> = {
   Unknown: "#8a8f99",
 };
 
-const SECTOR_LABEL: Partial<Record<Sector, string>> = {
-  Diversified: "ETFs & Funds",
-};
+const SECTOR_LABEL: Partial<Record<Sector, string>> = { Diversified: "ETFs & Funds" };
 const sectorLabel = (s: Sector) => SECTOR_LABEL[s] ?? s;
 
 const SECTOR_ORDER: Sector[] = [
@@ -58,7 +57,17 @@ const SECTOR_ORDER: Sector[] = [
   "Unknown",
 ];
 
-/** Score → single accent, used sparingly. */
+/** Sub-score order, shared by the radar axes and the breakdown. */
+const SUB_ORDER: SubScoreId[] = [
+  "fit",
+  "quality",
+  "growth",
+  "value",
+  "momentum",
+  "analyst",
+];
+
+/** Score → single accent. */
 const tierColor = (s: number): string =>
   s >= 62
     ? "var(--color-mint)"
@@ -68,11 +77,17 @@ const tierColor = (s: number): string =>
         ? "var(--color-warn)"
         : "var(--color-neg)";
 
+/** Hex twins of the tier colors, for SVG fills that can't take a CSS var alpha. */
+const tierHex = (s: number): string =>
+  s >= 62 ? "#4ade80" : s >= 52 ? "#6ea8fe" : s >= 44 ? "#fbbf78" : "#f87171";
+
 type Filter = Sector | "all";
 
 export default function DiscoverPage() {
   const { ready, portfolio } = usePortfolio();
   const [filter, setFilter] = useState<Filter>("all");
+  const [selected, setSelected] = useState<string | null>(null);
+  const detailRef = useRef<HTMLDivElement>(null);
 
   const report = useMemo(
     () => (portfolio ? suggestionReport(portfolio) : null),
@@ -90,19 +105,28 @@ export default function DiscoverPage() {
     }));
   }, [report]);
 
-  const display = useMemo(() => {
+  const list = useMemo(() => {
     if (!report) return [];
-    const list =
+    const l =
       filter === "all"
         ? report.suggestions
         : report.suggestions.filter((s) => s.sector === filter);
-    return filter === "all" ? list.slice(0, 13) : list;
+    return filter === "all" ? l.slice(0, 16) : l;
   }, [report, filter]);
 
-  // Optional live overlay: implied upside to the analyst target. Display-only —
-  // the ranking never depends on it, so the page degrades cleanly offline.
+  // Keep the selection valid as the filter changes; default to the top idea.
+  useEffect(() => {
+    if (list.length === 0) return;
+    if (!selected || !list.some((s) => s.symbol === selected)) {
+      setSelected(list[0].symbol);
+    }
+  }, [list, selected]);
+
+  const active = list.find((s) => s.symbol === selected) ?? list[0] ?? null;
+
+  // Optional live overlay: implied upside to the analyst target. Display-only.
   const [prices, setPrices] = useState<Record<string, number>>({});
-  const symbolKey = display.map((s) => s.symbol).sort().join(",");
+  const symbolKey = list.map((s) => s.symbol).sort().join(",");
   useEffect(() => {
     if (!symbolKey) return;
     let cancelled = false;
@@ -123,11 +147,18 @@ export default function DiscoverPage() {
     };
   }, [symbolKey]);
 
+  const pick = (sym: string) => {
+    setSelected(sym);
+    // On stacked (mobile) layouts, bring the detail into view.
+    if (typeof window !== "undefined" && window.innerWidth < 1024) {
+      requestAnimationFrame(() =>
+        detailRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
+      );
+    }
+  };
+
   if (!ready) return null;
   if (!portfolio || !report) return <EmptyState page="The idea engine" />;
-
-  const featured = display[0];
-  const rest = display.slice(1);
 
   return (
     <div>
@@ -142,8 +173,8 @@ export default function DiscoverPage() {
 
       <ContextLine context={report.context} />
 
-      {display.length === 0 ? (
-        <Card className="mt-6 px-8 py-12 text-center" hover={false}>
+      {list.length === 0 || !active ? (
+        <Card className="mt-2 px-8 py-12 text-center" hover={false}>
           <h2 className="font-display text-[15px] font-medium text-ink">
             No ideas in {filter === "all" ? "this view" : sectorLabel(filter)}
           </h2>
@@ -152,17 +183,36 @@ export default function DiscoverPage() {
           </p>
         </Card>
       ) : (
-        <>
-          {featured && (
-            <FeaturedCard key={featured.symbol} s={featured} price={prices[featured.symbol]} />
-          )}
+        <div className="grid gap-4 lg:grid-cols-[minmax(300px,360px)_1fr] lg:items-start">
+          {/* Master: ranked list */}
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+            className="panel overflow-hidden p-1.5 lg:max-h-[calc(100vh-190px)] lg:overflow-y-auto"
+          >
+            <div className="flex items-center justify-between px-2.5 pb-1.5 pt-2">
+              <span className="eyebrow">Ranked ideas</span>
+              <span className="font-mono text-[10px] text-faint">{list.length}</span>
+            </div>
+            <div className="flex flex-col">
+              {list.map((s, i) => (
+                <IdeaRow
+                  key={s.symbol}
+                  s={s}
+                  rank={i + 1}
+                  active={s.symbol === active.symbol}
+                  onClick={() => pick(s.symbol)}
+                />
+              ))}
+            </div>
+          </motion.div>
 
-          <div className="mt-4 grid gap-3 md:grid-cols-2">
-            {rest.map((s, i) => (
-              <SuggestionRow key={s.symbol} s={s} rank={i + 2} i={i} price={prices[s.symbol]} />
-            ))}
+          {/* Detail */}
+          <div ref={detailRef} className="lg:sticky lg:top-20">
+            <DetailPanel s={active} price={prices[active.symbol]} />
           </div>
-        </>
+        </div>
       )}
 
       <p className="mt-8 max-w-2xl text-[11px] leading-relaxed text-faint">
@@ -189,7 +239,7 @@ function ContextLine({ context }: { context: SuggestionContext }) {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.4, delay: 0.05 }}
-      className="mb-5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px] text-mute"
+      className="mb-4 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px] text-mute"
     >
       <span className="text-faint">Tailored to your {context.heldSymbols.length} holdings.</span>
       {gaps.length > 0 && (
@@ -201,6 +251,209 @@ function ContextLine({ context }: { context: SuggestionContext }) {
       )}
     </motion.div>
   );
+}
+
+/* ------------------------------- master row ------------------------------- */
+
+function IdeaRow({
+  s,
+  rank,
+  active,
+  onClick,
+}: {
+  s: Suggestion;
+  rank: number;
+  active: boolean;
+  onClick: () => void;
+}) {
+  const accent = tierColor(s.score);
+  return (
+    <button
+      onClick={onClick}
+      className="relative flex items-center gap-3 rounded-lg px-2.5 py-2.5 text-left transition-colors"
+    >
+      {active && (
+        <motion.span
+          layoutId="discover-active"
+          className="absolute inset-0 rounded-lg bg-white/[0.06] ring-1 ring-inset ring-white/[0.06]"
+          transition={{ type: "spring", stiffness: 520, damping: 40 }}
+        />
+      )}
+      <span
+        className={`relative z-10 w-4 shrink-0 text-center font-mono text-[10.5px] ${
+          active ? "text-mute" : "text-faint"
+        }`}
+      >
+        {rank}
+      </span>
+      <span className="relative z-10">
+        <TickerLogo symbol={s.symbol} accent={accent} size={30} />
+      </span>
+      <span className="relative z-10 min-w-0 flex-1">
+        <span className="block font-mono text-[13px] font-semibold text-ink">{s.symbol}</span>
+        <span className="block truncate text-[10.5px] text-faint">{s.fundamentals.name}</span>
+      </span>
+      <span className="relative z-10 flex shrink-0 items-center gap-2">
+        <span className="h-7 w-1 rounded-full" style={{ background: accent, opacity: active ? 1 : 0.4 }} />
+        <span
+          className="w-7 text-right font-display text-[17px] font-bold leading-none"
+          style={{ color: accent }}
+        >
+          {Math.round(s.score)}
+        </span>
+      </span>
+    </button>
+  );
+}
+
+/* ------------------------------ detail panel ------------------------------ */
+
+function DetailPanel({ s, price }: { s: Suggestion; price?: number }) {
+  const accent = tierColor(s.score);
+  const hex = tierHex(s.score);
+  const up = price && price > 0 && s.priceTarget ? s.priceTarget / price - 1 : null;
+
+  const stats: { label: string; value: string; tone?: string }[] = [
+    { label: "Fwd P/E", value: fmtMultiple(s.fundamentals.forwardPE) },
+    { label: "Rev growth", value: fmtPct(s.fundamentals.revenueGrowth, 0) },
+    { label: "ROIC", value: fmtPct(s.fundamentals.roic, 0) },
+    { label: "Op margin", value: fmtPct(s.fundamentals.operatingMargin, 0) },
+    { label: "Analyst", value: `${s.rating}` },
+    {
+      label: "Implied upside",
+      value: up !== null ? `${up >= 0 ? "+" : ""}${fmtPct(up, 0)}` : "—",
+      tone: up !== null ? (up >= 0 ? "text-pos" : "text-neg") : "text-faint",
+    },
+  ];
+
+  return (
+    <motion.section
+      key={s.symbol}
+      initial={{ opacity: 0, y: 14 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+      className="panel overflow-hidden"
+    >
+      {/* Header band */}
+      <div
+        className="relative px-6 pb-5 pt-6 sm:px-8"
+        style={{
+          background: `radial-gradient(120% 140% at 100% 0%, color-mix(in srgb, ${accent} 9%, transparent), transparent 60%)`,
+        }}
+      >
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex min-w-0 items-center gap-3.5">
+            <TickerLogo symbol={s.symbol} accent={accent} size={46} />
+            <div className="min-w-0">
+              <div className="flex items-center gap-2.5">
+                <span className="font-mono text-[19px] font-semibold text-ink">{s.symbol}</span>
+                <span
+                  className="rounded-full px-2 py-0.5 text-[10px] font-medium"
+                  style={{
+                    background: `color-mix(in srgb, ${accent} 14%, transparent)`,
+                    color: accent,
+                  }}
+                >
+                  {LEAD_TAG[s.lead]}
+                </span>
+              </div>
+              <div className="mt-0.5 truncate text-[12.5px] text-mute">
+                {s.fundamentals.name}
+              </div>
+              <div className="mt-0.5 font-mono text-[10.5px] uppercase tracking-[0.08em] text-faint">
+                {sectorLabel(s.sector)}
+              </div>
+            </div>
+          </div>
+
+          <div className="shrink-0 text-right">
+            <div className="eyebrow">conviction</div>
+            <div
+              className="font-display text-[40px] font-bold leading-none"
+              style={{ color: accent }}
+            >
+              <AnimatedNumber value={s.score} from={0} format={(v) => `${Math.round(v)}`} />
+            </div>
+            <div className="font-mono text-[10px] text-faint">/ 100</div>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid gap-6 px-6 pb-6 sm:px-8 lg:grid-cols-[260px_1fr]">
+        {/* Radar profile vs the market baseline */}
+        <div className="flex flex-col items-center">
+          <Radar
+            size={260}
+            axes={SUB_ORDER.map((id) => SUB_SCORE_LABEL[id])}
+            series={[
+              {
+                id: "market",
+                label: "Market avg",
+                color: "#5b6472",
+                values: SUB_ORDER.map(() => 50),
+                fillOpacity: 0.04,
+              },
+              {
+                id: "cand",
+                label: s.symbol,
+                color: hex,
+                values: SUB_ORDER.map((id) => Math.round(s.subScores[id])),
+                fillOpacity: 0.16,
+              },
+            ]}
+          />
+        </div>
+
+        {/* Why + breakdown + stats */}
+        <div className="min-w-0">
+          <div className="eyebrow mb-2">Why it's on the list</div>
+          <ul className="space-y-2 border-l border-edge pl-4">
+            {s.reasons.map((r, i) => (
+              <motion.li
+                key={i}
+                initial={{ opacity: 0, x: -6 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.25 + i * 0.08, duration: 0.35 }}
+                className="text-[13px] leading-relaxed text-mute"
+              >
+                {r.text}.
+              </motion.li>
+            ))}
+          </ul>
+
+          <div className="mt-5 grid grid-cols-3 gap-x-4 gap-y-3.5">
+            {stats.map((st) => (
+              <div key={st.label}>
+                <div className="font-mono text-[9.5px] uppercase tracking-wide text-faint">
+                  {st.label}
+                </div>
+                <div className={`mt-0.5 font-mono text-[14px] ${st.tone ?? "text-ink"}`}>
+                  {st.value}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-5 flex items-center justify-between gap-3 border-t border-edge pt-4">
+            <span className="font-mono text-[10.5px] text-faint">
+              Mean target {targetText(s.priceTarget)} · {s.fundamentals.analyst.count} analysts
+            </span>
+            <Link
+              href={`/research?symbol=${s.symbol}`}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-edge bg-white/[0.03] px-3 py-1.5 text-[12px] font-medium text-ink transition-colors hover:border-edge2 hover:bg-white/[0.05]"
+            >
+              Open in Research
+              <span aria-hidden>→</span>
+            </Link>
+          </div>
+        </div>
+      </div>
+    </motion.section>
+  );
+}
+
+function targetText(t: number): string {
+  return t >= 1000 ? `$${(t / 1000).toFixed(1)}k` : `$${Math.round(t)}`;
 }
 
 /* ----------------------------- sector select ----------------------------- */
@@ -323,204 +576,5 @@ function SelectRow({
       <span className="flex-1 truncate">{label}</span>
       <span className="font-mono tnum text-[11px] text-faint">{count}</span>
     </button>
-  );
-}
-
-/* ------------------------------- pieces ------------------------------- */
-
-/** Implied upside vs the mean analyst target, when a live price is in hand. */
-function upsideText(price: number | undefined, target: number): string | null {
-  if (!price || price <= 0 || !target) return null;
-  const up = target / price - 1;
-  return `${up >= 0 ? "+" : ""}${fmtPct(up, 0)} to target`;
-}
-
-/** Faint mono stat line: "Health Care · 18× · +12% to target". */
-function StatLine({
-  s,
-  price,
-  className = "",
-}: {
-  s: Suggestion;
-  price?: number;
-  className?: string;
-}) {
-  const up = upsideText(price, s.priceTarget);
-  const parts = [
-    sectorLabel(s.sector),
-    `${fmtMultiple(s.fundamentals.forwardPE)} P/E`,
-    s.rating,
-  ];
-  return (
-    <div className={`flex flex-wrap items-center gap-x-2 font-mono text-[10.5px] text-faint ${className}`}>
-      {parts.map((p, i) => (
-        <span key={i} className="flex items-center gap-2">
-          {i > 0 && <span className="text-edge2">·</span>}
-          {p}
-        </span>
-      ))}
-      {up && (
-        <span className="flex items-center gap-2">
-          <span className="text-edge2">·</span>
-          <span className={up.startsWith("-") ? "text-neg" : "text-pos"}>{up}</span>
-        </span>
-      )}
-    </div>
-  );
-}
-
-const SUB_ORDER: SubScoreId[] = [
-  "fit",
-  "quality",
-  "growth",
-  "value",
-  "momentum",
-  "analyst",
-];
-
-/** The one rich exhibit — reserved for the featured pick. */
-function ScoreBreakdown({ s }: { s: Suggestion }) {
-  return (
-    <div className="grid gap-x-6 gap-y-2.5 sm:grid-cols-2">
-      {SUB_ORDER.map((id, i) => {
-        const v = Math.round(s.subScores[id]);
-        const lead = id === s.lead;
-        return (
-          <div key={id} className="flex items-center gap-3">
-            <span
-              className={`w-16 shrink-0 text-[11px] ${lead ? "text-ink" : "text-mute"}`}
-            >
-              {SUB_SCORE_LABEL[id]}
-            </span>
-            <div className="flex-1">
-              <Meter value={v} max={100} color={tierColor(v)} height={5} delay={0.25 + i * 0.05} />
-            </div>
-            <span className="w-6 shrink-0 text-right font-mono tnum text-[11px] text-mute">
-              {v}
-            </span>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-/* ------------------------------- cards ------------------------------- */
-
-function FeaturedCard({ s, price }: { s: Suggestion; price?: number }) {
-  const accent = tierColor(s.score);
-  return (
-    <Card className="px-6 py-6 sm:px-7" i={0.4} hover={false}>
-      <div className="grid gap-7 lg:grid-cols-[1fr_300px] lg:gap-10">
-        {/* Left: the read */}
-        <div className="min-w-0">
-          <div className="flex items-start gap-3.5">
-            <TickerLogo symbol={s.symbol} accent={accent} size={42} />
-            <div className="min-w-0 flex-1">
-              <div className="flex items-baseline gap-2.5">
-                <span className="font-mono text-[17px] font-semibold text-ink">{s.symbol}</span>
-                <span className="truncate text-[12.5px] text-mute">{s.fundamentals.name}</span>
-              </div>
-              <div className="mt-0.5 flex items-center gap-2">
-                <span
-                  className="text-[10px] font-medium uppercase tracking-[0.1em]"
-                  style={{ color: accent }}
-                >
-                  Top idea · {LEAD_TAG[s.lead]}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-5 space-y-2.5 border-l border-edge pl-4">
-            {s.reasons.slice(0, 2).map((r, i) => (
-              <p key={i} className="text-[13px] leading-relaxed text-mute">
-                {r.text}.
-              </p>
-            ))}
-          </div>
-
-          <StatLine s={s} price={price} className="mt-5" />
-        </div>
-
-        {/* Right: the score + breakdown */}
-        <div className="lg:border-l lg:border-edge lg:pl-9">
-          <div className="flex items-end justify-between">
-            <div>
-              <div className="eyebrow">conviction</div>
-              <div className="flex items-baseline gap-1.5">
-                <span
-                  className="font-display text-[44px] font-bold leading-none"
-                  style={{ color: accent }}
-                >
-                  {Math.round(s.score)}
-                </span>
-                <span className="font-mono text-[12px] text-faint">/100</span>
-              </div>
-            </div>
-            <Link
-              href={`/research?symbol=${s.symbol}`}
-              className="font-mono text-[11px] text-sky transition-colors hover:text-ink"
-            >
-              Research →
-            </Link>
-          </div>
-
-          <div className="mt-5">
-            <ScoreBreakdown s={s} />
-          </div>
-        </div>
-      </div>
-    </Card>
-  );
-}
-
-function SuggestionRow({
-  s,
-  rank,
-  i,
-  price,
-}: {
-  s: Suggestion;
-  rank: number;
-  i: number;
-  price?: number;
-}) {
-  const accent = tierColor(s.score);
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: 0.04 + i * 0.03, duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-    >
-      <Link
-        href={`/research?symbol=${s.symbol}`}
-        className="group flex items-center gap-4 rounded-xl border border-edge bg-white/[0.012] px-4 py-3.5 transition-colors hover:border-edge2 hover:bg-white/[0.025]"
-      >
-        <span className="w-5 shrink-0 text-center font-mono text-[11px] text-faint">{rank}</span>
-        <TickerLogo symbol={s.symbol} accent={accent} size={34} />
-
-        <div className="min-w-0 flex-1">
-          <div className="flex items-baseline gap-2">
-            <span className="font-mono text-[13.5px] font-semibold text-ink">{s.symbol}</span>
-            <span className="truncate text-[11px] text-faint">{s.fundamentals.name}</span>
-          </div>
-          <p className="mt-0.5 truncate text-[12px] text-mute">{s.reasons[0]?.text}</p>
-          <StatLine s={s} price={price} className="mt-1.5" />
-        </div>
-
-        <div className="shrink-0 text-right">
-          <div
-            className="font-display text-[22px] font-bold leading-none"
-            style={{ color: accent }}
-          >
-            {Math.round(s.score)}
-          </div>
-          <div className="mt-0.5 font-mono text-[8.5px] uppercase tracking-wide text-faint">
-            {LEAD_TAG[s.lead].split(" ")[0]}
-          </div>
-        </div>
-      </Link>
-    </motion.div>
   );
 }
