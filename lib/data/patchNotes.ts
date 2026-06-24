@@ -8,6 +8,26 @@ export type PatchNote = {
 // Newest first. Add an entry here whenever a notable change ships.
 export const PATCH_NOTES: PatchNote[] = [
   {
+    version: "1.23",
+    date: "2026-06-24",
+    title: "Discover — AI stock ideas",
+    changes: [
+      "New Discover tab (under Portfolio): AI-generated stock ideas tailored to your book. Six preset research lenses — Diversify, High Growth, Value & Income, Defensive Hedge, Quality Moats, Megatrends — each runs a distinct brief against your holdings.",
+      "Claude reads your portfolio (weights, sectors, valuation, quality, and book-level risk/return metrics), then proposes new names you don't own: a standalone thesis, a 'fits your book' rationale tying it to your gaps, a few approximate metrics, and the key risk — highest conviction first. Each idea is grounded with a live price and a deep-link into Research.",
+      "Runs on Claude Opus 4.8 with adaptive thinking (selecting securities for a specific book is a genuine reasoning task), with the estimated cost shown like the other AI outputs. Cached once per day per lens + portfolio shape; degrades gracefully when ANTHROPIC_API_KEY is unset.",
+    ],
+  },
+  {
+    version: "1.22",
+    date: "2026-06-24",
+    title: "Live fundamentals — volatility, ROIC, FCF growth, region mix",
+    changes: [
+      "The fields that used to come only from the hand-maintained snapshot are now pulled live. Realized volatility is computed from Yahoo price history; ROIC and FCF growth are derived from Yahoo's statement modules; all three overlay the snapshot field-by-field where available.",
+      "Optional Financial Modeling Prep integration: set FMP_API_KEY and ROIC, FCF growth and a real revenue-by-region mix are sourced from FMP — the fields Yahoo's keyless feed can't cleanly provide. With no key, the app runs on Yahoo alone, unchanged. Kept to three calls per symbol and 12h-cached to respect the free tier.",
+      "Groundwork for retiring the static snapshot: fundamentals now flow through a Yahoo + FMP orchestrator (lib/server/fundamentals.ts), with the snapshot demoted to a pure offline backstop.",
+    ],
+  },
+  {
     version: "1.21",
     date: "2026-06-24",
     title: "Analytics audit — math fixes",
