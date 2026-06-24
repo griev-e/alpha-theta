@@ -6,6 +6,12 @@ import { Sigil } from "@/components/shell/AppShell";
 
 const PIN_LENGTH = 4;
 
+// Sigil sizing for crisp scaling. We render the SVG at its largest (unlock)
+// pixel size and scale it DOWN at rest, so the composited layer is never
+// stretched beyond its native resolution. 64px at rest grows to 64 * 2.3.
+const SIGIL_FULL = Math.round(64 * 2.3); // 147 — the unlock size
+const SIGIL_REST = 64 / SIGIL_FULL; // resting scale that renders 64px
+
 export default function LockPage() {
   const [pin, setPin] = useState("");
   const [error, setError] = useState(false);
@@ -97,13 +103,18 @@ export default function LockPage() {
       className="flex min-h-screen flex-col items-center justify-center gap-8 px-6"
       onClick={() => inputRef.current?.focus()}
     >
+      {/* The sigil is rendered at its largest (unlock) size and scaled DOWN via
+          transform at rest. Scaling a GPU layer up rasterizes it at the base
+          size and stretches the texture (blurry); keeping every scale ≤ 1 means
+          the texture is always sampled down, so it stays crisp through the
+          grow-on-unlock. REST is the resting fraction of full size. */}
       <motion.div
         className="relative z-30"
         style={{ willChange: "transform, opacity" }}
-        initial={{ opacity: 0, scale: 0.7 }}
+        initial={{ opacity: 0, scale: 0.7 * SIGIL_REST }}
         animate={{
           opacity: 1,
-          scale: unlocked ? 2.3 : 1,
+          scale: unlocked ? 1 : SIGIL_REST,
           y: unlocked ? -4 : 0,
         }}
         transition={{
@@ -111,11 +122,11 @@ export default function LockPage() {
           ease: unlocked ? [0.16, 1, 0.3, 1] : [0.22, 1, 0.36, 1],
         }}
       >
-        <Sigil size={64} />
+        <Sigil size={SIGIL_FULL} />
       </motion.div>
 
       <motion.div
-        className="relative z-30 text-center"
+        className="relative z-30 text-left"
         animate={{ opacity: unlocked ? 0 : 1, y: unlocked ? -18 : 0 }}
         transition={{ duration: 0.7, ease: [0.4, 0, 1, 1] }}
       >
@@ -123,17 +134,34 @@ export default function LockPage() {
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          className="font-display text-[22px] font-semibold tracking-[0.22em] text-ink"
+          className="text-center text-[26px] font-bold tracking-[0.11em] text-ink"
+          style={{ fontFamily: '"Palatino Linotype", "Book Antiqua", Palatino, serif' }}
         >
           alpha
         </motion.h1>
         <motion.p
           initial={{ opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
-          className="eyebrow mt-2"
+          transition={{ delay: 0.25 }}
+          className="mt-1 font-mono text-[15px] text-faint"
         >
-          a measure of risk-adjusted excess return
+          /ăl′fə/
+        </motion.p>
+        <motion.p
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+          className="eyebrow mt-1 italic text-muted"
+        >
+          noun
+        </motion.p>
+        <motion.p
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.35 }}
+          className="eyebrow mt-1 pl-8 -indent-8"
+        >
+          {"   "}1. a measure of risk-adjusted excess return
         </motion.p>
         {(unlocked || locked || error) && (
           <motion.div
