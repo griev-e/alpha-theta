@@ -8,6 +8,7 @@ import { Card, CardHeader } from "@/components/ui/Card";
 import { deltaToneClass } from "@/components/ui/Delta";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { TickerLogo } from "@/components/ui/TickerLogo";
+import { Tooltip } from "@/components/ui/Tooltip";
 import { factorScores } from "@/lib/analytics/factors";
 import { SPX } from "@/lib/data/benchmarks";
 import {
@@ -876,23 +877,58 @@ function MiniStat({
 
 function ProvenanceBadge({ target }: { target: ResearchTarget }) {
   const hasQuote = target.quote !== null;
-  const isLive = hasQuote || target.live;
+  // Coverage of the *fundamentals* (per-field), independent of the live quote.
+  const coverage = target.fundamentals?.provenance?.coverage ?? "fallback";
+  const fundLive = coverage === "live";
+  // The dot is green only when both the price and the critical fundamentals are
+  // live — anything less is amber so a partial/snapshot read never looks live.
+  const fullyLive = hasQuote && fundLive;
+
   const text = hasQuote
-    ? `Live · ${target.asOf ? relativeTime(target.asOf) : "now"}`
+    ? fundLive
+      ? `Live · ${target.asOf ? relativeTime(target.asOf) : "now"}`
+      : "Live price · snapshot fundamentals"
     : target.live
-      ? "Live fundamentals"
+      ? coverage === "partial"
+        ? "Partial fundamentals"
+        : "Live fundamentals"
       : target.bundled
         ? "Snapshot data"
         : "Limited data";
+
+  const stale =
+    coverage === "live"
+      ? []
+      : (["beta", "volatility", "sector"] as const).filter(
+          (k) => target.fundamentals?.provenance?.fields[k] !== "live"
+        );
+
   return (
-    <div className="mt-2 flex items-center gap-1.5">
-      <span
-        className={`h-1.5 w-1.5 rounded-full ${isLive ? "bg-pos" : "bg-warn"}`}
-      />
-      <span className="font-mono text-[10px] uppercase tracking-wider text-faint">
-        {text}
+    <Tooltip
+      underline={false}
+      maxWidth={240}
+      content={
+        <div className="space-y-1">
+          <div>
+            {fullyLive
+              ? "Price and the risk-critical fundamentals come from a live provider."
+              : "Some values fall back to the bundled snapshot and may be stale."}
+          </div>
+          {stale.length > 0 && (
+            <div className="text-faint">From snapshot: {stale.join(", ")}</div>
+          )}
+        </div>
+      }
+    >
+      <span className="mt-2 inline-flex items-center gap-1.5">
+        <span
+          className={`h-1.5 w-1.5 rounded-full ${fullyLive ? "bg-pos" : "bg-warn"}`}
+        />
+        <span className="font-mono text-[10px] uppercase tracking-wider text-faint">
+          {text}
+        </span>
       </span>
-    </div>
+    </Tooltip>
   );
 }
 

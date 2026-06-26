@@ -1,4 +1,9 @@
-import type { Fundamentals } from "@/lib/types";
+import type {
+  DataCoverage,
+  FieldSource,
+  Fundamentals,
+  FundamentalsProvenance,
+} from "@/lib/types";
 import type { FundamentalsPatch } from "./types";
 
 /**
@@ -6,12 +11,77 @@ import type { FundamentalsPatch } from "./types";
  * where the provider returned a value; the snapshot fills the gaps. Unknown
  * tickers with live data get promoted to full (neutral-defaulted)
  * fundamentals so research/quality/factors light up for them too.
+ *
+ * Every merge also records {@link FundamentalsProvenance}: which fields came
+ * from the live patch vs the snapshot/default, plus a coverage roll-up over the
+ * risk-critical fields. This lets the UI mark stale values explicitly instead
+ * of silently presenting a frozen snapshot as if it were live.
  */
+
+/** Fundamentals fields whose source we track for provenance. */
+const TRACKED: (keyof Fundamentals)[] = [
+  "name",
+  "sector",
+  "industry",
+  "regions",
+  "marketCap",
+  "beta",
+  "volatility",
+  "revenueGrowth",
+  "epsGrowth",
+  "fcfGrowth",
+  "forwardPE",
+  "fcfYield",
+  "operatingMargin",
+  "grossMargin",
+  "roic",
+  "dividendYield",
+  "return12m",
+  "analyst",
+  "insider",
+  "earningsDate",
+  "fund",
+];
+
+/** Fields that drive the risk/correlation math — the roll-up keys off these. */
+const CRITICAL: (keyof Fundamentals)[] = ["beta", "volatility", "sector"];
+
+/** Did the live patch actually supply a value for this fundamentals field? */
+function patchHas(patch: FundamentalsPatch, field: keyof Fundamentals): boolean {
+  // The one field whose patch key differs from the fundamentals key.
+  if (field === "fund") return patch.fundSectorWeights !== undefined;
+  return (patch as unknown as Record<string, unknown>)[field] !== undefined;
+}
+
+/** Build the provenance record for a merge given the (optional) live patch. */
+function buildProvenance(
+  patch: FundamentalsPatch | undefined
+): FundamentalsProvenance {
+  const fields: Partial<Record<keyof Fundamentals, FieldSource>> = {};
+  for (const f of TRACKED) {
+    fields[f] = patch && patchHas(patch, f) ? "live" : "fallback";
+  }
+  const liveCount = CRITICAL.filter((f) => fields[f] === "live").length;
+  const coverage: DataCoverage =
+    liveCount === CRITICAL.length
+      ? "live"
+      : liveCount > 0
+        ? "partial"
+        : "fallback";
+  return { fields, coverage };
+}
+
 export function mergeFundamentals(
   bundled: Fundamentals | null,
   patch: FundamentalsPatch | undefined
 ): Fundamentals | null {
-  if (!patch) return bundled;
+  if (!patch) {
+    // Pure snapshot (or nothing). Tag it as fallback so the UI never mistakes
+    // the frozen snapshot for live data.
+    return bundled
+      ? { ...bundled, provenance: buildProvenance(undefined) }
+      : null;
+  }
   if (!bundled) return fromPatch(patch);
 
   return {
@@ -54,6 +124,7 @@ export function mergeFundamentals(
       ? { sectorWeights: patch.fundSectorWeights }
       : bundled.fund,
     live: true,
+    provenance: buildProvenance(patch),
   };
 }
 
@@ -98,5 +169,6 @@ function fromPatch(patch: FundamentalsPatch): Fundamentals {
       ? { fund: { sectorWeights: patch.fundSectorWeights } }
       : {}),
     live: true,
+    provenance: buildProvenance(patch),
   };
 }

@@ -1,11 +1,32 @@
 import { getFundamentals } from "../data/fundamentals";
 import { mergeFundamentals } from "../live/merge";
 import type { FundamentalsPatch, LiveQuote } from "../live/types";
-import type { Portfolio, Position, RawHolding } from "../types";
+import type {
+  DataCoverage,
+  Fundamentals,
+  Portfolio,
+  Position,
+  RawHolding,
+} from "../types";
 
 export interface LiveInputs {
   quotes?: Record<string, LiveQuote>;
   patches?: Record<string, FundamentalsPatch>;
+}
+
+/**
+ * Roll up a holding's data liveness from its live-price flag and its
+ * fundamentals coverage. `live` only when both the price and the risk-critical
+ * fundamentals are live; `fallback` when neither is.
+ */
+function dataSourceFor(
+  isLivePrice: boolean,
+  fundamentals: Fundamentals | null
+): DataCoverage {
+  const coverage = fundamentals?.provenance?.coverage ?? "fallback";
+  if (isLivePrice && coverage === "live") return "live";
+  if (!isLivePrice && coverage === "fallback") return "fallback";
+  return "partial";
 }
 
 /**
@@ -44,20 +65,22 @@ export function buildPortfolio(
   const positions: Position[] = repriced
     .map((h) => {
       const costBasis = h.shares * h.averageCost;
+      const fundamentals = mergeFundamentals(
+        getFundamentals(h.symbol),
+        live?.patches?.[h.symbol]
+      );
       return {
         ...h,
         weight: totalValue > 0 ? h.equity / totalValue : 0,
         equityWeight: equityValue > 0 ? h.equity / equityValue : 0,
         costBasis,
         returnPct: costBasis > 0 ? h.totalReturn / costBasis : 0,
-        fundamentals: mergeFundamentals(
-          getFundamentals(h.symbol),
-          live?.patches?.[h.symbol]
-        ),
+        fundamentals,
         dayChange:
           h.isLivePrice && h.prevClose !== null
             ? (h.price - h.prevClose) * h.shares
             : null,
+        dataSource: dataSourceFor(h.isLivePrice, fundamentals),
       };
     })
     .sort((a, b) => b.equity - a.equity);

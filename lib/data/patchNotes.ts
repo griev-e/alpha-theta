@@ -8,6 +8,16 @@ export type PatchNote = {
 // Newest first. Add an entry here whenever a notable change ships.
 export const PATCH_NOTES: PatchNote[] = [
   {
+    version: "1.25",
+    date: "2026-06-26",
+    title: "Data provenance — live vs snapshot, made visible",
+    changes: [
+      "Every holding now carries a data-source read-out. As live quotes and fundamentals merge over the bundled snapshot, the app records — field by field — whether each value is live or a snapshot fallback, then rolls that up per holding to Live, Partial, or Snapshot.",
+      "Surfaced in the UI so a frozen value is never silently shown as if it were live: a provenance dot next to every symbol on Overview (hover to see which risk-critical fields fell back to the snapshot), a portfolio-wide coverage summary on the holdings table, and a more honest badge on Research — a partial merge no longer reads as fully 'Live'.",
+      "Foundation for an opt-in live-only mode (coming next) that will render an explicit 'unavailable' state instead of any stale value.",
+    ],
+  },
+  {
     version: "1.24",
     date: "2026-06-26",
     title: "Live capital-market assumptions",
