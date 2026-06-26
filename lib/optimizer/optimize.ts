@@ -1,5 +1,5 @@
 import { covarianceMatrix } from "@/lib/analytics/correlation";
-import { CMA } from "@/lib/data/benchmarks";
+import { getCMA } from "@/lib/live/cma";
 import { UNKNOWN_DEFAULTS } from "@/lib/data/fundamentals";
 import type { Fundamentals, Portfolio } from "@/lib/types";
 import type {
@@ -95,6 +95,7 @@ interface Ctx {
   cov: number[][]; // factor covariance Σ
   cashWeight: number;
   rf: number;
+  erp: number; // equity risk premium
   current: number[]; // current invested weights (sum 1)
 }
 
@@ -257,6 +258,7 @@ function buildCtx(portfolio: Portfolio): Ctx | null {
   if (investedSum <= 0) return null;
 
   const cov = covarianceMatrix(portfolio);
+  const CMA = getCMA();
   const rf = CMA.riskFree;
 
   const mu = ps.map(
@@ -280,6 +282,7 @@ function buildCtx(portfolio: Portfolio): Ctx | null {
     cov,
     cashWeight: portfolio.cashWeight,
     rf,
+    erp: CMA.equityRiskPremium,
     current,
   };
 }
@@ -328,7 +331,7 @@ function metricsFor(w: number[], ctx: Ctx): PortfolioMetrics {
 function ps_beta(total: number[], ctx: Ctx): number {
   let b = 0;
   for (let i = 0; i < total.length; i++) {
-    b += total[i] * ((ctx.mu[i] - ctx.rf) / CMA.equityRiskPremium);
+    b += total[i] * ((ctx.mu[i] - ctx.rf) / ctx.erp);
   }
   return b;
 }

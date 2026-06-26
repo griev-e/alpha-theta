@@ -1,5 +1,5 @@
-import { CMA } from "../data/benchmarks";
 import { UNKNOWN_DEFAULTS } from "../data/fundamentals";
+import { getCMA } from "../live/cma";
 import type { Portfolio, Region, Sector } from "../types";
 import { covarianceMatrix } from "./correlation";
 
@@ -46,6 +46,7 @@ export function riskReport(
   portfolio: Portfolio,
   benchmarkSectors: Partial<Record<Sector, number>>
 ): RiskReport {
+  const CMA = getCMA();
   const ps = portfolio.positions;
   const eqW = ps.map((p) => p.equityWeight);
   const sorted = [...eqW].sort((a, b) => b - a);
