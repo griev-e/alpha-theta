@@ -2,7 +2,7 @@
   <rect width="32" height="32" rx="6" fill="#000000"/>
   <text
     x="16"
-    y="16.5"
+    y="13"
     text-anchor="middle"
     dominant-baseline="central"
     fill="white"

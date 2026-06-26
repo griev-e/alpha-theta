@@ -54,7 +54,7 @@ export function Sigil({ size = 26 }: { size?: number }) {
     <svg width={size} height={size} viewBox="0 0 32 32">
       <text
         x="16"
-        y="16.5"
+        y="12.8"
         textAnchor="middle"
         dominantBaseline="central"
         fill="white"
