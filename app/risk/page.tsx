@@ -9,7 +9,8 @@ import { Meter } from "@/components/ui/Meter";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Stat } from "@/components/ui/Stat";
 import { riskReport } from "@/lib/analytics/risk";
-import { CMA, SPX } from "@/lib/data/benchmarks";
+import { SPX } from "@/lib/data/benchmarks";
+import { getCMA } from "@/lib/live/cma";
 import { fmtNum, fmtPct } from "@/lib/format";
 import { usePortfolio } from "@/lib/store";
 
@@ -22,6 +23,7 @@ const REGION_COLORS: Record<string, string> = {
 
 export default function RiskPage() {
   const { ready, portfolio } = usePortfolio();
+  const CMA = getCMA();
   const risk = useMemo(
     () => (portfolio ? riskReport(portfolio, SPX.sectorWeights) : null),
     [portfolio]

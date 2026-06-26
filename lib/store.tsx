@@ -11,6 +11,7 @@ import {
 } from "react";
 import { buildPortfolio } from "./analytics/build";
 import { parsePortfolioCSV } from "./csv";
+import { primeLiveCMA } from "./live/cma";
 import { useLiveData } from "./live/useLiveData";
 import { SAMPLE_CASH, SAMPLE_CSV } from "./sample";
 import type { Portfolio, RawHolding } from "./types";
@@ -63,6 +64,10 @@ const Ctx = createContext<PortfolioStore | null>(null);
 export function PortfolioProvider({ children }: { children: ReactNode }) {
   const [stored, setStored] = useState<Stored | null>(null);
   const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    primeLiveCMA();
+  }, []);
 
   useEffect(() => {
     try {

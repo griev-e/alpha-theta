@@ -1,4 +1,4 @@
-import { CMA } from "../data/benchmarks";
+import { getCMA } from "../live/cma";
 import { UNKNOWN_DEFAULTS } from "../data/fundamentals";
 import type { Portfolio, Position } from "../types";
 
@@ -103,7 +103,7 @@ function factorsFor(x: CorrInputs): Factor[] {
  */
 export function factorCovariance(inputs: CorrInputs[]): number[][] {
   const n = inputs.length;
-  const sm2 = CMA.marketVolatility ** 2;
+  const sm2 = getCMA().marketVolatility ** 2;
   const factors = inputs.map(factorsFor);
   const factorMaps = factors.map(
     (fs) => new Map(fs.map((f) => [f.key, f.variance]))

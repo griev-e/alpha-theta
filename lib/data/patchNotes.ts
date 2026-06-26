@@ -8,6 +8,15 @@ export type PatchNote = {
 // Newest first. Add an entry here whenever a notable change ships.
 export const PATCH_NOTES: PatchNote[] = [
   {
+    version: "1.24",
+    date: "2026-06-26",
+    title: "Live capital-market assumptions",
+    changes: [
+      "Risk-free rate and market volatility — inputs to expected return, Sharpe, and the optimizer's CAPM math — are now fetched live (13-week T-bill yield and realized S&P 500 volatility) instead of a hand-set constant, refreshed every 6h. Equity risk premium has no observable market quote and stays a static assumption.",
+      "Falls back to the static snapshot in lib/data/benchmarks.ts if the live fetch fails, so risk/optimizer math never breaks when the provider is unavailable.",
+    ],
+  },
+  {
     version: "1.23",
     date: "2026-06-24",
     title: "Discover — AI stock ideas",
