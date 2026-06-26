@@ -6,6 +6,10 @@ import { Donut, PALETTE } from "@/components/charts/Donut";
 import { Treemap } from "@/components/charts/Treemap";
 import { AnimatedNumber } from "@/components/ui/AnimatedNumber";
 import { Card, CardHeader } from "@/components/ui/Card";
+import {
+  DataCoverageSummary,
+  DataSourceDot,
+} from "@/components/ui/DataSourceBadge";
 import { deltaToneClass } from "@/components/ui/Delta";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
@@ -303,6 +307,10 @@ export default function OverviewPage() {
               <span>{portfolio.positions.length} positions</span>
               <span className="text-edge2">·</span>
               <span>{fmtUSDCompact(portfolio.equityValue)} invested</span>
+              <span className="text-edge2">·</span>
+              <DataCoverageSummary
+                sources={portfolio.positions.map((p) => p.dataSource)}
+              />
             </div>
           }
           className="px-6 pt-5 mb-1"
@@ -477,6 +485,7 @@ function HoldingRow({
               <span className="font-mono text-[13px] font-medium text-ink">
                 {p.symbol}
               </span>
+              <DataSourceDot source={p.dataSource} fundamentals={p.fundamentals} />
               {!p.fundamentals && (
                 <span
                   className="rounded border border-warn/30 bg-warn/10 px-1 py-px font-mono text-[8.5px] text-warn"

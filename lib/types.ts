@@ -36,6 +36,29 @@ export type AnalystRating =
 
 export type InsiderSignal = "Buying" | "Neutral" | "Selling";
 
+/** Where a single value came from: a live provider, or the bundled/default fallback. */
+export type FieldSource = "live" | "fallback";
+
+/**
+ * Roll-up of how live a holding's data is:
+ *  - `live`     — every risk-critical field is from a live provider
+ *  - `partial`  — some critical fields are live, some fell back
+ *  - `fallback` — nothing live; running on the bundled snapshot / defaults
+ */
+export type DataCoverage = "live" | "partial" | "fallback";
+
+/**
+ * Per-field provenance for a security's fundamentals, plus a coverage roll-up.
+ * Lets the UI mark stale values explicitly instead of silently presenting the
+ * bundled snapshot as if it were live.
+ */
+export interface FundamentalsProvenance {
+  /** Source of each tracked field. An absent field is treated as `fallback`. */
+  fields: Partial<Record<keyof Fundamentals, FieldSource>>;
+  /** Roll-up over the risk-critical fields (beta, volatility, sector). */
+  coverage: DataCoverage;
+}
+
 /** Fundamental snapshot for a security. Bundled dataset; swappable for a live provider. */
 export interface Fundamentals {
   symbol: string;
@@ -80,6 +103,8 @@ export interface Fundamentals {
   };
   /** True when live provider data has been merged over the snapshot. */
   live?: boolean;
+  /** Per-field source + coverage roll-up. Absent on legacy/test fixtures. */
+  provenance?: FundamentalsProvenance;
 }
 
 /** A holding enriched with weights and fundamentals. */
@@ -94,6 +119,12 @@ export interface Position extends RawHolding {
   prevClose: number | null;
   /** Today's P&L in dollars (live quote vs previous close), null without quotes. */
   dayChange: number | null;
+  /**
+   * Roll-up of data liveness for this holding: combines the live quote
+   * (`isLivePrice`) with the fundamentals coverage. `live` only when both the
+   * price and the risk-critical fundamentals come from a live provider.
+   */
+  dataSource: DataCoverage;
 }
 
 export interface Portfolio {
