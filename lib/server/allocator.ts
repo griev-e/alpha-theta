@@ -16,17 +16,17 @@ const PLAN_TTL = 24 * 3600_000; // memory backstop; the date in the key rolls da
 const CACHE_MAX = 20;
 
 /**
- * Opus 4.8 with adaptive thinking. Unlike the morning brief — a constrained
+ * Sonnet 4.6 with adaptive thinking. Unlike the morning brief — a constrained
  * summarization the cheapest model handles well — capital allocation is a
  * genuine reasoning task: weighing concentration, valuation, quality, momentum
  * and diversification against one another to decide where an incremental dollar
- * does the most good. The most capable model earns its keep here, and adaptive
- * thinking lets it reason before committing to a split. Effort is kept at
- * `medium`: strong reasoning while staying inside the serverless time budget,
- * since the json_schema does the structural heavy lifting.
+ * does the most good. Adaptive thinking lets it reason before committing to a
+ * split, with effort kept at `high` for the deepest reasoning pass the
+ * serverless time budget allows, since the json_schema does the structural
+ * heavy lifting.
  */
-const ALLOCATOR_MODEL = "claude-opus-4-8";
-const ALLOCATOR_EFFORT = "medium" as const;
+const ALLOCATOR_MODEL = "claude-sonnet-4-6";
+const ALLOCATOR_EFFORT = "high" as const;
 
 /**
  * Cost backstop: cap fresh generations (cache misses that hit the API) per warm

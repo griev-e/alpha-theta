@@ -171,8 +171,8 @@ Maps as a warm-lambda cache. Provider code (`yahoo-finance2`, Anthropic SDK) is
 | `/api/dividends` | `lib/server/dividends.ts` | Dividend history/projection. |
 | `/api/brief` | `lib/server/brief.ts` | AI daily brief (Anthropic). POSTs the in-browser portfolio snapshot since holdings never persist server-side. Caches one brief per day per portfolio shape. |
 | `/api/allocate` | `lib/server/allocator.ts` | AI dry-powder allocator for the Rebalance page (Anthropic). POSTs a fundamentals-enriched snapshot; returns a structured cash-deployment plan. Caches one plan per day per portfolio shape. |
-| `/api/optimize` | `lib/server/optimizer.ts` | AI optimizer review for the Optimizer page (Anthropic, Sonnet 4.6). The optimal weights are solved client-side; this POSTs the before/after metrics + largest shifts and returns a structured construction read. Caches one review per day per objective + portfolio shape. |
-| `/api/discover` | `lib/server/discover.ts` | AI stock-idea generator for the Discover page (Anthropic, Opus 4.8). POSTs the portfolio shape + chosen research lens; returns structured candidate ideas. |
+| `/api/optimize` | `lib/server/optimizer.ts` | AI optimizer review for the Optimizer page (Anthropic, Haiku 4.5). The optimal weights are solved client-side; this POSTs the before/after metrics + largest shifts and returns a structured construction read. Caches one review per day per objective + portfolio shape. |
+| `/api/discover` | `lib/server/discover.ts` | AI stock-idea generator for the Discover page (Anthropic, Sonnet 4.6). POSTs the portfolio shape + chosen research lens; returns structured candidate ideas. |
 | `/api/delta-brief` | `lib/server/deltaBrief.ts` | delta's AI daily brief, parallel to `/api/brief` but over the ledger snapshot instead of the portfolio. |
 | `/api/auth/*` | `auth.ts` (NextAuth) | Session, sign-in/out, CSRF. The Credentials provider (username + password, bcrypt) authenticates against the `users` table; the fixed-window limiter in `lib/server/rateLimit.ts` throttles login brute force. Only meaningful when accounts are enabled. |
 | `/api/state` | `lib/db/state.ts` (`lib/server/authState.ts` reads the session) | `GET` returns both saved blobs (alpha portfolio + delta ledger) for the signed-in user; `PUT /api/state/portfolio` and `PUT /api/state/ledger` upsert each independently. 404 when accounts are off, 401 when signed out. |
@@ -304,14 +304,16 @@ with alpha, but otherwise has its own state, shell, and analytics:
 - The AI brief uses Claude Haiku 4.5 (`claude-haiku-4-5`, `lib/server/brief.ts`)
   — the JSON schema does the heavy lifting, so the fastest/cheapest current model
   fits, with thinking disabled for cost control. The dry-powder allocator
-  (`lib/server/allocator.ts`) instead uses Opus 4.8 (`claude-opus-4-8`) with
-  adaptive thinking: allocation is a genuine reasoning task (concentration,
-  valuation, quality, diversification), so it earns the most capable model. The
-  optimizer review (`lib/server/optimizer.ts`) uses Sonnet 4.6
-  (`claude-sonnet-4-6`) with adaptive thinking — the optimal weights are already
-  solved, so the model only reasons about a grounded result; the mid-tier earns
-  its keep. Use the latest Claude models when adding AI features; pick the tier
-  the task needs.
+  (`lib/server/allocator.ts`) and the Discover idea generator
+  (`lib/server/discover.ts`) use Sonnet 4.6 (`claude-sonnet-4-6`) with adaptive
+  thinking at `high` effort: allocation and idea generation are both genuine
+  reasoning tasks (concentration, valuation, quality, diversification), so they
+  earn the deepest reasoning pass. The optimizer review
+  (`lib/server/optimizer.ts`) uses Haiku 4.5 (`claude-haiku-4-5`) with adaptive
+  thinking at `low` effort — the optimal weights are already solved, so the
+  model only reasons about a grounded result; the cheaper tier earns its keep.
+  Use the latest Claude models when adding AI features; pick the tier the task
+  needs.
 - Analytics are **models, not advice** — keep methodology copy honest and
   surfaced (the regime engine, scenarios, and Monte Carlo all expose their
   assumptions in the UI).

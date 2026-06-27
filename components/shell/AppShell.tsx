@@ -6,8 +6,9 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { fmtUSDCompact } from "@/lib/format";
 import { usePortfolio } from "@/lib/store";
+import { useSidebarWidth } from "@/lib/useSidebarWidth";
 import { DeltaProvider } from "@/lib/delta/store";
-import { AccountChip, AppSwitcher, Sigil, SignOutButton } from "./brand";
+import { AccountChip, AppTitle, Sigil, SignOutButton } from "./brand";
 import { DeltaShell } from "./DeltaShell";
 import {
   IconBenchmark,
@@ -245,6 +246,7 @@ function SidebarNav() {
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const { portfolio, isDemo, ready, live, refreshLive } = usePortfolio();
+  const sidebar = useSidebarWidth("alpha.sidebarWidth.v1");
 
   // The entrance reveal from the lock screen is handled outside React, by a
   // render-blocking script + CSS overlay in app/layout.tsx, so it covers the
@@ -279,16 +281,17 @@ export function AppShell({ children }: { children: ReactNode }) {
       : "connecting";
 
   return (
-    <div className="min-h-screen lg:grid lg:grid-cols-[240px_1fr]">
+    <div className="min-h-screen lg:flex">
         {/* Desktop sidebar */}
-      <aside className="hidden lg:flex sticky top-0 h-screen flex-col border-r border-edge bg-[#050505]">
+      <aside
+        className="relative hidden shrink-0 lg:flex sticky top-0 h-screen flex-col border-r border-edge bg-[#050505]"
+        style={{ width: sidebar.width }}
+      >
         <div className="px-3 pb-3 pt-4">
           <div className="flex items-center gap-2.5 px-1">
             <Link href="/" className="flex items-center gap-2.5">
               <Sigil size={24} />
-              <span className="text-[14px] font-medium text-ink">
-                alpha
-              </span>
+              <AppTitle active="alpha" />
             </Link>
             {isDemo && (
               <span className="rounded-full border border-warn/30 bg-warn/10 px-2 py-0.5 text-[10px] font-medium text-warn">
@@ -299,15 +302,21 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
           <div className="mt-3 flex flex-col gap-2">
             <AccountChip className="px-0.5" />
-            <AppSwitcher active="alpha" />
           </div>
         </div>
 
         <SidebarNav />
 
+        {/* Drag handle — adjusts sidebar width, persisted in localStorage. */}
+        <div
+          onMouseDown={sidebar.onMouseDown}
+          className={`absolute right-0 top-0 z-10 h-full w-1.5 -translate-x-1/2 cursor-col-resize ${
+            sidebar.dragging ? "bg-white/15" : "hover:bg-white/10"
+          }`}
+        />
       </aside>
 
-      <div className="min-w-0">
+      <div className="min-w-0 flex-1">
         {/* Desktop top bar */}
         <header className="sticky top-0 z-40 hidden h-12 items-center border-b border-edge bg-black/80 px-6 backdrop-blur-md lg:flex">
           <span className="text-[13px] text-faint">{current?.group ?? "alpha"}</span>
@@ -334,9 +343,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <div className="flex items-center justify-between px-4 py-3">
             <Link href="/" className="flex items-center gap-2.5">
               <Sigil size={22} />
-              <span className="text-[13px] font-medium text-ink">
-                alpha
-              </span>
+              <AppTitle active="alpha" />
             </Link>
             <div className="flex items-center gap-1.5">
               {ready && portfolio && (
@@ -350,9 +357,6 @@ export function AppShell({ children }: { children: ReactNode }) {
               )}
               <SignOutButton />
             </div>
-          </div>
-          <div className="px-3 pb-2">
-            <AppSwitcher active="alpha" />
           </div>
           <div className="flex gap-1 overflow-x-auto px-3 pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {NAV.map((item) => {

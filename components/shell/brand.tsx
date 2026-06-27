@@ -1,6 +1,5 @@
 "use client";
 
-import { motion } from "framer-motion";
 import { signOut } from "next-auth/react";
 import Link from "next/link";
 import { useState } from "react";
@@ -19,13 +18,13 @@ import { useAuth } from "@/components/auth/AuthProvider";
 export type AppKind = "alpha" | "delta";
 
 export const APP_ACCENT: Record<AppKind, string> = {
-  alpha: "var(--color-mint)", // #5eead4
+  alpha: "var(--color-mint)", // #6e180c
   delta: "var(--color-vio)", // #a78bfa
 };
 
 /** Raw hex of each accent, for places that can't take a CSS var (canvas, etc). */
 export const APP_ACCENT_HEX: Record<AppKind, string> = {
-  alpha: "#5eead4",
+  alpha: "#6e180c",
   delta: "#a78bfa",
 };
 
@@ -36,19 +35,27 @@ export const APP_HOME: Record<AppKind, string> = {
 
 export const APP_META: Record<
   AppKind,
-  { glyph: string; name: string; phonetic: string; tagline: string }
+  {
+    glyph: string;
+    name: string;
+    phonetic: string;
+    tagline: string;
+    definition: string;
+  }
 > = {
   alpha: {
     glyph: "α",
     name: "alpha",
     phonetic: "/ăl′fə/",
     tagline: "portfolio analytics",
+    definition: "a measure of risk-adjusted excess return",
   },
   delta: {
     glyph: "Δ",
     name: "delta",
     phonetic: "/dĕl′tə/",
     tagline: "personal finance",
+    definition: "the measurable change in net worth over time",
   },
 };
 
@@ -81,47 +88,31 @@ export function Sigil({ size = 26 }: { size?: number }) {
 }
 
 /**
- * The always-available portal: a compact α ⇄ Δ segmented control. The active
- * app is a filled pill (a shared `layoutId` slides it between the two when you
- * cross over), the other is a quiet link into the sister app.
+ * The app title, doubling as the switcher: the active app's name in `ink`,
+ * the sister app dimmed and lowercase as a quiet link, separated by a " / ".
+ * Replaces the standalone α ⇄ Δ segmented control — the switch lives right
+ * where the title already sits instead of a separate row.
  */
-export function AppSwitcher({ active }: { active: AppKind }) {
+export function AppTitle({ active }: { active: AppKind }) {
   return (
-    <div className="flex items-center gap-0.5 rounded-lg border border-edge bg-white/[0.03] p-0.5">
-      {(["alpha", "delta"] as const).map((kind) => {
+    <div className="flex items-center gap-1.5 text-[14px] font-medium leading-none">
+      {(["alpha", "delta"] as const).map((kind, i) => {
         const on = kind === active;
-        const accent = APP_ACCENT[kind];
         return (
-          <Link
-            key={kind}
-            href={APP_HOME[kind]}
-            aria-label={`Switch to ${kind}`}
-            aria-current={on ? "page" : undefined}
-            className={`relative flex h-7 flex-1 items-center justify-center gap-1.5 rounded-[7px] text-[12px] transition-colors duration-150 ${
-              on ? "text-ink" : "text-faint hover:text-ink"
-            }`}
-          >
-            {on && (
-              <motion.span
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="absolute inset-0 rounded-[7px] bg-white/[0.07]"
-                style={{ boxShadow: `inset 0 0 0 1px color-mix(in srgb, ${accent} 22%, transparent)` }}
-              />
+          <span key={kind} className="flex items-center gap-1.5">
+            {i > 0 && <span className="text-faint">/</span>}
+            {on ? (
+              <span className="text-ink">{kind}</span>
+            ) : (
+              <Link
+                href={APP_HOME[kind]}
+                aria-label={`Switch to ${kind}`}
+                className="text-faint transition-colors hover:text-ink"
+              >
+                {kind}
+              </Link>
             )}
-            <span
-              className="relative z-10 font-serif text-[15px] italic leading-none"
-              style={{
-                fontFamily: "Georgia, 'Times New Roman', serif",
-                color: on ? accent : undefined,
-              }}
-            >
-              {APP_META[kind].glyph}
-            </span>
-            <span className="relative z-10 lowercase tracking-wide">
-              {APP_META[kind].name}
-            </span>
-          </Link>
+          </span>
         );
       })}
     </div>
