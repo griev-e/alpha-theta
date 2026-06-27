@@ -205,13 +205,13 @@ export default function LockPage() {
             </motion.p>
             <motion.p
               animate={{ opacity: unlocked ? 0 : 1 }}
-              className="eyebrow mt-2 w-full max-w-[280px] text-left italic text-mute"
+              className="eyebrow mt-2 italic text-mute"
             >
               noun
             </motion.p>
             <motion.p
               animate={{ opacity: unlocked ? 0 : 1 }}
-              className="eyebrow mt-1 max-w-[280px] pl-8 -indent-8 text-left"
+              className="eyebrow mt-1 max-w-[280px] pl-8 -indent-8 text-center"
             >
               {"   "}1. {APP_META[selected].definition}
             </motion.p>
@@ -387,7 +387,7 @@ function PortalChoice({
         transition={{ type: "spring", stiffness: 300, damping: 22 }}
         style={{ filter: isHot ? `drop-shadow(0 0 28px rgba(${rgb},0.45))` : "none" }}
       >
-        <Mark kind={kind} size={128} />
+        <Mark kind={kind} size={kind === "theta" ? 112 : 128} />
       </motion.div>
 
       <div className="relative text-center">
