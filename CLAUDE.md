@@ -172,8 +172,10 @@ Maps as a warm-lambda cache. Provider code (`yahoo-finance2`, Anthropic SDK) is
 | `/api/brief` | `lib/server/brief.ts` | AI daily brief (Anthropic). POSTs the in-browser portfolio snapshot since holdings never persist server-side. Caches one brief per day per portfolio shape. |
 | `/api/allocate` | `lib/server/allocator.ts` | AI dry-powder allocator for the Rebalance page (Anthropic). POSTs a fundamentals-enriched snapshot; returns a structured cash-deployment plan. Caches one plan per day per portfolio shape. |
 | `/api/optimize` | `lib/server/optimizer.ts` | AI optimizer review for the Optimizer page (Anthropic, Sonnet 4.6). The optimal weights are solved client-side; this POSTs the before/after metrics + largest shifts and returns a structured construction read. Caches one review per day per objective + portfolio shape. |
+| `/api/discover` | `lib/server/discover.ts` | AI stock-idea generator for the Discover page (Anthropic, Opus 4.8). POSTs the portfolio shape + chosen research lens; returns structured candidate ideas. |
+| `/api/delta-brief` | `lib/server/deltaBrief.ts` | delta's AI daily brief, parallel to `/api/brief` but over the ledger snapshot instead of the portfolio. |
 | `/api/auth/*` | `auth.ts` (NextAuth) | Session, sign-in/out, CSRF. The Credentials provider (username + password, bcrypt) authenticates against the `users` table; the fixed-window limiter in `lib/server/rateLimit.ts` throttles login brute force. Only meaningful when accounts are enabled. |
-| `/api/state` | `lib/db/state.ts` | `GET` returns both saved blobs (alpha portfolio + delta ledger) for the signed-in user; `PUT /api/state/portfolio` and `/api/state/ledger` upsert each. 404 when accounts are off, 401 when signed out. |
+| `/api/state` | `lib/db/state.ts` (`lib/server/authState.ts` reads the session) | `GET` returns both saved blobs (alpha portfolio + delta ledger) for the signed-in user; `PUT /api/state/portfolio` and `PUT /api/state/ledger` upsert each independently. 404 when accounts are off, 401 when signed out. |
 
 `middleware.ts` enforces the auth gate **when accounts are on**: pages redirect
 to `/lock`, APIs return 401, and `/api/auth/*` + `/lock` are always allowed.
@@ -217,9 +219,15 @@ confidence, and UI all adapt automatically.
 - `app/*/page.tsx` — one route per nav item. The nav list is defined in
   `components/shell/AppShell.tsx` (`NAV` array, grouped under **Portfolio** /
   **Analysis** / **Simulation** / **Data**) — add routes there. Current items:
-  Overview (`/`), Intelligence, Risk, Research, Dividends, Rebalance; Optimizer,
-  Market Analysis, Quality, Benchmark & Factors, Correlation; Scenarios, Monte
-  Carlo; Export Report (`/report`), Import & Data (`/import`), Patch Notes.
+  Overview (`/`), Intelligence, Risk, Research, Dividends, Rebalance,
+  Discover; Optimizer, Market Analysis, Quality, Benchmark & Factors,
+  Correlation; Scenarios, Monte Carlo; Export Report (`/report`), Import &
+  Data (`/import`), Patch Notes.
+- **Discover** (`/discover`) is an AI stock-idea generator: pick one of six
+  research lenses (diversify / growth / value / defensive / quality /
+  thematic), POSTs the portfolio shape to `/api/discover`
+  (`lib/server/discover.ts`, Claude Opus 4.8), and returns a structured list of
+  candidate ideas with rationale. Types in `lib/discover/types.ts`.
 - **`/report`** renders a print-optimized, full-portfolio dossier and exports it
   via the browser's native `window.print()` (→ Save as PDF). Toolbar/nav chrome
   is hidden with `no-print` classes — there is no PDF library. It recomputes
@@ -241,6 +249,41 @@ confidence, and UI all adapt automatically.
   further: `lib/analytics/useMonteCarlo.ts` runs the sim in a Web Worker
   (`montecarlo.worker.ts`) to keep the main thread free, falling back to
   synchronous compute when Workers are unavailable.
+
+### delta — the sister personal-finance app (`app/delta/*`)
+
+delta is a separate personal-finance terminal living in the same Next.js app,
+behind its own routes (`/delta`, `/delta/networth`, `/delta/intelligence`,
+`/delta/accounts`, `/delta/transactions`, `/delta/cashflow`, `/delta/budgets`,
+`/delta/goals`, `/delta/recurring`, `/delta/import`, `/delta/settings`). It
+shares the project, the optional accounts/auth layer, and `components/ui/*`
+with alpha, but otherwise has its own state, shell, and analytics:
+
+- **State** — `lib/delta/store.tsx` (`DeltaProvider`/`useDelta`) mirrors
+  `lib/store.tsx`'s pattern exactly: localStorage (key `delta.ledger.v1`,
+  plus a `delta.isSample.v1` flag for the bundled sample ledger) by default,
+  or server-backed via `lib/persist.ts` when accounts are enabled.
+- **Domain types & derivation** — `lib/delta/data.ts` defines `Account`,
+  `Transaction`, `Budget`, `Category`, `Goal`, `Recurring`, `Ledger`, plus
+  `EMPTY_LEDGER`/`SAMPLE_LEDGER`. `lib/delta/compute.ts` (`deriveDelta`,
+  `advanceRecurring`) is delta's analogue to `buildPortfolio` — the pure
+  derivation layer most pages consume. `lib/delta/csv.ts` handles transaction
+  CSV import. `lib/delta/intelligence.ts` builds the `DeltaSnapshot`/
+  `DeltaBrief` consumed by `/api/delta-brief`.
+- **Shell & nav** — `components/shell/DeltaShell.tsx` (own icon set in
+  `components/shell/deltaIcons.tsx`) replaces `AppShell` entirely for
+  `/delta/*` routes: `AppShell.tsx` detects the `/delta` path prefix, wraps
+  the tree in `DeltaProvider`, and renders `DeltaShell` instead of its own
+  chrome. delta's nav groups Overview (Dashboard, Net Worth, Intelligence),
+  Money (Accounts, Transactions, Cash Flow), Planning (Budgets, Goals,
+  Recurring), System (Import & Data, Settings) — add new delta routes there,
+  not to alpha's `NAV` array.
+- **Components** — delta-only UI lives in `components/delta/*`
+  (`EditableMoney.tsx`, `modals.tsx`, `bits.tsx`, `ui.tsx`); shared primitives
+  still come from `components/ui/*`.
+- `app/delta/layout.tsx` overrides the root metadata (title "delta", its own
+  favicon at `app/delta/icon.svg`) so the two apps feel distinct even though
+  they're one deployment.
 
 ## Conventions
 
