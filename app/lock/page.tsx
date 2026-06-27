@@ -187,14 +187,6 @@ export default function LockPage() {
               transition={{ duration: unlocked ? 1.2 : 0.6, ease: [0.16, 1, 0.3, 1] }}
               style={{ filter: `drop-shadow(0 0 26px rgba(${accent},0.4))` }}
             >
-              {/* idle radar pulse — a slow ring breathing outward while the form waits */}
-              <motion.div
-                aria-hidden
-                className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full"
-                style={{ width: 96, height: 96, border: `1px solid rgba(${accent},0.35)` }}
-                animate={unlocked ? { opacity: 0 } : { scale: [1, 1.6, 1.6], opacity: [0.5, 0, 0] }}
-                transition={unlocked ? { duration: 0.3 } : { duration: 2.6, repeat: Infinity, ease: "easeOut" }}
-              />
               <Mark kind={selected} size={96} />
             </motion.div>
 
@@ -387,15 +379,6 @@ function PortalChoice({
         style={{ background: `radial-gradient(circle, rgba(${rgb},0.22), transparent 70%)` }}
         animate={{ opacity: isHot ? 1 : 0, scale: isHot ? 1 : 0.6 }}
         transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-      />
-
-      {/* idle ping — a faint ring breathing outward from the glyph, staggered per side */}
-      <motion.div
-        aria-hidden
-        className="pointer-events-none absolute top-[28%] h-32 w-32 rounded-full"
-        style={{ border: `1px solid rgba(${rgb},0.3)` }}
-        animate={{ opacity: isHot ? 0 : [0, 0.4, 0], scale: isHot ? 1 : [1, 1.7, 1.7] }}
-        transition={{ duration: 3.2, repeat: Infinity, ease: "easeOut", delay: kind === "theta" ? 1.4 : 0 }}
       />
 
       <motion.div
