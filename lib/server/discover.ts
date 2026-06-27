@@ -13,15 +13,15 @@ import {
  * new names to add that fit both the directive and this specific book. Like the
  * allocator, selecting securities for a particular portfolio is a genuine
  * reasoning task — concentration, factor tilts, valuation, risk balance — so it
- * runs on the most capable model with adaptive thinking. One generation per day
- * per (mode + portfolio shape), cached in module scope.
+ * runs with adaptive thinking at high effort for the deepest reasoning pass.
+ * One generation per day per (mode + portfolio shape), cached in module scope.
  */
 const planCache = new Map<string, { at: number; data: DiscoverResponse }>();
 const PLAN_TTL = 24 * 3600_000;
 const CACHE_MAX = 40;
 
-const DISCOVER_MODEL = "claude-opus-4-8";
-const DISCOVER_EFFORT = "medium" as const;
+const DISCOVER_MODEL = "claude-sonnet-4-6";
+const DISCOVER_EFFORT = "high" as const;
 
 const GEN_WINDOW_MS = 3600_000;
 const GEN_MAX = 25;

@@ -20,19 +20,16 @@ const PLAN_TTL = 24 * 3600_000; // memory backstop; the date in the key rolls da
 const CACHE_MAX = 24;
 
 /**
- * Claude Sonnet 4.6 with adaptive thinking. Reviewing an optimization — judging
- * whether the math's tradeoffs are worth taking for this specific book — is a
- * genuine reasoning task, but it's narrower and more grounded than the
- * dry-powder allocator's blank-slate sizing (the optimal weights are already
- * computed). Sonnet 4.6 is the right tier: strong reasoning at a third of Opus's
- * cost, with adaptive thinking to reason through the tradeoffs before committing.
- * Effort is `low`: `medium` and `high` both routinely ran past the deadline
- * (504s at the platform edge, observed in production) before reaching the JSON
- * write. The schema does the structural heavy lifting and the task is grounded
- * in a solution that's already computed, so `low` is enough reasoning headroom
- * while keeping the call inside the ~30s latency target.
+ * Claude Haiku 4.5 with adaptive thinking. Reviewing an optimization — judging
+ * whether the math's tradeoffs are worth taking for this specific book — is
+ * narrower and more grounded than the dry-powder allocator's blank-slate sizing
+ * (the optimal weights are already computed): the schema does the structural
+ * heavy lifting, and thinking lets the model reason through the tradeoffs
+ * before committing. Effort is `low`: `medium` and `high` both routinely ran
+ * past the deadline (504s at the platform edge, observed in production) before
+ * reaching the JSON write.
  */
-const OPTIMIZER_MODEL = "claude-sonnet-4-6";
+const OPTIMIZER_MODEL = "claude-haiku-4-5";
 const OPTIMIZER_EFFORT = "low" as const;
 
 /**

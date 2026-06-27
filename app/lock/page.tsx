@@ -11,7 +11,7 @@ const SERIF = '"Palatino Linotype", "Book Antiqua", Palatino, serif';
 // Signature accent (raw RGB) per app — mint for alpha, iris for delta. Drives
 // the hover bloom, the field theming and the unlock choreography tint.
 const ACCENT_RGB: Record<AppKind, string> = {
-  alpha: "94,234,212",
+  alpha: "110,24,12",
   delta: "167,139,250",
 };
 
@@ -203,18 +203,37 @@ export default function LockPage() {
             >
               {APP_META[selected].phonetic}
             </motion.p>
+            <motion.p
+              animate={{ opacity: unlocked ? 0 : 1 }}
+              className="eyebrow mt-2 italic text-mute"
+            >
+              noun
+            </motion.p>
+            <motion.p
+              animate={{ opacity: unlocked ? 0 : 1 }}
+              className="eyebrow mt-1 max-w-[280px] pl-8 -indent-8 text-center"
+            >
+              {"   "}1. {APP_META[selected].definition}
+            </motion.p>
 
             <motion.form
               onSubmit={submit}
               animate={{ opacity: unlocked ? 0 : 1, y: unlocked ? -10 : 0 }}
               transition={{ duration: 0.5 }}
-              className="mt-7 flex w-full flex-col gap-2.5"
+              className="mt-7 flex w-full flex-col items-center gap-2.5"
               style={{ ["--accent" as string]: `rgba(${accent},0.6)` }}
             >
               <input
                 ref={userRef}
                 type="text"
-                autoComplete="username"
+                name="login-user"
+                autoComplete="off"
+                autoCorrect="off"
+                autoCapitalize="off"
+                spellCheck={false}
+                data-lpignore="true"
+                data-1p-ignore="true"
+                data-bwignore="true"
                 placeholder="username"
                 value={username}
                 disabled={unlocked}
@@ -222,12 +241,19 @@ export default function LockPage() {
                   if (error) setError("");
                   setUsername(e.target.value);
                 }}
-                className="h-12 w-full rounded-xl border border-edge bg-[var(--color-panel)] px-4 text-[15px] text-ink outline-none transition-colors placeholder:text-faint focus:border-[var(--accent)]"
+                className="h-9 w-full max-w-[220px] rounded-lg border border-edge bg-[var(--color-panel)] px-3 text-[13px] text-ink outline-none transition-colors placeholder:text-faint focus:border-[var(--accent)]"
                 aria-label="Username"
               />
               <input
                 type="password"
-                autoComplete="current-password"
+                name="login-pass"
+                autoComplete="new-password"
+                autoCorrect="off"
+                autoCapitalize="off"
+                spellCheck={false}
+                data-lpignore="true"
+                data-1p-ignore="true"
+                data-bwignore="true"
                 placeholder="password"
                 value={password}
                 disabled={unlocked}
@@ -235,30 +261,33 @@ export default function LockPage() {
                   if (error) setError("");
                   setPassword(e.target.value);
                 }}
-                className="h-12 w-full rounded-xl border border-edge bg-[var(--color-panel)] px-4 text-[15px] text-ink outline-none transition-colors placeholder:text-faint focus:border-[var(--accent)]"
+                className="h-9 w-full max-w-[220px] rounded-lg border border-edge bg-[var(--color-panel)] px-3 text-[13px] text-ink outline-none transition-colors placeholder:text-faint focus:border-[var(--accent)]"
                 aria-label="Password"
               />
               <button
                 type="submit"
                 disabled={checking || unlocked}
-                className="mt-1 flex h-12 items-center justify-center rounded-xl text-[14px] font-medium transition-opacity disabled:opacity-50"
+                className="mt-1 flex h-9 w-[100px] items-center justify-center rounded-lg text-[13px] font-medium lowercase transition-opacity disabled:opacity-50"
                 style={{
                   background: `rgba(${accent},0.12)`,
                   color: `rgb(${accent})`,
                   boxShadow: `inset 0 0 0 1px rgba(${accent},0.4)`,
                 }}
               >
-                {checking ? "Verifying…" : `Enter ${APP_META[selected].name}`}
+                {checking ? "verifying…" : "enter"}
               </button>
             </motion.form>
 
-            <motion.p
-              animate={{ opacity: unlocked ? 0 : 1 }}
-              className="mt-4 h-4 font-mono text-[12px]"
-              style={{ color: error ? "var(--color-neg)" : "var(--color-faint)" }}
-            >
-              {error || "Sign in to your account"}
-            </motion.p>
+            {error && (
+              <motion.p
+                initial={{ opacity: 0 }}
+                animate={{ opacity: unlocked ? 0 : 1 }}
+                className="mt-4 h-4 font-mono text-[12px]"
+                style={{ color: "var(--color-neg)" }}
+              >
+                {error}
+              </motion.p>
+            )}
           </motion.div>
         )}
       </AnimatePresence>

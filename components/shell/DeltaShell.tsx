@@ -5,7 +5,8 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useDelta } from "@/lib/delta/store";
-import { AccountChip, AppSwitcher, Mark, SignOutButton } from "./brand";
+import { useSidebarWidth } from "@/lib/useSidebarWidth";
+import { AccountChip, AppTitle, Mark, SignOutButton } from "./brand";
 import { IconImport, IconIntelligence } from "./icons";
 import {
   IconAccounts,
@@ -194,29 +195,40 @@ export function DeltaShell({ children }: { children: ReactNode }) {
   const { isSample, ready } = useDelta();
   const current = NAV.find((n) => n.href === pathname);
   const showSample = ready && isSample;
+  const sidebar = useSidebarWidth("delta.sidebarWidth.v1");
 
   return (
-    <div className="min-h-screen lg:grid lg:grid-cols-[240px_1fr]">
+    <div className="min-h-screen lg:flex">
       {/* Desktop sidebar */}
-      <aside className="hidden lg:flex sticky top-0 h-screen flex-col border-r border-edge bg-[#050505]">
+      <aside
+        className="relative hidden shrink-0 lg:flex sticky top-0 h-screen flex-col border-r border-edge bg-[#050505]"
+        style={{ width: sidebar.width }}
+      >
         <div className="px-3 pb-3 pt-4">
           <div className="flex items-center gap-2.5 px-1">
             <Link href="/delta" className="flex items-center gap-2.5">
               <Mark kind="delta" size={24} />
-              <span className="text-[14px] font-medium text-ink">delta</span>
+              <AppTitle active="delta" />
             </Link>
             <SignOutButton className="ml-auto" />
           </div>
           <div className="mt-3 flex flex-col gap-2">
             <AccountChip className="px-0.5" />
-            <AppSwitcher active="delta" />
           </div>
         </div>
 
         <SidebarNav />
+
+        {/* Drag handle — adjusts sidebar width, persisted in localStorage. */}
+        <div
+          onMouseDown={sidebar.onMouseDown}
+          className={`absolute right-0 top-0 z-10 h-full w-1.5 -translate-x-1/2 cursor-col-resize ${
+            sidebar.dragging ? "bg-white/15" : "hover:bg-white/10"
+          }`}
+        />
       </aside>
 
-      <div className="min-w-0">
+      <div className="min-w-0 flex-1">
         {/* Desktop top bar */}
         <header className="sticky top-0 z-40 hidden h-12 items-center border-b border-edge bg-black/80 px-6 backdrop-blur-md lg:flex">
           <span className="text-[13px] text-faint">{current?.group ?? "delta"}</span>
@@ -231,15 +243,12 @@ export function DeltaShell({ children }: { children: ReactNode }) {
           <div className="flex items-center justify-between px-4 py-3">
             <Link href="/delta" className="flex items-center gap-2.5">
               <Mark kind="delta" size={22} />
-              <span className="text-[13px] font-medium text-ink">delta</span>
+              <AppTitle active="delta" />
             </Link>
             <div className="flex items-center gap-2.5">
               {showSample && <DemoTag />}
               <SignOutButton />
             </div>
-          </div>
-          <div className="px-3 pb-2">
-            <AppSwitcher active="delta" />
           </div>
           <div className="flex gap-1 overflow-x-auto px-3 pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {NAV.map((item) => {
