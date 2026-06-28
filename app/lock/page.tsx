@@ -381,8 +381,11 @@ function PortalChoice({
         transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
       />
 
+      {/* Fixed-height box for both glyphs so the name/tagline/enter below line
+          up across the two sides — theta's mark stays optically a hair smaller
+          but no longer rides higher than alpha's. */}
       <m.div
-        className="relative"
+        className="relative flex h-32 items-center justify-center"
         animate={{ scale: isHot ? 1.08 : 1, y: isHot ? -4 : 0 }}
         transition={{ type: "spring", stiffness: 300, damping: 22 }}
         style={{ filter: isHot ? `drop-shadow(0 0 28px rgba(${rgb},0.45))` : "none" }}
