@@ -166,6 +166,7 @@ Maps as a warm-lambda cache. Provider code (`yahoo-finance2`, Anthropic SDK) is
 | `/api/fundamentals` | `lib/server/fundamentals.ts` (Yahoo + optional FMP) | Fundamentals patch, 12h cache. Adds realized vol, ROIC, FCF growth, region mix. |
 | `/api/history` | `lib/server/yahoo.ts` | Adjusted-close price history for one symbol (`?symbol=&range=1m\|6m\|1y\|5y`), 10min cache. Powers the Research price chart. |
 | `/api/search` | `lib/server/yahoo.ts` | Ticker / company lookup for the Research terminal, 6h cache. Failures return an empty list, never a 5xx. |
+| `/api/cma` | `lib/server/cma.ts` | Capital-market assumptions (risk-free rate, benchmark vols), 6h cache. Overlays live market data onto static forward assumptions. |
 | `/api/market` | `lib/server/marketData.ts` | Market regime report (see below), 5min cache. |
 | `/api/news` | `lib/server/news.ts` | Headlines for the Intelligence page. |
 | `/api/dividends` | `lib/server/dividends.ts` | Dividend history/projection. |
@@ -226,7 +227,7 @@ confidence, and UI all adapt automatically.
 - **Discover** (`/discover`) is an AI stock-idea generator: pick one of six
   research lenses (diversify / growth / value / defensive / quality /
   thematic), POSTs the portfolio shape to `/api/discover`
-  (`lib/server/discover.ts`, Claude Opus 4.8), and returns a structured list of
+  (`lib/server/discover.ts`, Claude Sonnet 4.6), and returns a structured list of
   candidate ideas with rationale. Types in `lib/discover/types.ts`.
 - **`/report`** renders a print-optimized, full-portfolio dossier and exports it
   via the browser's native `window.print()` (→ Save as PDF). Toolbar/nav chrome
