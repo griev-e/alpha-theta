@@ -17,17 +17,6 @@ import { useAuth } from "@/components/auth/AuthProvider";
 
 export type AppKind = "alpha" | "theta";
 
-export const APP_ACCENT: Record<AppKind, string> = {
-  alpha: "var(--color-mint)", // #b02b0a
-  theta: "var(--color-vio)", // #a78bfa
-};
-
-/** Raw hex of each accent, for places that can't take a CSS var (canvas, etc). */
-export const APP_ACCENT_HEX: Record<AppKind, string> = {
-  alpha: "#b02b0a",
-  theta: "#a78bfa",
-};
-
 export const APP_HOME: Record<AppKind, string> = {
   alpha: "/",
   theta: "/theta",
