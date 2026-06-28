@@ -92,4 +92,39 @@ describe("mergeFundamentals provenance", () => {
     expect(merged!.provenance?.fields.roic).toBe("fallback");
     expect(merged!.live).toBe(true);
   });
+
+  it("overlays a partial insider patch field-by-field over the bundle", () => {
+    const merged = mergeFundamentals(
+      bundled,
+      patch({ insider: { signal: "Buying", buys6m: 12 } })
+    );
+    // Supplied fields win…
+    expect(merged!.insider.signal).toBe("Buying");
+    expect(merged!.insider.buys6m).toBe(12);
+    // …omitted ones fall back to the bundle.
+    expect(merged!.insider.netActivity6m).toBe(bundled.insider.netActivity6m);
+    expect(merged!.insider.sells6m).toBe(bundled.insider.sells6m);
+    expect(merged!.provenance?.fields.insider).toBe("live");
+  });
+
+  it("keeps the bundled insider block when the patch omits it", () => {
+    const merged = mergeFundamentals(bundled, patch({ beta: 1.3 }));
+    expect(merged!.insider).toEqual(bundled.insider);
+    expect(merged!.provenance?.fields.insider).toBe("fallback");
+  });
+
+  it("attaches fund sector weights when promoting an unknown ETF from a patch", () => {
+    const merged = mergeFundamentals(
+      null,
+      patch({ symbol: "XYZ", fundSectorWeights: { Technology: 0.6, Financials: 0.4 } })
+    );
+    expect(merged!.fund?.sectorWeights).toEqual({ Technology: 0.6, Financials: 0.4 });
+    expect(merged!.provenance?.fields.fund).toBe("live");
+  });
+
+  it("leaves an unknown non-fund ticker without a fund block", () => {
+    const merged = mergeFundamentals(null, patch({ symbol: "XYZ", beta: 1.1 }));
+    expect(merged!.fund).toBeUndefined();
+    expect(merged!.provenance?.fields.fund).toBe("fallback");
+  });
 });
