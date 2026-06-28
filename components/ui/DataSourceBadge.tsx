@@ -86,27 +86,6 @@ export function DataSourceDot({
   );
 }
 
-/** A labelled provenance chip (dot + text). Used where there's room for a word. */
-export function DataSourceChip({
-  source,
-  fundamentals,
-}: {
-  source: DataCoverage;
-  fundamentals?: Fundamentals | null;
-}) {
-  const m = META[source];
-  return (
-    <Tooltip content={tooltipContent(source, fundamentals)} underline={false} maxWidth={240}>
-      <span
-        className={`inline-flex items-center gap-1.5 rounded border border-edge px-1.5 py-px font-mono text-[10px] ${m.text}`}
-      >
-        <span className={`inline-block h-[6px] w-[6px] rounded-full ${m.dot}`} />
-        {m.label}
-      </span>
-    </Tooltip>
-  );
-}
-
 /**
  * Inline legend summarizing data liveness across a set of holdings, e.g.
  * "● 12 live · ● 3 snapshot". Buckets with zero count are omitted.

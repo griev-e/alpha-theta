@@ -24,6 +24,27 @@ export interface LiveData {
 const QUOTE_POLL_MS = 60_000;
 
 /**
+ * True when two quote maps carry the same prices — i.e. nothing worth a
+ * re-render moved. Compares the meaningful fields (price, prevClose) field by
+ * field; the per-quote `asOf` is intentionally ignored (the top-level
+ * `quotesAt` still refreshes every poll) so an unchanged tape doesn't churn
+ * the portfolio build.
+ */
+function quotesUnchanged(
+  a: Record<string, LiveQuote>,
+  b: Record<string, LiveQuote>
+): boolean {
+  const ak = Object.keys(a);
+  if (ak.length !== Object.keys(b).length) return false;
+  for (const k of ak) {
+    const x = a[k];
+    const y = b[k];
+    if (!y || x.price !== y.price || x.prevClose !== y.prevClose) return false;
+  }
+  return true;
+}
+
+/**
  * Polls live quotes (60s, only while the tab is visible) and fetches the
  * fundamentals overlay once per symbol set. Failures degrade silently to
  * imported prices and the bundled snapshot. `refresh()` is the manual
@@ -54,12 +75,9 @@ export function useLiveData(symbols: string[]): LiveData {
         if (keyRef.current !== key) return; // symbol set changed mid-flight
         // Skip the state update when prices haven't moved (common after
         // hours) — avoids rebuilding the portfolio and re-running
-        // animations on every poll.
-        setQuotes((prev) =>
-          JSON.stringify(prev) === JSON.stringify(data.quotes)
-            ? prev
-            : data.quotes
-        );
+        // animations on every poll. Compare the meaningful fields directly
+        // instead of serializing both maps on every poll.
+        setQuotes((prev) => (quotesUnchanged(prev, data.quotes) ? prev : data.quotes));
         setQuotesAt(data.asOf);
         setDegraded(false);
       } catch {

@@ -29,13 +29,14 @@ export interface ResearchTarget {
 const QUOTE_POLL_MS = 60_000;
 
 function emptyTarget(symbol: string | null): ResearchTarget {
+  const fund = symbol ? getFundamentals(symbol) : null;
   return {
     symbol,
     loading: symbol !== null,
     notFound: false,
     quote: null,
-    fundamentals: symbol ? getFundamentals(symbol) : null,
-    bundled: symbol ? getFundamentals(symbol) !== null : false,
+    fundamentals: fund,
+    bundled: fund !== null,
     live: false,
     asOf: null,
   };

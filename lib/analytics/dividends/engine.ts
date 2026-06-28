@@ -96,12 +96,11 @@ function payFrequency(events: DividendEvent[]): PayFrequency {
         86_400_000
     );
   }
-  gaps.sort((a, b) => a - b);
-  const median = gaps[Math.floor(gaps.length / 2)];
-  if (median <= 45) return "monthly";
-  if (median <= 115) return "quarterly";
-  if (median <= 220) return "semiannual";
-  if (median <= 420) return "annual";
+  const gap = median(gaps);
+  if (gap <= 45) return "monthly";
+  if (gap <= 115) return "quarterly";
+  if (gap <= 220) return "semiannual";
+  if (gap <= 420) return "annual";
   return "irregular";
 }
 

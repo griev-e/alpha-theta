@@ -19,7 +19,9 @@ const quoteCache = new Map<string, { at: number; data: LiveQuote }>();
 const fundCache = new Map<string, { at: number; data: FundamentalsPatch | null }>();
 const searchCache = new Map<string, { at: number; data: SymbolHit[] }>();
 const historyCache = new Map<string, { at: number; data: HistorySeries | null }>();
-const QUOTE_TTL = 55_000;
+// Slightly longer than the client's 60s poll (lib/live/useLiveData.ts) so the
+// steady-state poll can hit this warm-lambda cache instead of always missing.
+const QUOTE_TTL = 65_000;
 const FUND_TTL = 12 * 3600_000;
 const SEARCH_TTL = 6 * 3600_000;
 const HISTORY_TTL = 10 * 60_000;
