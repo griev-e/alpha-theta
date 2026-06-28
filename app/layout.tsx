@@ -11,8 +11,6 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "alpha | theta",
-  description:
-    "Institutional-grade personal portfolio analytics: risk, quality, factors, scenarios, and Monte Carlo simulation.",
 };
 
 export default function RootLayout({
