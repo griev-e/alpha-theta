@@ -2,12 +2,12 @@
   <rect width="32" height="32" rx="6" fill="#000000"/>
   <text
     x="16"
-    y="13.5"
+    y="19.2"
     text-anchor="middle"
-    dominant-baseline="central"
+    dominant-baseline="middle"
     fill="white"
     font-family="Georgia, 'Times New Roman', serif"
     font-style="italic"
-    font-size="20"
+    font-size="22"
   >θ</text>
 </svg>

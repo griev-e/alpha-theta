@@ -10,9 +10,7 @@ import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "alpha",
-  description:
-    "Institutional-grade personal portfolio analytics: risk, quality, factors, scenarios, and Monte Carlo simulation.",
+  title: "alpha | theta",
 };
 
 export default function RootLayout({
