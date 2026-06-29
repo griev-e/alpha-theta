@@ -11,6 +11,11 @@
      the previous #666 sat just under the 4.5:1 line. */
   --color-faint: #7c7c7c;
   --color-mint: #5eead4;
+  /* alpha's signature brand accent (the portal tab + sidebar). Deliberately
+     separate from --color-mint, which is the positive/neutral data accent used
+     by bars, gauges and metrics — the brand can be red without those reading
+     as losses. */
+  --color-accent: #b02b0a;
   --color-pos: #34d399;
   --color-neg: #fb7185;
   --color-warn: #fbbf24;
