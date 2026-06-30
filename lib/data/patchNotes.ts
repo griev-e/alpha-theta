@@ -8,6 +8,14 @@ export type PatchNote = {
 // Newest first. Add an entry here whenever a notable change ships.
 export const PATCH_NOTES: PatchNote[] = [
   {
+    version: "1.37",
+    date: "2026-06-30",
+    title: "Reject implausible beta/volatility readings before they corrupt risk math",
+    changes: [
+      "A thinly-traded, newly-listed holding can occasionally come back from the live provider with a statistically unstable beta or volatility — a regression blow-up, or realized vol off a handful of wild early prints, producing a value like β -31 that no real security has. Left unchecked, one such holding could single-handedly distort the entire portfolio: beta, volatility, correlation, diversification ratio, and risk contributions all share the same covariance math, so one bad number poisoned all of them, not just its own row. Implausible readings (|β| > 5, volatility > 300% annualized) are now rejected at the data layer and treated as a normal coverage gap — falls back to the neutral default and shows \"Estimated\" — before they ever reach the risk math.",
+    ],
+  },
+  {
     version: "1.36",
     date: "2026-06-30",
     title: "Surface the actual estimated number instead of hiding it",
