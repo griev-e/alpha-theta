@@ -9,7 +9,7 @@ import type { Sector } from "@/lib/types";
  * for Finnhub where Yahoo came back empty.
  *
  * Gated on `FINNHUB_API_KEY`; with no key the module is a no-op and the app runs
- * on Yahoo (+ optional FMP) exactly as before. Two endpoints per symbol
+ * on Yahoo alone exactly as before. Two endpoints per symbol
  * (profile + all-metrics), 12h-cached, to stay well inside the free tier's
  * 60-requests/minute budget.
  */

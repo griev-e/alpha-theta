@@ -25,17 +25,17 @@ export interface FundamentalsPatch {
   volatility?: number;
   revenueGrowth?: number;
   epsGrowth?: number;
-  /** Free-cash-flow growth (FMP `financial-growth`, or derived from Yahoo statements). */
+  /** Free-cash-flow growth, derived from Yahoo's statement modules. */
   fcfGrowth?: number;
   forwardPE?: number;
   fcfYield?: number;
   operatingMargin?: number;
   grossMargin?: number;
-  /** Return on invested capital (FMP `key-metrics`, or derived from Yahoo statements). */
+  /** Return on invested capital (derived from Yahoo statements, or Finnhub). */
   roic?: number;
   dividendYield?: number;
   return12m?: number;
-  /** Revenue-by-region mix (FMP geographic segmentation), normalized to 1. */
+  /** Revenue-by-region mix, normalized to 1. No keyless source — usually empty. */
   regions?: Partial<Record<Region, number>>;
   analyst?: {
     rating?: AnalystRating;
