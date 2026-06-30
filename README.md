@@ -64,12 +64,12 @@ accounts). Categorization is inferred from merchant names and editable.
   visible. Price, equity, P&L, and the "Today" stat reprice automatically;
   if the feed fails, the app silently falls back to imported prices (amber
   status dot in the sidebar).
-- **Live fundamentals** (Yahoo, same proxy pattern, enriched with Financial
-  Modeling Prep when `FMP_API_KEY` is set): `/api/fundamentals` returns
-  growth, margins, forward P/E, analyst targets, insider flows, earnings
-  dates, dividend yield, realized volatility, ROIC, FCF growth, region mix,
-  and ETF sector look-through — entirely live, no bundled snapshot.
-  CDN-cached 12h. Each stock in Research shows a `live` / `partial` badge.
+- **Live fundamentals** (Yahoo, same proxy pattern, gap-filled by Finnhub when
+  `FINNHUB_API_KEY` is set): `/api/fundamentals` returns growth, margins,
+  forward P/E, analyst targets, insider flows, earnings dates, dividend yield,
+  realized volatility, ROIC, FCF growth, and ETF sector look-through — entirely
+  live, no bundled snapshot. CDN-cached 12h. Each stock in Research shows a
+  `live` / `partial` badge.
 - **Market assumptions** (`lib/data/assumptions.ts`) cover the few inputs
   with no live quote — the equity risk premium and the S&P 500 / NASDAQ-100
   profitability & growth aggregates (no keyless index-level source exists).
@@ -115,7 +115,7 @@ app — every feature degrades gracefully when its variable is unset.
 | --- | --- |
 | `AUTH_SECRET` + `DATABASE_URL` | Real username/password accounts (NextAuth + Postgres) with server-side saved data. Both must be set; provision logins with `npm run create-user -- <user> <pass>`. |
 | `ANTHROPIC_API_KEY` | The AI daily brief, dry-powder allocator, Discover ideas, optimizer review, and theta's money brief (Claude). |
-| `FMP_API_KEY` | Financial Modeling Prep enrichment for ROIC, FCF growth, and region mix (free tier, 250 req/day). |
+| `FINNHUB_API_KEY` | Finnhub gap-fill for the fundamentals Yahoo leaves empty on newly-listed tickers — margins, ROIC, growth, beta (free tier, 60 req/min). |
 
 ## Deploy to Vercel
 

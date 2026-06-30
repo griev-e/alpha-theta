@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { classifyRegion, regionsFromSegmentation } from "./fmp";
+import { sectorFromIndustry } from "./finnhub";
 import { annualizedVol, fcfGrowthFromStatements, roicFrom } from "./yahoo";
 
 describe("annualizedVol", () => {
@@ -56,32 +56,20 @@ describe("roicFrom", () => {
   });
 });
 
-describe("classifyRegion", () => {
-  it("buckets common geography labels", () => {
-    expect(classifyRegion("United States")).toBe("US");
-    expect(classifyRegion("U.S.")).toBe("US");
-    expect(classifyRegion("Germany")).toBe("Europe");
-    expect(classifyRegion("Greater China")).toBe("Asia-Pacific");
-    expect(classifyRegion("Japan")).toBe("Asia-Pacific");
-    expect(classifyRegion("Latin America")).toBe("Emerging");
-  });
-});
-
-describe("regionsFromSegmentation", () => {
-  it("collapses and normalizes a flat segmentation record", () => {
-    const r = regionsFromSegmentation({
-      "United States": 800,
-      China: 150,
-      Germany: 50,
-    })!;
-    expect(r.US).toBeCloseTo(0.8);
-    expect(r["Asia-Pacific"]).toBeCloseTo(0.15);
-    expect(r.Europe).toBeCloseTo(0.05);
-    const sum = Object.values(r).reduce((s, w) => s + (w ?? 0), 0);
-    expect(sum).toBeCloseTo(1, 6);
+describe("sectorFromIndustry (Finnhub)", () => {
+  it("maps common Finnhub industries to sector buckets", () => {
+    expect(sectorFromIndustry("Semiconductors")).toBe("Technology");
+    expect(sectorFromIndustry("Software")).toBe("Technology");
+    expect(sectorFromIndustry("Pharmaceuticals")).toBe("Health Care");
+    expect(sectorFromIndustry("Banking")).toBe("Financials");
+    expect(sectorFromIndustry("Oil & Gas")).toBe("Energy");
+    expect(sectorFromIndustry("Utilities")).toBe("Utilities");
+    expect(sectorFromIndustry("Real Estate")).toBe("Real Estate");
+    expect(sectorFromIndustry("Media")).toBe("Communication Services");
   });
 
-  it("returns undefined when there is no positive revenue", () => {
-    expect(regionsFromSegmentation({ Nowhere: 0 })).toBeUndefined();
+  it("returns undefined for unknown or missing industries (no forced guess)", () => {
+    expect(sectorFromIndustry(undefined)).toBeUndefined();
+    expect(sectorFromIndustry("Conglomerate Holdings")).toBeUndefined();
   });
 });

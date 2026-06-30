@@ -136,7 +136,9 @@ function fromPatch(patch: FundamentalsPatch): Fundamentals {
     name: patch.name ?? patch.symbol,
     sector: patch.sector ?? "Unknown",
     industry: patch.industry ?? "Unknown",
-    regions: patch.regions ?? { US: 1 },
+    // No keyless source for revenue-by-region, so leave it empty rather than
+    // fabricate a 100%-US default. Region exposure shows as a coverage gap.
+    regions: patch.regions ?? {},
     marketCap: patch.marketCap ?? 0,
     beta,
     // Realized vol from price history when available; else approximate from beta.
