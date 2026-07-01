@@ -1,5 +1,7 @@
 import { getCMA } from "../live/cma";
+import { getReturns } from "../live/returns";
 import type { Portfolio, Position } from "../types";
+import { ledoitWolfShrink } from "./shrinkage";
 
 /**
  * Factor-model covariance & correlation estimates.
@@ -145,6 +147,27 @@ export function factorCovariance(inputs: CorrInputs[]): number[][] {
   return cov;
 }
 
+/**
+ * Covariance for a set of names, shrinking a live-history sample covariance
+ * toward the structural {@link factorCovariance} when enough return history has
+ * been primed (see `lib/live/returns.ts`), and returning the pure structural Σ
+ * otherwise. This is the single entry point the portfolio-level covariance and
+ * correlation read, so the whole risk stack (risk, correlation, optimizer,
+ * scenarios) gains the shrinkage overlay at once — and falls back identically
+ * when no history is loaded (tests, first paint, provider outage).
+ *
+ * The structural matrix is always the shrink *target*, so the result stays
+ * positive-definite (PD target + PSD sample, δ ≥ δ_min > 0) exactly like the
+ * pure factor covariance it replaces.
+ */
+export function estimatedCovariance(inputs: CorrInputs[]): number[][] {
+  const structural = factorCovariance(inputs);
+  const history = getReturns(inputs.map((x) => x.symbol));
+  if (!history) return structural;
+  return ledoitWolfShrink(history.matrix, structural, history.annualization)
+    .matrix;
+}
+
 function corrFromCov(cov: number[][], i: number, j: number): number {
   if (i === j) return 1;
   const denom = Math.sqrt(cov[i][i] * cov[j][j]);
@@ -157,7 +180,7 @@ function corrFromCov(cov: number[][], i: number, j: number): number {
  */
 export function pairCorrelation(a: CorrInputs, b: CorrInputs): number {
   if (a.symbol === b.symbol) return 1;
-  const cov = factorCovariance([a, b]);
+  const cov = estimatedCovariance([a, b]);
   return corrFromCov(cov, 0, 1);
 }
 
@@ -183,7 +206,7 @@ export function correlationMatrix(portfolio: Portfolio): CorrelationMatrix {
   const ps = coveredPositions(portfolio);
   const inputs = ps.map(corrInputs);
   const n = inputs.length;
-  const cov = factorCovariance(inputs);
+  const cov = estimatedCovariance(inputs);
   const matrix: number[][] = Array.from({ length: n }, () => Array(n).fill(1));
 
   // Risk weight per name: invested (ex-cash) weight × volatility. Cash carries
@@ -231,5 +254,5 @@ export function correlationMatrix(portfolio: Portfolio): CorrelationMatrix {
  * same filtered list.
  */
 export function covarianceMatrix(portfolio: Portfolio): number[][] {
-  return factorCovariance(coveredPositions(portfolio).map(corrInputs));
+  return estimatedCovariance(coveredPositions(portfolio).map(corrInputs));
 }

@@ -8,6 +8,15 @@ export type PatchNote = {
 // Newest first. Add an entry here whenever a notable change ships.
 export const PATCH_NOTES: PatchNote[] = [
   {
+    version: "1.38",
+    date: "2026-07-01",
+    title: "Correlations now learn from realized returns, not just sector labels",
+    changes: [
+      "Until now, how two holdings co-move was inferred purely from structure — their betas plus fixed sector/industry/fund affinities — so any two tech names got the same assumed correlation regardless of how they've actually traded. The risk stack now pulls ~1y of daily price history per holding and blends the realized sample covariance with that structural model using Ledoit–Wolf shrinkage: the data speaks where there's enough of it, and the structural estimate anchors the rest. Two names that genuinely move together (or apart) are now measured, not assumed.",
+      "This flows through every page that reads the covariance — Risk (beta, volatility, diversification ratio, risk contributions), Correlation, the Optimizer, and Scenarios. It stays honest by design: the structural model is always the shrink target, so the covariance remains positive-definite; and if any holding lacks sufficient history, or a provider is down, the whole matrix falls back to the structural estimate exactly as before — no half-measured mixes, no fabricated data.",
+    ],
+  },
+  {
     version: "1.37",
     date: "2026-06-30",
     title: "Reject implausible beta/volatility readings before they corrupt risk math",
