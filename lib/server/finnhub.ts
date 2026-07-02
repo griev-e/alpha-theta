@@ -113,6 +113,9 @@ export async function fetchFinnhubPatch(
       pct(m.currentDividendYieldTTM) ?? pct(m.dividendYieldIndicatedAnnual),
     revenueGrowth: pct(m.revenueGrowthTTMYoy) ?? pct(m.revenueGrowthQuarterlyYoy),
     epsGrowth: pct(m.epsGrowthTTMYoy) ?? pct(m.epsGrowthQuarterlyYoy),
+    // 5-year FOCF CAGR — Finnhub has no YoY FCF growth figure, so this is a
+    // coarser (smoother, less volatile) stand-in for Yahoo's YoY statement-derived value.
+    fcfGrowth: pct(m.focfCagr5Y),
     return12m: pct(m["52WeekPriceReturnDaily"]),
   };
 
