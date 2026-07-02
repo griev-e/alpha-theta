@@ -58,3 +58,38 @@ test("renders theta dashboard", async ({ page }) => {
   await expect(page.locator("main")).toBeVisible();
   await expect(page.locator("body")).not.toContainText("Application error");
 });
+
+/**
+ * The empty book is the render corner most likely to throw — analytics that
+ * reduce/divide over holdings meet a zero-length portfolio, not the well-formed
+ * one above. The default suite always seeds three holdings, so it never hits
+ * this; assert the analytics-heavy pages still render on an empty portfolio.
+ */
+const EMPTY_PORTFOLIO = {
+  holdings: [],
+  cash: 0,
+  asOf: new Date().toISOString(),
+  isDemo: false,
+};
+
+const EMPTY_SAFE_PAGES = [
+  "/",
+  "/risk",
+  "/quality",
+  "/correlation",
+  "/optimizer",
+  "/montecarlo",
+  "/dividends",
+  "/report",
+];
+
+for (const path of EMPTY_SAFE_PAGES) {
+  test(`renders ${path} with an empty portfolio`, async ({ page }) => {
+    await page.addInitScript((stored) => {
+      localStorage.setItem("alpha.portfolio.v1", JSON.stringify(stored));
+    }, EMPTY_PORTFOLIO);
+    await page.goto(path);
+    await expect(page.locator("main")).toBeVisible();
+    await expect(page.locator("body")).not.toContainText("Application error");
+  });
+}
