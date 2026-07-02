@@ -58,10 +58,12 @@ DOM per-file with a `// @vitest-environment jsdom` docblock (jsdom +
 `@testing-library/react`, `@vitejs/plugin-react` for the JSX transform,
 `@testing-library/jest-dom` matchers via `vitest.setup.ts`) — so the pure
 analytics suite stays in the fast `node` environment while hooks
-(`useAsyncCompute`, `useDebouncedValue`, `useMonteCarlo`'s sync fallback,
-`useResearchTarget` over a mocked `fetch`) and presentational components
-(`components/ui/Delta`, `components/charts/Sparkline`) get a real DOM. Add a new
-DOM test the same way: name it `*.test.tsx` and start it with the jsdom docblock.
+(`useAsyncCompute`, `useDebouncedValue`, the `useMonteCarlo` / `useOptimizer`
+Web-Worker sync fallbacks, `useLiveData`'s poll/degrade/refresh, and
+`useResearchTarget` — the networked ones over a mocked `fetch`) and
+presentational components (`components/ui/Delta`, `components/charts/Sparkline`)
+get a real DOM. Add a new DOM test the same way: name it `*.test.tsx` and start
+it with the jsdom docblock.
 
 An end-to-end smoke suite lives in `e2e/` (Playwright, `playwright.config.ts`,
 excluded from the Vitest glob). It boots the production build and walks every
