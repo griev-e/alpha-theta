@@ -37,6 +37,27 @@ function twoStock(cash = 0) {
   );
 }
 
+describe("riskReport expected-return band", () => {
+  it("brackets the point estimate and widens Sharpe with ERP", () => {
+    const r = riskReport(twoStock(), SPX.sectorWeights);
+    // The band must contain the point estimate and be ordered.
+    expect(r.expectedReturnBand.low).toBeLessThanOrEqual(r.expectedReturn);
+    expect(r.expectedReturn).toBeLessThanOrEqual(r.expectedReturnBand.high);
+    expect(r.expectedReturnBand.low).toBeLessThan(r.expectedReturnBand.high);
+    // Higher ERP ⇒ higher expected return ⇒ higher Sharpe (positive beta book).
+    expect(r.sharpeBand.high).toBeGreaterThan(r.sharpeBand.low);
+    // The reported ERP range always contains the assumption in use.
+    expect(r.erpRange.low).toBeLessThanOrEqual(r.erp);
+    expect(r.erp).toBeLessThanOrEqual(r.erpRange.high);
+  });
+
+  it("uses the standard 3–6% ERP range around the default assumption", () => {
+    const r = riskReport(twoStock(), SPX.sectorWeights);
+    expect(r.erpRange.low).toBeCloseTo(0.03, 10);
+    expect(r.erpRange.high).toBeCloseTo(0.06, 10);
+  });
+});
+
 describe("riskReport", () => {
   it("computes concentration metrics on the invested book", () => {
     const r = riskReport(twoStock(), SPX.sectorWeights);

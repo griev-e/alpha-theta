@@ -18,6 +18,7 @@ import { Card, CardHeader } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { ModelBadge } from "@/components/ui/ModelBadge";
 import { Ring } from "@/components/ui/Ring";
 import { Stat } from "@/components/ui/Stat";
 import { Computing } from "@/components/ui/Computing";
@@ -74,6 +75,13 @@ export default function MonteCarloPage() {
       targetValue: target,
       paths: 3000,
       seedSalt,
+      // The mean return is estimated, not known: treat the CAPM drift as if
+      // inferred from ~10 years of data (SE ≈ σ/√10) so the fan reflects that
+      // uncertainty instead of pretending μ is exact.
+      muStdErr: risk.volatility / Math.sqrt(10),
+      // Student-t shocks (ν≈5) so drawdowns carry the fat left tail real equity
+      // returns have, rather than GBM's too-thin Gaussian tail.
+      shockDof: 5,
     };
   }, [portfolio, risk, dYears, dContribution, target, seedSalt]);
 
@@ -89,7 +97,7 @@ export default function MonteCarloPage() {
       <PageHeader
         eyebrow="Simulation"
         title="Monte Carlo"
-        description={`3,000 simulated futures · drift ${fmtPct(risk.expectedReturn, 1)} (CAPM) · volatility ${fmtPct(risk.volatility, 1)} from your actual book. Deterministic per portfolio — not a random slot machine.`}
+        description={`3,000 simulated futures · drift ${fmtPct(risk.expectedReturn, 1)} (CAPM, treated as uncertain) · volatility ${fmtPct(risk.volatility, 1)} with fat tails, from your actual book. Deterministic per portfolio — not a random slot machine.`}
       />
 
       {/* Controls */}
@@ -225,7 +233,10 @@ function ResultsView({
 
         <div className="space-y-5">
           <Card className="flex flex-col items-center px-6 py-6" i={2}>
-            <div className="eyebrow mb-4 self-start">Target probability</div>
+            <div className="mb-4 flex w-full items-center justify-between self-start">
+              <span className="eyebrow">Target probability</span>
+              <ModelBadge detail="Simulated from a CAPM drift (drawn per path, not treated as known) and fat-tailed shocks. Read to the nearest few points." />
+            </div>
             <Ring score={prob * 100} size={150} stroke={10}>
               <div className="font-mono tnum text-[30px] font-medium text-ink">
                 {Math.round(prob * 100)}%
@@ -301,10 +312,12 @@ function ResultsView({
         <Histogram bins={result.histogram} target={target} height={150} />
         <p className="mt-4 text-[11.5px] leading-relaxed text-faint">
           Geometric Brownian motion, monthly steps, contributions added end of
-          month. Drift uses CAPM on your portfolio beta; volatility comes from
-          the estimated covariance of your actual holdings. Real markets have
-          fatter tails than GBM — treat the p5 line as optimistic about how bad
-          bad can get.
+          month. Drift uses CAPM on your portfolio beta but is drawn per path
+          (SE ≈ σ/√10) rather than treated as known, and shocks are Student-t
+          (ν=5) so the tails aren&rsquo;t artificially thin. Volatility comes
+          from the estimated covariance of your actual holdings. The target
+          probability is a modeled estimate, not a forecast — read it to the
+          nearest few points, not the decimal.
         </p>
       </Card>
     </div>

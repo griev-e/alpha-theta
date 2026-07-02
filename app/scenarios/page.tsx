@@ -5,6 +5,7 @@ import { AnimatePresence, m } from "framer-motion";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { Computing } from "@/components/ui/Computing";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { ModelBadge } from "@/components/ui/ModelBadge";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Stat } from "@/components/ui/Stat";
 import {
@@ -77,7 +78,7 @@ export default function ScenariosPage() {
       <PageHeader
         eyebrow="Simulation"
         title="Scenario Analysis"
-        description="Stress the book with single-name shocks (with correlated spillover), broad market moves, and rate shifts. Estimates, not guarantees."
+        description="Stress the book with single-name shocks (with correlated spillover), broad market moves, and rate shifts. First-order, instantaneous estimates — directional, not guarantees."
       />
 
       <div className="grid gap-5 xl:grid-cols-[380px_1fr]">
@@ -287,6 +288,7 @@ export default function ScenariosPage() {
                         <span className="flex items-center gap-1">
                           <span className="inline-block h-2 w-2 rounded-sm bg-sky/50" /> spillover
                         </span>
+                        <ModelBadge detail="First-order, instantaneous sensitivities. Rate moves use an empirical rate beta where history allows, else a duration heuristic." />
                       </div>
                     }
                     className="mb-4"
@@ -342,9 +344,11 @@ export default function ScenariosPage() {
                   <p className="mt-4 border-t border-edge pt-3 text-[11.5px] leading-relaxed text-faint">
                     Single-name shocks propagate to other holdings at 45% of the
                     correlation-implied link — company-specific news rarely
-                    transmits in full. Rate shocks scale with valuation multiples
-                    (long-duration growth compresses hardest) and sector
-                    (financials benefit, bond proxies suffer).
+                    transmits in full. Rate shocks use each holding&rsquo;s
+                    empirical rate beta (its returns regressed on rate moves)
+                    where enough price history is available, otherwise a duration
+                    heuristic that scales with valuation and sector. All figures
+                    are first-order, instantaneous estimates.
                   </p>
                 </Card>
               </m.div>

@@ -43,6 +43,16 @@ export interface RiskReport {
   equityVolatility: number;
   expectedReturn: number; // CAPM
   sharpe: number;
+  /** The equity-risk-premium assumption the point estimates use. */
+  erp: number;
+  /**
+   * Expected return / Sharpe across a plausible ERP range (always bracketing the
+   * current assumption). ERP is an editable assumption, not a measured value, so
+   * these bands stop the point estimate from reading as more precise than it is.
+   */
+  expectedReturnBand: { low: number; high: number };
+  sharpeBand: { low: number; high: number };
+  erpRange: { low: number; high: number };
   /** Σwσ / σ_p on the invested book — >1 means diversification is working. */
   diversificationRatio: number;
   contributions: RiskContribution[];
@@ -154,19 +164,34 @@ export function riskReport(
   }
   const equityVolatility = Math.sqrt(Math.max(equityVariance, 0));
 
-  const expectedReturn =
+  // CAPM expected return is linear in the equity risk premium, so evaluate it as
+  // a function of ERP and reuse the same closure for the point estimate and the
+  // uncertainty band.
+  const expectedReturnAt = (erp: number) =>
     scale *
     (portfolio.cashWeight * CMA.riskFree +
       covered.reduce(
         (s, p) =>
-          s +
-          p.weight *
-            (CMA.riskFree + (p.fundamentals?.beta ?? 0) * CMA.equityRiskPremium),
+          s + p.weight * (CMA.riskFree + (p.fundamentals?.beta ?? 0) * erp),
         0
       ));
+  const sharpeAt = (er: number) =>
+    volatility > 0 ? (er - CMA.riskFree) / volatility : 0;
 
-  const sharpe =
-    volatility > 0 ? (expectedReturn - CMA.riskFree) / volatility : 0;
+  const expectedReturn = expectedReturnAt(CMA.equityRiskPremium);
+  const sharpe = sharpeAt(expectedReturn);
+
+  // ERP is a user-owned assumption (see lib/data/assumptions.ts), not a market
+  // quote, so surface a band across a standard 3–6% ERP range — widened if
+  // needed so it always contains the current assumption.
+  const erpRange = {
+    low: Math.min(CMA.equityRiskPremium, 0.03),
+    high: Math.max(CMA.equityRiskPremium, 0.06),
+  };
+  const erLow = expectedReturnAt(erpRange.low);
+  const erHigh = expectedReturnAt(erpRange.high);
+  const expectedReturnBand = { low: erLow, high: erHigh };
+  const sharpeBand = { low: sharpeAt(erLow), high: sharpeAt(erHigh) };
 
   const weightedAvgVol = covered.reduce(
     (s, p) => s + p.equityWeight * (p.fundamentals?.volatility ?? 0),
@@ -213,6 +238,10 @@ export function riskReport(
     equityVolatility,
     expectedReturn,
     sharpe,
+    erp: CMA.equityRiskPremium,
+    expectedReturnBand,
+    sharpeBand,
+    erpRange,
     diversificationRatio,
     contributions,
     coveragePct,

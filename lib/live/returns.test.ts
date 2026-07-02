@@ -6,18 +6,38 @@ import {
   factorCovariance,
   type CorrInputs,
 } from "@/lib/analytics/correlation";
+import { runScenario } from "@/lib/analytics/scenarios";
 import type { HistoryPoint } from "@/lib/research/types";
-import { clearReturns, getReturns, setReturnSeries } from "./returns";
+import {
+  clearReturns,
+  getRateBeta,
+  getReturns,
+  setRateSeries,
+  setReturnSeries,
+} from "./returns";
+
+const DAY = 86_400_000;
+const BASE = Date.UTC(2025, 0, 1);
 
 /** A price series that drifts with per-step returns, one bar per calendar day. */
 function priceSeries(steps: number[], start = 100): HistoryPoint[] {
   const points: HistoryPoint[] = [];
   let price = start;
-  const base = Date.UTC(2025, 0, 1);
-  points.push({ t: new Date(base).toISOString(), c: price });
+  points.push({ t: new Date(BASE).toISOString(), c: price });
   steps.forEach((r, i) => {
     price *= Math.exp(r);
-    points.push({ t: new Date(base + (i + 1) * 86_400_000).toISOString(), c: price });
+    points.push({ t: new Date(BASE + (i + 1) * DAY).toISOString(), c: price });
+  });
+  return points;
+}
+
+/** A yield-level series (percent points) built from daily changes, same grid. */
+function levelSeries(changes: number[], start = 5): HistoryPoint[] {
+  const points: HistoryPoint[] = [{ t: new Date(BASE).toISOString(), c: start }];
+  let lvl = start;
+  changes.forEach((d, i) => {
+    lvl += d;
+    points.push({ t: new Date(BASE + (i + 1) * DAY).toISOString(), c: lvl });
   });
   return points;
 }
@@ -96,5 +116,42 @@ describe("estimatedCovariance drop-in", () => {
     setReturnSeries("B", priceSeries(shocks.map((r) => -r))); // mirror → negatively correlated
     const estimated = covarianceMatrix(portfolio);
     expect(estimated[0][1]).toBeLessThan(structural[0][1]);
+  });
+});
+
+describe("getRateBeta", () => {
+  it("recovers the OLS slope of returns on rate changes (per +100bp)", () => {
+    const dy = noise(240, 0.02, 3); // daily yield changes, ~2bp sd, in points
+    const trueBeta = -0.04; // −4% per +100bp (a bond-proxy sensitivity)
+    const eps = noise(240, 0.0004, 9);
+    const assetReturns = dy.map((d, i) => trueBeta * d + eps[i]);
+    setReturnSeries("TLT", priceSeries(assetReturns));
+    setRateSeries(levelSeries(dy));
+    const beta = getRateBeta("TLT");
+    expect(beta).not.toBeNull();
+    expect(beta!).toBeCloseTo(trueBeta, 2);
+  });
+
+  it("returns null when the rate series is unprimed or history is short", () => {
+    setReturnSeries("TLT", priceSeries(noise(200, 0.01, 1)));
+    expect(getRateBeta("TLT")).toBeNull(); // no rate series
+    setRateSeries(levelSeries(noise(40, 0.02, 2)));
+    expect(getRateBeta("TLT")).toBeNull(); // < MIN_OBS overlap
+    expect(getRateBeta("NOPE")).toBeNull(); // unknown symbol
+  });
+
+  it("drives the Scenarios rate shock when available", () => {
+    const dy = noise(240, 0.02, 5);
+    const trueBeta = -0.05;
+    const assetReturns = dy.map((d) => trueBeta * d);
+    setReturnSeries("TLT", priceSeries(assetReturns));
+    setRateSeries(levelSeries(dy));
+    const portfolio = makePortfolio([
+      holding({ symbol: "TLT", shares: 10, price: 100 }),
+    ]);
+    const res = runScenario(portfolio, { kind: "rates", magnitude: 1 }, "+100bp");
+    const impact = res.impacts.find((x) => x.symbol === "TLT")!;
+    // Empirical beta × magnitude, not the duration heuristic.
+    expect(impact.shockPct).toBeCloseTo(trueBeta, 2);
   });
 });

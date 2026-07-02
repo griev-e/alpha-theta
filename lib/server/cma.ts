@@ -1,4 +1,5 @@
 import { CMA as STATIC_CMA, NDX } from "@/lib/data/benchmarks";
+import type { HistoryPoint } from "@/lib/research/types";
 import {
   annualizedVol,
   fetchBenchmarkFields,
@@ -15,6 +16,13 @@ export interface LiveCMA {
   /** Live benchmark valuation/sector aggregates from the ETF proxies. */
   spx: BenchmarkLiveFields;
   ndx: BenchmarkLiveFields;
+  /**
+   * Trailing ~1y of daily 13-week T-bill (^IRX) yield levels, in percent points.
+   * Primes the client rate singleton so the Scenarios engine can regress each
+   * holding's returns on rate changes for an empirical rate beta (falling back
+   * to the duration heuristic when history is thin). Empty when unavailable.
+   */
+  rateHistory: HistoryPoint[];
   asOf: string;
 }
 
@@ -46,13 +54,15 @@ export async function getLiveCMA(): Promise<LiveCMA> {
 }
 
 async function build(): Promise<LiveCMA> {
-  const [irx, gspc, ndx, spyFields, qqqFields] = await Promise.allSettled([
-    yf.quote("^IRX"),
-    fetchHistory("^GSPC", "1y"),
-    fetchHistory("^NDX", "1y"),
-    fetchBenchmarkFields("SPY"),
-    fetchBenchmarkFields("QQQ"),
-  ]);
+  const [irx, gspc, ndx, spyFields, qqqFields, irxHist] =
+    await Promise.allSettled([
+      yf.quote("^IRX"),
+      fetchHistory("^GSPC", "1y"),
+      fetchHistory("^NDX", "1y"),
+      fetchBenchmarkFields("SPY"),
+      fetchBenchmarkFields("QQQ"),
+      fetchHistory("^IRX", "1y"),
+    ]);
 
   let riskFree = STATIC_CMA.riskFree;
   if (irx.status === "fulfilled") {
@@ -78,12 +88,18 @@ async function build(): Promise<LiveCMA> {
   const spx = spyFields.status === "fulfilled" ? spyFields.value : {};
   const ndxFields = qqqFields.status === "fulfilled" ? qqqFields.value : {};
 
+  const rateHistory =
+    irxHist.status === "fulfilled" && irxHist.value
+      ? irxHist.value.points
+      : [];
+
   return {
     riskFree,
     marketVolatility,
     ndxVolatility,
     spx,
     ndx: ndxFields,
+    rateHistory,
     asOf: new Date().toISOString(),
   };
 }

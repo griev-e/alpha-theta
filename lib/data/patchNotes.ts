@@ -8,6 +8,18 @@ export type PatchNote = {
 // Newest first. Add an entry here whenever a notable change ships.
 export const PATCH_NOTES: PatchNote[] = [
   {
+    version: "1.39",
+    date: "2026-07-02",
+    title: "Modeled numbers now show their uncertainty instead of false precision",
+    changes: [
+      "Monte Carlo no longer pretends the expected return is known. The CAPM drift — the least certain input — is now drawn per simulated path (SE ≈ σ/√10) so the fan reflects that uncertainty, and shocks are Student-t (fat-tailed) rather than Gaussian, so the downside carries the heavy left tail real equity returns have. The target probability widens honestly as a result; read it to the nearest few points, not the decimal.",
+      "Expected return and Sharpe on the Risk page now show a band across a plausible 3–6% equity-risk-premium range, with a pointer to edit the ERP assumption on the Benchmark page — the headline is the midpoint of a range, not a forecast.",
+      "Scenario rate shocks now use each holding's empirical rate beta (its returns regressed on actual rate moves) where enough price history is available, falling back to the previous duration heuristic otherwise. Scenario outputs are labeled as first-order, instantaneous estimates.",
+      "The Benchmark factor radar is relabeled a 'style tilt' — a 0–100 cross-sectional score of your holdings' fundamentals versus the market (~50), which is what it always was, rather than a returns-based factor loading.",
+      "Added a consistent 'modeled' marker across these figures (the counterpart to the existing live/estimated data dot), so a model-based number is never presented as if it were measured.",
+    ],
+  },
+  {
     version: "1.38",
     date: "2026-07-01",
     title: "Correlations now learn from realized returns, not just sector labels",

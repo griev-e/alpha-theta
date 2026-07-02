@@ -52,9 +52,70 @@ export function setReturnSeries(symbol: string, points: HistoryPoint[]): void {
   else store.delete(symbol);
 }
 
+/**
+ * Daily change in the risk-free yield level (percent points, e.g. +0.02 = +2bp),
+ * keyed by day. Primed from the ^IRX history the CMA endpoint returns; consumed
+ * by {@link getRateBeta}. A +100bp move is +1.0 in these units, matching the
+ * Scenarios rate-shock magnitude.
+ */
+let rateChanges: DateReturns | null = null;
+
+/**
+ * Prime the rate-change series from ^IRX yield levels (percent points). Stored
+ * as first differences so it lines up with per-symbol return days for the
+ * empirical rate-beta regression.
+ */
+export function setRateSeries(points: HistoryPoint[]): void {
+  if (points.length < 2) {
+    rateChanges = null;
+    return;
+  }
+  const m: DateReturns = new Map();
+  for (let i = 1; i < points.length; i++) {
+    m.set(dayKey(points[i].t), points[i].c - points[i - 1].c);
+  }
+  rateChanges = m.size > 0 ? m : null;
+}
+
+/**
+ * Empirical rate beta for a symbol: the OLS slope of its daily returns on daily
+ * risk-free-rate changes, i.e. the return per +100bp move. `null` when either
+ * series is unprimed, they share fewer than {@link MIN_OBS} days, or the rate
+ * series has no variance — callers then fall back to the duration heuristic.
+ */
+export function getRateBeta(symbol: string): number | null {
+  const assetMap = store.get(symbol);
+  if (!assetMap || !rateChanges) return null;
+
+  const xs: number[] = []; // rate changes
+  const ys: number[] = []; // asset returns
+  for (const [day, dy] of rateChanges) {
+    const r = assetMap.get(day);
+    if (r !== undefined) {
+      xs.push(dy);
+      ys.push(r);
+    }
+  }
+  const n = xs.length;
+  if (n < MIN_OBS) return null;
+
+  const mx = xs.reduce((s, v) => s + v, 0) / n;
+  const my = ys.reduce((s, v) => s + v, 0) / n;
+  let cov = 0;
+  let varx = 0;
+  for (let i = 0; i < n; i++) {
+    const dx = xs[i] - mx;
+    cov += dx * (ys[i] - my);
+    varx += dx * dx;
+  }
+  if (varx <= 1e-12) return null;
+  return cov / varx;
+}
+
 /** Drop all primed history (used by tests and on a full portfolio clear). */
 export function clearReturns(): void {
   store.clear();
+  rateChanges = null;
 }
 
 export interface AlignedReturns {
