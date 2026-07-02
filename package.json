@@ -43,7 +43,7 @@
     "@types/react-dom": "^19.0.0",
     "@vitejs/plugin-react": "^6.0.3",
     "drizzle-kit": "^0.31.10",
-    "eslint": "^9.39.4",
+    "eslint": "^10.6.0",
     "eslint-config-next": "^15.5.19",
     "jsdom": "^25.0.1",
     "tailwindcss": "^4.1.0",
