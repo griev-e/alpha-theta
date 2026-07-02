@@ -15,7 +15,7 @@ Accounts are an **optional** layer (see "Accounts & persistence" below): set
 portfolio and theta ledger; leave them unset and the app behaves exactly as the
 single-user, localStorage tool it has always been.
 
-Stack: Next.js 15 (App Router) · React 19 · TypeScript (strict) · Tailwind CSS 4
+Stack: Next.js 16 (App Router) · React 19 · TypeScript 6 (strict) · Tailwind CSS 4
 · Framer Motion. All charts are hand-built SVG — **no chart library**.
 
 ## Commands
@@ -28,12 +28,14 @@ npm run lint       # eslint . — flat config (eslint.config.mjs) + eslint-confi
 npm run typecheck  # tsc --noEmit — strict type check, run this after edits
 npm test           # vitest run — the analytics unit suite
 npm run test:watch # vitest in watch mode
+npm run test:e2e   # playwright — whole-app smoke suite (needs a build first)
 ```
 
 After edits, verify with `npm run typecheck` and `npm run lint`; run `npm test`
 when you touch anything under `lib/analytics`, `lib/csv.ts`, or `lib/data`. CI
-(`.github/workflows/ci.yml`) runs lint → typecheck → test → build on every push
-and PR, so all four must be green. Linting also runs during `next build`, so a
+(`.github/workflows/ci.yml`) has two jobs: `build` runs lint → typecheck → test
+→ build, and `e2e` runs `npm run build` then the Playwright smoke suite — both
+must be green on every push and PR. Linting also runs during `next build`, so a
 lint **error** fails the production build (warnings don't).
 Tests live next to the code as `*.test.ts` (Vitest, `node` environment — see
 `vitest.config.ts`); shared fixtures are in `lib/__tests__/factory.ts`. The
@@ -44,6 +46,15 @@ merge layer (`lib/live/merge.ts`, `lib/live/cma.ts`), theta's compute/csv/
 categorize/simplefin modules, and server-side correctness (fundamentals
 sanitization, Yahoo/Finnhub provider math, the SimpleFIN mapper, and the
 AI-model contract guard in `lib/server/aiModels.test.ts`).
+
+An end-to-end smoke suite lives in `e2e/` (Playwright, `playwright.config.ts`,
+excluded from the Vitest glob). It boots the production build and walks every
+alpha and theta route with a seeded-localStorage portfolio, asserting each page
+actually renders — catching whole-page regressions (a throw during render, a
+broken provider fallback, a hydration crash) the unit suite structurally can't.
+It deliberately runs with **no network stubs**, so it also verifies the
+graceful-degradation contract: pages must render with every live provider
+unreachable.
 
 ### Environment variables (all optional, see `.env.example`)
 
