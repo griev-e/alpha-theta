@@ -37,15 +37,31 @@ when you touch anything under `lib/analytics`, `lib/csv.ts`, or `lib/data`. CI
 → build, and `e2e` runs `npm run build` then the Playwright smoke suite — both
 must be green on every push and PR. Linting also runs during `next build`, so a
 lint **error** fails the production build (warnings don't).
-Tests live next to the code as `*.test.ts` (Vitest, `node` environment — see
-`vitest.config.ts`); shared fixtures are in `lib/__tests__/factory.ts`. The
-suite covers the pure analytics (risk, correlation, quality, factors,
-scenarios, rebalance, dividends, the optimizer, the regime engine and its
-`mathx` helpers, `buildPortfolio`), CSV parsing (both apps), the live-data
-merge layer (`lib/live/merge.ts`, `lib/live/cma.ts`), theta's compute/csv/
-categorize/simplefin modules, and server-side correctness (fundamentals
-sanitization, Yahoo/Finnhub provider math, the SimpleFIN mapper, and the
-AI-model contract guard in `lib/server/aiModels.test.ts`).
+Tests live next to the code as `*.test.ts` (Vitest, `node` environment by
+default — see `vitest.config.ts`); shared fixtures are in
+`lib/__tests__/factory.ts`. The suite covers the pure analytics (risk,
+correlation, quality, factors, scenarios, rebalance, dividends, the optimizer,
+the regime engine and its `mathx` helpers plus each of the 8 signal layers,
+`buildPortfolio`), CSV parsing (both apps, incl. the shared `csvCore` splitter),
+the live-data merge layer (`lib/live/merge.ts`, `lib/live/cma.ts`), theta's
+compute/csv/categorize/simplefin modules, the client save-back layer
+(`lib/persist.ts`), the per-user DB queries' credential-isolation invariant
+(`lib/db/state.ts` — `getUserState` never selects the `simplefin` column), and
+server-side correctness (fundamentals sanitization + the Yahoo/Finnhub gap-fill
+merge, Yahoo/Finnhub provider math, the SimpleFIN mapper, the shared AI-endpoint
+plumbing — cache, generation/request limiters, cost math, error mapping — the
+login rate limiter, and the AI-model contract guard in
+`lib/server/aiModels.test.ts`).
+
+**React hooks and components** are tested as `*.test.tsx` files that opt into a
+DOM per-file with a `// @vitest-environment jsdom` docblock (jsdom +
+`@testing-library/react`, `@vitejs/plugin-react` for the JSX transform,
+`@testing-library/jest-dom` matchers via `vitest.setup.ts`) — so the pure
+analytics suite stays in the fast `node` environment while hooks
+(`useAsyncCompute`, `useDebouncedValue`, `useMonteCarlo`'s sync fallback,
+`useResearchTarget` over a mocked `fetch`) and presentational components
+(`components/ui/Delta`, `components/charts/Sparkline`) get a real DOM. Add a new
+DOM test the same way: name it `*.test.tsx` and start it with the jsdom docblock.
 
 An end-to-end smoke suite lives in `e2e/` (Playwright, `playwright.config.ts`,
 excluded from the Vitest glob). It boots the production build and walks every
