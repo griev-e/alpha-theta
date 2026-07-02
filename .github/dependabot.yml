@@ -9,6 +9,15 @@ updates:
       minor-and-patch:
         update-types: ["minor", "patch"]
     open-pull-requests-limit: 5
+    ignore:
+      # eslint 10 breaks eslint-plugin-react (peer range tops out at ^9.7 and
+      # its rules call the removed context.getFilename()). Drop this once the
+      # React plugin supports eslint 10.
+      - dependency-name: eslint
+        update-types: ["version-update:semver-major"]
+      # @types/node tracks the runtime — CI and deploys run Node 22.
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: github-actions
     directory: "/"
     schedule:
