@@ -7,6 +7,7 @@ import { Radar } from "@/components/charts/Radar";
 import { Scatter, type ScatterPoint } from "@/components/charts/Scatter";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { ModelBadge } from "@/components/ui/ModelBadge";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { portfolioFactors } from "@/lib/analytics/factors";
 import { qualityReport } from "@/lib/analytics/quality";
@@ -77,8 +78,8 @@ export default function BenchmarkPage() {
     <div>
       <PageHeader
         eyebrow="Analysis"
-        title="Benchmark & Factor Exposure"
-        description="Your weighted fundamentals against the S&P 500 and NASDAQ-100, plus the style-factor footprint of the whole book."
+        title="Benchmark & Style Tilt"
+        description="Your weighted fundamentals against the S&P 500 and NASDAQ-100, plus the style tilt of the whole book — a cross-sectional score, not a returns-based factor loading."
       />
 
       <div className="mb-5 grid gap-5 xl:grid-cols-[1.25fr_1fr]">
@@ -131,9 +132,12 @@ export default function BenchmarkPage() {
         {/* Factor radar */}
         <Card className="flex flex-col items-center justify-center px-6 py-5" i={1}>
           <CardHeader
-            eyebrow="Factor exposure"
+            eyebrow="Style tilt"
             title="Style footprint"
             className="mb-2 self-start"
+            right={
+              <ModelBadge detail="A 0–100 cross-sectional score of fundamentals vs the market (~50), not a returns-based factor loading." />
+            }
           />
           <Radar
             axes={["Growth", "Value", "Quality", "Momentum"]}
@@ -183,6 +187,13 @@ export default function BenchmarkPage() {
               </div>
             ))}
           </div>
+          <p className="mt-4 border-t border-edge pt-3 text-[11px] leading-relaxed text-faint">
+            Each axis is a 0–100 cross-sectional score of your holdings&rsquo;
+            fundamentals (growth, valuation, profitability, trailing return),
+            where ~50 is a broad-market profile — a style <em>tilt</em>, not a
+            regression loading to a factor return. Read it as “which way does the
+            book lean,” not as a measured factor beta.
+          </p>
         </Card>
       </div>
 

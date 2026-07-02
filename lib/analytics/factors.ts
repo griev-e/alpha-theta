@@ -1,9 +1,17 @@
 import type { FactorScores, Fundamentals, Portfolio } from "../types";
 
 /**
- * Style-factor scoring on a 0–100 scale, centered so a broad-market profile
- * lands near 50. Each input is squashed through a logistic curve:
+ * Style-tilt scoring on a 0–100 scale, centered so a broad-market profile lands
+ * near 50. Each input is squashed through a logistic curve:
  * score = 100 / (1 + e^-((x - mid) / spread)).
+ *
+ * This is a **cross-sectional score of a name's fundamentals**, not a
+ * returns-based factor loading: it says "how growthy / cheap / high-quality /
+ * high-momentum does this look right now" relative to the market midpoint, not
+ * "what is this name's regression beta to a growth/value factor return." The
+ * midpoints below are calibrated so the market sits at ~50; a future refinement
+ * would anchor them to the live benchmark aggregates so 50 tracks *today's*
+ * market rather than a fixed calibration.
  */
 function squash(x: number, mid: number, spread: number): number {
   return 100 / (1 + Math.exp(-(x - mid) / spread));

@@ -1,4 +1,5 @@
 import { liveBenchmark } from "../live/cma";
+import { getRateBeta } from "../live/returns";
 import { SPX } from "../data/benchmarks";
 import type {
   Portfolio,
@@ -16,11 +17,17 @@ import { corrInputs, pairCorrelation } from "./correlation";
  *          link, damped by λ because a company-specific event propagates only
  *          partially: Δ_j = λ ρ_ij (σ_j / σ_i) Δ_i.
  * market — a broad equity move; each holding moves by its beta.
- * rates  — a parallel shift in rates (magnitude in % points). Equities behave
- *          like long-duration assets: baseline sensitivity is −3.5% per +100bp,
- *          scaled by relative valuation (high-multiple ⇒ longer duration) and
- *          adjusted by sector (banks benefit from rates; utilities/REITs are
- *          bond proxies). Unprofitable companies use a 1.7× duration premium.
+ * rates  — a parallel shift in rates (magnitude in % points). Uses an empirical
+ *          rate beta per holding when enough price history is primed (the OLS
+ *          slope of returns on daily risk-free-rate changes, i.e. return per
+ *          +100bp). Falls back to a duration heuristic otherwise: baseline
+ *          −3.5% per +100bp, scaled by relative valuation (high-multiple ⇒
+ *          longer duration) and adjusted by sector (banks benefit from rates;
+ *          utilities/REITs are bond proxies); unprofitable companies use a 1.7×
+ *          duration premium.
+ *
+ * These are first-order, instantaneous estimates — linear sensitivities with no
+ * second-order or path effects — so read magnitudes as directional, not precise.
  */
 
 const SPILLOVER_LAMBDA = 0.45;
@@ -72,18 +79,26 @@ export function runScenario(
       shockPct = beta * shock.magnitude;
       isDirect = true;
     } else {
-      // rates
-      const pe = f.forwardPE ?? null;
-      const valuationStretch =
-        pe === null
-          ? 1.7
-          : Math.pow(Math.max(pe, 5) / benchPE, 0.85);
-      let sectorAdj = 1;
-      const sector = f.sector;
-      if (sector === "Financials") sectorAdj = 0.25; // net beneficiaries
-      if (sector === "Utilities" || sector === "Real Estate") sectorAdj = 1.6;
-      if (sector === "Consumer Staples") sectorAdj = 0.8;
-      shockPct = RATE_BETA_BASE * shock.magnitude * valuationStretch * sectorAdj;
+      // rates. Prefer an empirical rate beta — the OLS slope of this holding's
+      // returns on daily risk-free-rate changes (return per +100bp) — when
+      // enough history has been primed. Fall back to the duration heuristic
+      // (base sensitivity × valuation stretch × sector adjustment) otherwise, so
+      // thin-history names still get a sensible, if modeled, response.
+      const empirical = getRateBeta(p.symbol);
+      if (empirical !== null) {
+        shockPct = empirical * shock.magnitude;
+      } else {
+        const pe = f.forwardPE ?? null;
+        const valuationStretch =
+          pe === null ? 1.7 : Math.pow(Math.max(pe, 5) / benchPE, 0.85);
+        let sectorAdj = 1;
+        const sector = f.sector;
+        if (sector === "Financials") sectorAdj = 0.25; // net beneficiaries
+        if (sector === "Utilities" || sector === "Real Estate") sectorAdj = 1.6;
+        if (sector === "Consumer Staples") sectorAdj = 0.8;
+        shockPct =
+          RATE_BETA_BASE * shock.magnitude * valuationStretch * sectorAdj;
+      }
       isDirect = true;
     }
 

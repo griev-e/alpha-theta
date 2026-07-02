@@ -96,6 +96,57 @@ describe("runMonteCarlo", () => {
     expect(r.probTargetStdErr).toBe(0);
   });
 
+  // Isolate the distributional shape: no contributions, no target.
+  const iso: MonteCarloInputs = {
+    ...baseInputs,
+    monthlyContribution: 0,
+    targetValue: 0,
+    paths: 4000,
+  };
+
+  it("leaves output unchanged when the honesty knobs are at their defaults", () => {
+    // muStdErr=0 and shockDof undefined must reduce exactly to classic GBM, so
+    // opting out is byte-for-byte identical.
+    const base = runMonteCarlo(iso);
+    const explicit = runMonteCarlo({ ...iso, muStdErr: 0, shockDof: 0 });
+    expect(explicit.median).toBe(base.median);
+    expect(explicit.p5).toBe(base.p5);
+    expect(explicit.p95).toBe(base.p95);
+  });
+
+  it("drift uncertainty widens the terminal spread", () => {
+    const base = runMonteCarlo(iso);
+    const uncertain = runMonteCarlo({ ...iso, muStdErr: 0.03 });
+    expect(uncertain.p95 - uncertain.p5).toBeGreaterThan(base.p95 - base.p5);
+  });
+
+  it("fat tails deepen the downside (drawdown realism) while keeping the centre", () => {
+    const gauss = runMonteCarlo(iso);
+    const fat = runMonteCarlo({ ...iso, shockDof: 5 });
+    // The Student-t scale mixture is leptokurtic: the body (p5–p95) is more
+    // peaked, but the extreme left tail is heavier — the whole point, so a
+    // goal-planner stops understating how bad bad can get. The histogram's lower
+    // bound tracks p0.1, which sits lower with fat tails.
+    expect(fat.histogram[0].x0).toBeLessThan(gauss.histogram[0].x0);
+    // Average variance is preserved, so the median barely moves.
+    expect(Math.abs(fat.median - gauss.median) / gauss.median).toBeLessThan(0.1);
+  });
+
+  it("ignores a degrees-of-freedom ≤ 2 (undefined variance) as plain Gaussian", () => {
+    const gauss = runMonteCarlo(iso);
+    const bad = runMonteCarlo({ ...iso, shockDof: 2 });
+    expect(bad.median).toBe(gauss.median);
+    expect(bad.p95).toBe(gauss.p95);
+  });
+
+  it("stays deterministic with the honesty knobs engaged", () => {
+    const a = runMonteCarlo({ ...iso, muStdErr: 0.02, shockDof: 5 });
+    const b = runMonteCarlo({ ...iso, muStdErr: 0.02, shockDof: 5 });
+    expect(a.p5).toBe(b.p5);
+    expect(a.p95).toBe(b.p95);
+    expect(a.median).toBe(b.median);
+  });
+
   it("reduces to deterministic compounding when volatility is zero", () => {
     const r = runMonteCarlo({
       ...baseInputs,

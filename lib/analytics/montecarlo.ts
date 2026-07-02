@@ -2,12 +2,27 @@
  * Monte Carlo simulation of portfolio value using geometric Brownian motion
  * with monthly steps and optional recurring contributions.
  *
- *   V_{t+1} = V_t · exp((μ − σ²/2)Δt + σ√Δt · Z) + contribution
+ *   V_{t+1} = V_t · exp((μ_p − σ_p²/2)Δt + σ_p√Δt · Z) + contribution
  *
  * μ comes from the CAPM expected return and σ from the factor-model covariance
  * (see risk.ts). The RNG is seeded so a given portfolio + inputs always
  * produces the same fan — results change when the portfolio does, not on
  * every render.
+ *
+ * Two honesty refinements keep the headline probability from looking more
+ * precise than the inputs justify (both default off, so callers that don't opt
+ * in get the classic GBM fan):
+ *
+ *  - **Drift uncertainty** (`muStdErr`). The expected return μ is the least
+ *    knowable input, yet plain GBM treats it as exact. When a standard error is
+ *    supplied, each path draws its own persistent drift μ_p ~ N(μ, muStdErr),
+ *    so the fan widens to reflect that we don't actually know the mean — the
+ *    single biggest reason the target probability was overstated as precise.
+ *  - **Fat tails** (`shockDof`). Real equity returns have heavier tails than a
+ *    Gaussian, so GBM understates drawdowns. With a Student-t degrees-of-freedom
+ *    each path draws a persistent volatility multiplier from the t-construction
+ *    (σ_p = σ · √((ν−2)/χ²_ν)·…), giving the ensemble Student-t marginals with
+ *    the *same* average variance σ² — heavier tails, unbiased centre.
  */
 
 import { mulberry32 } from "./mathUtils";
@@ -20,6 +35,20 @@ export interface MonteCarloInputs {
   monthlyContribution: number;
   targetValue: number;
   paths?: number;
+  /**
+   * Standard error on the annualized drift μ. When > 0, each path draws its own
+   * persistent drift μ_p ~ N(μ, muStdErr) so the fan reflects that the mean
+   * return is estimated, not known. Defaults to 0 (drift treated as exact —
+   * classic GBM).
+   */
+  muStdErr?: number;
+  /**
+   * Student-t degrees of freedom for the return shocks. When > 2, each path
+   * draws a persistent volatility multiplier so the ensemble has fatter tails
+   * than a Gaussian while preserving the average variance σ². Defaults to
+   * undefined (normal shocks). Values around 5–6 approximate equity tails.
+   */
+  shockDof?: number;
   /**
    * Optional salt mixed into the seed. The sim is deterministic per portfolio +
    * inputs; bumping this redraws a fresh-but-still-reproducible set of paths
@@ -65,8 +94,10 @@ export function runMonteCarlo(inputs: MonteCarloInputs): MonteCarloResult {
   const paths = inputs.paths ?? 3000;
   const months = Math.max(1, Math.round(years * 12));
   const dt = 1 / 12;
-  const drift = (mu - (sigma * sigma) / 2) * dt;
-  const diffusion = sigma * Math.sqrt(dt);
+  const sqrtDt = Math.sqrt(dt);
+  const muStdErr = Math.max(0, inputs.muStdErr ?? 0);
+  // Student-t needs ν > 2 for a finite variance; anything else ⇒ Gaussian.
+  const dof = inputs.shockDof && inputs.shockDof > 2 ? inputs.shockDof : 0;
 
   const seed =
     Math.round(initialValue) ^
@@ -74,6 +105,8 @@ export function runMonteCarlo(inputs: MonteCarloInputs): MonteCarloResult {
     Math.round(monthlyContribution * 7) ^
     Math.round(mu * 10000) ^
     Math.round(sigma * 10000) ^
+    Math.round(muStdErr * 10000) ^
+    Math.imul(Math.round(dof * 100), 0x85ebca6b) ^
     Math.imul((inputs.seedSalt ?? 0) | 0, 0x9e3779b1);
   const rand = mulberry32(seed || 42);
 
@@ -92,6 +125,27 @@ export function runMonteCarlo(inputs: MonteCarloInputs): MonteCarloResult {
     const r = Math.sqrt(-2 * Math.log(u));
     spare = r * Math.sin(2 * Math.PI * v);
     return r * Math.cos(2 * Math.PI * v);
+  };
+
+  // χ²_ν = Σ of ν squared standard normals — the denominator of the Student-t
+  // construction below. Only evaluated when fat tails are requested.
+  const chi2 = (k: number): number => {
+    let s = 0;
+    for (let i = 0; i < k; i++) {
+      const z = normal();
+      s += z * z;
+    }
+    return s;
+  };
+
+  // Persistent per-path volatility multiplier giving Student-t marginals: with
+  // s = √((ν−2)/χ²_ν), the step σ·s·Z is t_ν-distributed and E[s²]=1, so the
+  // ensemble keeps the average variance σ² while fattening the tails. Returns 1
+  // when fat tails are off (plain Gaussian).
+  const drawVolScale = (): number => {
+    if (dof <= 0) return 1;
+    const c = chi2(dof);
+    return c > 1e-12 ? Math.sqrt((dof - 2) / c) : 1;
   };
 
   // Keep only the cross-sections we actually read percentiles off (every month
@@ -143,16 +197,29 @@ export function runMonteCarlo(inputs: MonteCarloInputs): MonteCarloResult {
     let hit1 = false;
     const sample0 = sampleMap.get(p);
     const sample1 = hasPair ? sampleMap.get(p + 1) : undefined;
+
+    // Per-path parameters, drawn once and held across the horizon. The μ shock
+    // is antithetic between the pair (mirror signs), the vol regime is shared —
+    // both persist so the fan carries drift + tail uncertainty, not just
+    // step-to-step diffusion. With muStdErr=0 and dof=0 this reduces exactly to
+    // the classic shared-drift GBM.
+    const zMu = muStdErr > 0 ? normal() : 0;
+    const sigmaP = sigma * drawVolScale();
+    const diffusionP = sigmaP * sqrtDt;
+    const halfVar = 0.5 * sigmaP * sigmaP * dt;
+    const drift0 = (mu + muStdErr * zMu) * dt - halfVar;
+    const drift1 = (mu - muStdErr * zMu) * dt - halfVar;
+
     for (let m = 1; m <= months; m++) {
       const z = normal();
-      v0 = v0 * Math.exp(drift + diffusion * z) + monthlyContribution;
+      v0 = v0 * Math.exp(drift0 + diffusionP * z) + monthlyContribution;
       record(p, m, v0, sample0);
       if (!hit0 && targetValue > 0 && v0 >= targetValue) {
         hit0 = true;
         everHit++;
       }
       if (hasPair) {
-        v1 = v1 * Math.exp(drift - diffusion * z) + monthlyContribution;
+        v1 = v1 * Math.exp(drift1 - diffusionP * z) + monthlyContribution;
         record(p + 1, m, v1, sample1);
         if (!hit1 && targetValue > 0 && v1 >= targetValue) {
           hit1 = true;

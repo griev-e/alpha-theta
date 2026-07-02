@@ -96,15 +96,24 @@ export default function RiskPage() {
             label="est. sharpe"
             format={(v) => fmtNum(v, 2)}
             color="var(--color-vio)"
-            tip="The Sharpe ratio is return earned per unit of risk taken — expected return above the risk-free rate, divided by volatility. Higher is better: it tells you whether the portfolio's returns justify its swings. Around 1.0 is generally considered solid for an equity book."
+            tip={`The Sharpe ratio is return earned per unit of risk taken — expected return above the risk-free rate, divided by volatility. Higher is better: it tells you whether the portfolio's returns justify its swings. Around 1.0 is generally considered solid for an equity book. Because it inherits the CAPM expected return, it spans roughly ${fmtNum(
+              risk.sharpeBand.low,
+              2
+            )}–${fmtNum(risk.sharpeBand.high, 2)} across a plausible 3–6% equity risk premium — treat it as a band, not a precise figure.`}
           />
           <div className="grid grid-cols-2 gap-x-10 gap-y-5">
             <Stat
               label="Expected return"
               value={risk.expectedReturn}
               format={(v) => fmtPct(v, 1)}
-              sub="CAPM, long-run"
-              tip="A long-run annual return estimate from the Capital Asset Pricing Model (CAPM): the risk-free rate plus the portfolio's beta times the market's equity risk premium. The risk-free rate (13-week T-bill) and market volatility are fetched live; the equity risk premium is a fixed forward-looking assumption — it has no observable market quote — so this is a model-based expectation, not a forecast of any given year."
+              sub={`${fmtPct(risk.expectedReturnBand.low, 1)}–${fmtPct(
+                risk.expectedReturnBand.high,
+                1
+              )} across ERP ${fmtPct(risk.erpRange.low, 0)}–${fmtPct(
+                risk.erpRange.high,
+                0
+              )}`}
+              tip="A long-run annual return estimate from the Capital Asset Pricing Model (CAPM): the risk-free rate plus the portfolio's beta times the market's equity risk premium. The risk-free rate (13-week T-bill) and market volatility are fetched live; the equity risk premium is a fixed forward-looking assumption — it has no observable market quote and is editable on the Benchmark page. The range shows how the estimate moves across a plausible 3–6% ERP, so read the headline as the midpoint of a band, not a forecast of any given year."
             />
             <Stat
               label="Diversification ratio"

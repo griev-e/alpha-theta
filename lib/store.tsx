@@ -15,6 +15,7 @@ import { buildPortfolio, mergeAllFundamentals } from "./analytics/build";
 import { parsePortfolioCSV } from "./csv";
 import { primeLiveCMA } from "./live/cma";
 import { useLiveData } from "./live/useLiveData";
+import { useReturnHistory } from "./live/useReturnHistory";
 import { getServerState, putPortfolio } from "./persist";
 import { SAMPLE_CASH, SAMPLE_CSV } from "./sample";
 import type { Portfolio, RawHolding } from "./types";
@@ -208,6 +209,13 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
   );
   const liveData = useLiveData(symbols);
 
+  // Primes the return-history singleton the covariance estimator reads (see
+  // lib/live/returns.ts). The returned version bumps when a batch of history
+  // resolves; it's not an input to buildPortfolio, but folding it into the memo
+  // below yields a fresh Portfolio identity so the risk / correlation /
+  // optimizer pages recompute against the newly-loaded sample covariance.
+  const returnsVersion = useReturnHistory(symbols);
+
   // Fundamentals merge keyed only on the symbol set + patches (slow-moving), so
   // a 60s quote tick reprices without re-running the field-by-field merge.
   const fundamentals = useMemo(
@@ -224,7 +232,10 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
             fundamentals,
           })
         : null,
-    [stored, liveData.quotes, liveData.patches, fundamentals]
+    // returnsVersion is intentionally a dependency (not consumed by
+    // buildPortfolio) so a new batch of primed history re-derives downstream.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [stored, liveData.quotes, liveData.patches, fundamentals, returnsVersion]
   );
 
   const live = useMemo<LiveStatus>(

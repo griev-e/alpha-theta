@@ -2,6 +2,7 @@ import { CMA as STATIC_CMA, NDX, SPX } from "@/lib/data/benchmarks";
 import { resolveBenchmark, type LiveBenchmarkFields } from "@/lib/data/assumptions";
 import type { BenchmarkProfile } from "@/lib/types";
 import { getAssumptions } from "./assumptions";
+import { setRateSeries } from "./returns";
 
 /**
  * Live overlay for the capital-market assumptions analytics consume.
@@ -92,6 +93,9 @@ export function primeLiveCMA(): Promise<void> {
           ndx: isFields(data.ndx) ? data.ndx : {},
         };
       }
+      // Prime the rate-change series for empirical scenario rate betas (no-op
+      // when the provider returned no ^IRX history).
+      if (Array.isArray(data.rateHistory)) setRateSeries(data.rateHistory);
     } catch {
       // snapshot fallback — getCMA() / liveBenchmark() already cover this
     }
