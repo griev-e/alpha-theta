@@ -9,6 +9,7 @@ import { fmtUSDCompact } from "@/lib/format";
 import { usePortfolio, useLiveStatus, usePortfolioActions } from "@/lib/store";
 import { useSidebarWidth } from "@/lib/useSidebarWidth";
 import { ThetaProvider } from "@/lib/theta/store";
+import { ThetaAssumptionsProvider } from "@/lib/theta/assumptionsStore";
 import { AppTitle, Sigil, SignOutButton } from "./brand";
 import { PortfolioSwitcher } from "./PortfolioSwitcher";
 import { ThetaShell } from "./ThetaShell";
@@ -269,7 +270,9 @@ export function AppShell({ children }: { children: ReactNode }) {
   if (pathname === "/theta" || pathname.startsWith("/theta/")) {
     return (
       <ThetaProvider>
-        <ThetaShell>{children}</ThetaShell>
+        <ThetaAssumptionsProvider>
+          <ThetaShell>{children}</ThetaShell>
+        </ThetaAssumptionsProvider>
       </ThetaProvider>
     );
   }

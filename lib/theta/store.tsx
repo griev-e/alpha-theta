@@ -11,8 +11,10 @@ import {
   type ReactNode,
 } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
+import { usePortfolio } from "@/lib/store";
 import { getServerState, putLedger } from "@/lib/persist";
 import { advanceRecurring, deriveTheta, type ThetaView } from "./compute";
+import { applyPortfolioLinks } from "./bridge";
 import {
   type Account,
   type Budget,
@@ -21,6 +23,7 @@ import {
   type Goal,
   GOAL_ACCENTS,
   type Ledger,
+  migrateLedger,
   type Recurring,
   SAMPLE_LEDGER,
   type Transaction,
@@ -58,7 +61,20 @@ interface ThetaStore {
   removeRecurring: (id: string) => void;
 
   updateAccountBalance: (id: string, balance: number) => void;
+  /** Set (or clear) an account's optional APR, for the debt planner. */
+  setAccountApr: (id: string, apr: number | null) => void;
+  /** Set (or clear) a credit account's limit, for the health-score utilization metric. */
+  setAccountLimit: (id: string, limit: number | null) => void;
   removeAccount: (id: string) => void;
+
+  /**
+   * alpha↔theta bridge: link (or unlink) an account to an alpha portfolio, so
+   * its balance tracks that portfolio's live value. Persists the link only —
+   * never the resolved balance.
+   */
+  setAccountLink: (id: string, portfolioId: string | null) => void;
+  /** Alpha portfolios available to link (id + name), and which are live-resolved. */
+  linkOptions: { id: string; name: string; live: boolean }[];
 
   /** Toggle whether an account's transactions count toward lists + spending math. */
   toggleAccountHidden: (id: string) => void;
@@ -98,6 +114,8 @@ const startOfDay = (): number => {
 
 export function ThetaProvider({ children }: { children: ReactNode }) {
   const { enabled, status } = useAuth();
+  // The alpha portfolio (same provider tree) powers the account↔portfolio bridge.
+  const { portfolio, activeId, portfolios } = usePortfolio();
   // Server-backed when real auth is on and a user is signed in; otherwise the
   // original localStorage model (open mode / not signed in).
   const serverMode = enabled && status === "authenticated";
@@ -151,7 +169,7 @@ export function ThetaProvider({ children }: { children: ReactNode }) {
       try {
         const raw = localStorage.getItem(STORAGE_KEY);
         if (raw) {
-          setLedger(JSON.parse(raw) as Ledger);
+          setLedger(migrateLedger(JSON.parse(raw)) ?? EMPTY_LEDGER);
           setIsSample(localStorage.getItem(SAMPLE_FLAG) === "1");
         } else {
           setLedger(SAMPLE_LEDGER);
@@ -192,7 +210,7 @@ export function ThetaProvider({ children }: { children: ReactNode }) {
           return;
         }
         serverWritableRef.current = true;
-        setLedger((s.ledger as Ledger | null) ?? EMPTY_LEDGER);
+        setLedger(migrateLedger(s.ledger) ?? EMPTY_LEDGER);
         setIsSample(false);
         setReady(true);
       });
@@ -393,6 +411,39 @@ export function ThetaProvider({ children }: { children: ReactNode }) {
     [mutate]
   );
 
+  const setAccountApr = useCallback(
+    (id: string, apr: number | null) =>
+      mutate((l) => ({
+        ...l,
+        accounts: l.accounts.map((a) =>
+          a.id === id ? { ...a, apr: apr === null || apr <= 0 ? undefined : apr } : a
+        ),
+      })),
+    [mutate]
+  );
+
+  const setAccountLimit = useCallback(
+    (id: string, limit: number | null) =>
+      mutate((l) => ({
+        ...l,
+        accounts: l.accounts.map((a) =>
+          a.id === id ? { ...a, creditLimit: limit === null || limit <= 0 ? undefined : limit } : a
+        ),
+      })),
+    [mutate]
+  );
+
+  const setAccountLink = useCallback(
+    (id: string, portfolioId: string | null) =>
+      mutate((l) => ({
+        ...l,
+        accounts: l.accounts.map((a) =>
+          a.id === id ? { ...a, linkedPortfolioId: portfolioId ?? undefined } : a
+        ),
+      })),
+    [mutate]
+  );
+
   const removeAccount = useCallback(
     (id: string) =>
       mutate((l) => ({ ...l, accounts: l.accounts.filter((a) => a.id !== id) })),
@@ -472,16 +523,38 @@ export function ThetaProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
+  // Live value per linkable alpha portfolio. Only the active portfolio is
+  // live-priced by the alpha store, so it's the only one that resolves; others
+  // stay at their manual balance (see lib/theta/bridge.ts).
+  const linkValues = useMemo(() => {
+    const m = new Map<string, number>();
+    if (portfolio && activeId) m.set(activeId, portfolio.totalValue);
+    return m;
+  }, [portfolio, activeId]);
+
+  const linkOptions = useMemo(
+    () => portfolios.map((p) => ({ id: p.id, name: p.name, live: p.id === activeId })),
+    [portfolios, activeId]
+  );
+
+  // The ledger consumers see has any linked account's balance overridden with
+  // its portfolio's live value. Mutations operate on the raw ledger via
+  // `ledgerRef`, so the live value is never written back to storage.
+  const effectiveLedger = useMemo(
+    () => (ledger ? applyPortfolioLinks(ledger, linkValues) : null),
+    [ledger, linkValues]
+  );
+
   const view = useMemo(
-    () => (ledger ? deriveTheta(ledger, new Date(dayStart)) : null),
-    [ledger, dayStart]
+    () => (effectiveLedger ? deriveTheta(effectiveLedger, new Date(dayStart)) : null),
+    [effectiveLedger, dayStart]
   );
 
   const value = useMemo<ThetaStore>(
     () => ({
       ready,
       isSample,
-      ledger,
+      ledger: effectiveLedger,
       view,
       addTransaction,
       deleteTransaction,
@@ -497,7 +570,11 @@ export function ThetaProvider({ children }: { children: ReactNode }) {
       markRecurringPaid,
       removeRecurring,
       updateAccountBalance,
+      setAccountApr,
+      setAccountLimit,
       removeAccount,
+      setAccountLink,
+      linkOptions,
       toggleAccountHidden,
       toggleCategoryHidden,
       resetTransactionFilters,
@@ -506,12 +583,13 @@ export function ThetaProvider({ children }: { children: ReactNode }) {
       clear,
     }),
     [
-      ready, isSample, ledger, view,
+      ready, isSample, effectiveLedger, view,
       addTransaction, deleteTransaction, importTransactions, applySimplefinSync,
       setBudgetLimit, addBudget, removeBudget,
       addGoal, contributeToGoal, removeGoal,
       addRecurring, markRecurringPaid, removeRecurring,
-      updateAccountBalance, removeAccount,
+      updateAccountBalance, setAccountApr, setAccountLimit, removeAccount,
+      setAccountLink, linkOptions,
       toggleAccountHidden, toggleCategoryHidden, resetTransactionFilters,
       setTransactionCategory,
       loadSample, clear,

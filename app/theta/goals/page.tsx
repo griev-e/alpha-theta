@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { AddGoalModal, ContributeModal } from "@/components/theta/modals";
 import { ActionButton, ThetaEmpty, IconButton, PlusIcon, TrashIcon } from "@/components/theta/ui";
 import { Card, CardHeader } from "@/components/ui/Card";
@@ -9,12 +9,28 @@ import { Ring } from "@/components/ui/Ring";
 import { Stat } from "@/components/ui/Stat";
 import { type Goal } from "@/lib/theta/data";
 import { ledgerHasData, useTheta } from "@/lib/theta/store";
+import { useThetaAssumptions } from "@/lib/theta/assumptionsStore";
+import { assessGoal, type GoalFeasibility, type GoalStatus } from "@/lib/theta/goals";
 import { fmtPct, fmtUSD, fmtUSDCompact } from "@/lib/format";
+
+const STATUS_META: Record<GoalStatus, { label: string; color: string }> = {
+  funded: { label: "Funded", color: "var(--color-pos)" },
+  "on-track": { label: "On track", color: "var(--color-mint)" },
+  behind: { label: "Behind", color: "var(--color-warn)" },
+  "at-risk": { label: "At risk", color: "var(--color-neg)" },
+  "no-contribution": { label: "Not funding", color: "var(--color-faint)" },
+};
 
 export default function GoalsPage() {
   const { ready, ledger, removeGoal } = useTheta();
+  const { assumptions } = useThetaAssumptions();
   const [adding, setAdding] = useState(false);
   const [contributing, setContributing] = useState<Goal | null>(null);
+
+  const feas = useMemo(
+    () => (ledger?.goals ?? []).map((g) => assessGoal(g, assumptions)),
+    [ledger, assumptions]
+  );
 
   if (!ready) return null;
   if (!ledger || !ledgerHasData(ledger)) return <ThetaEmpty page="Goals" />;
@@ -29,7 +45,7 @@ export default function GoalsPage() {
       <PageHeader
         eyebrow="Planning"
         title="Goals"
-        description="Money set aside with a purpose, and how close each is to the finish line."
+        description="Money set aside with a purpose — with a feasibility read on each: the pace you need, the date it projects to, and the odds of getting there."
         right={
           <ActionButton onClick={() => setAdding(true)}>
             <PlusIcon /> New goal
@@ -52,7 +68,14 @@ export default function GoalsPage() {
       {goals.length > 0 ? (
         <div className="grid gap-5 sm:grid-cols-2">
           {goals.map((g, i) => (
-            <GoalCard key={g.id} g={g} i={i} onContribute={() => setContributing(g)} onRemove={() => removeGoal(g.id)} />
+            <GoalCard
+              key={g.id}
+              g={g}
+              f={feas[i]}
+              i={i}
+              onContribute={() => setContributing(g)}
+              onRemove={() => removeGoal(g.id)}
+            />
           ))}
         </div>
       ) : (
@@ -69,19 +92,20 @@ export default function GoalsPage() {
 
 function GoalCard({
   g,
+  f,
   i,
   onContribute,
   onRemove,
 }: {
   g: Goal;
+  f: GoalFeasibility;
   i: number;
   onContribute: () => void;
   onRemove: () => void;
 }) {
   const pct = g.target > 0 ? g.saved / g.target : 0;
-  const remaining = Math.max(0, g.target - g.saved);
-  const monthsToGo = g.monthly > 0 ? Math.ceil(remaining / g.monthly) : Infinity;
   const targetLabel = new Date(`${g.targetDate}T00:00:00`).toLocaleDateString("en-US", { month: "short", year: "numeric" });
+  const status = STATUS_META[f.status];
 
   return (
     <Card className="group px-5 py-5" i={i + 1}>
@@ -103,17 +127,29 @@ function GoalCard({
           <span className="text-[10px] text-faint">funded</span>
         </Ring>
         <div className="flex-1">
+          <div className="mb-2 inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-medium" style={{ color: status.color, background: `color-mix(in srgb, ${status.color} 12%, transparent)` }}>
+            <span className="h-1.5 w-1.5 rounded-full" style={{ background: status.color }} />
+            {status.label}
+            {f.successProb !== null && f.status !== "funded" && (
+              <span className="text-faint">· {fmtPct(f.successProb, 0)} odds</span>
+            )}
+          </div>
           <div className="font-mono tnum text-[20px] font-medium text-ink">{fmtUSD(g.saved, true)}</div>
           <div className="font-mono text-[12px] text-faint">of {fmtUSD(g.target, true)}</div>
           <div className="mt-3 flex flex-col gap-1.5 text-[12px]">
-            <div className="flex justify-between">
-              <span className="text-mute">Remaining</span>
-              <span className="font-mono tnum text-ink">{fmtUSD(remaining, true)}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-mute">On track in</span>
-              <span className="font-mono tnum text-ink">{Number.isFinite(monthsToGo) ? `${monthsToGo} mo` : "—"}</span>
-            </div>
+            <Row label="Remaining" value={fmtUSD(f.remaining, true)} />
+            <Row
+              label="Projected"
+              value={f.projectedDate ? fmtMonth(f.projectedDate) : "—"}
+              tone={f.monthsUntilTarget !== null && f.projectedMonths !== null && f.projectedMonths > f.monthsUntilTarget ? "neg" : undefined}
+            />
+            {f.requiredMonthly !== null && (
+              <Row
+                label="Need / mo"
+                value={`${fmtUSD(f.requiredMonthly, true)}`}
+                tone={f.requiredMonthly > g.monthly * 1.02 ? "neg" : "pos"}
+              />
+            )}
           </div>
           <button
             onClick={onContribute}
@@ -125,4 +161,18 @@ function GoalCard({
       </div>
     </Card>
   );
+}
+
+function Row({ label, value, tone }: { label: string; value: string; tone?: "pos" | "neg" }) {
+  const cls = tone === "pos" ? "text-pos" : tone === "neg" ? "text-neg" : "text-ink";
+  return (
+    <div className="flex justify-between">
+      <span className="text-mute">{label}</span>
+      <span className={`font-mono tnum ${cls}`}>{value}</span>
+    </div>
+  );
+}
+
+function fmtMonth(iso: string): string {
+  return new Date(`${iso}T00:00:00`).toLocaleDateString("en-US", { month: "short", year: "numeric" });
 }

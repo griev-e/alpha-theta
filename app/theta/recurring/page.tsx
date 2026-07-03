@@ -6,9 +6,12 @@ import { ThetaEmpty, IconButton, TrashIcon } from "@/components/theta/ui";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Stat } from "@/components/ui/Stat";
+import { useMemo } from "react";
 import { recurringPerMonth } from "@/lib/theta/compute";
+import { detectRecurring, newSubscriptions, type DetectedRecurring } from "@/lib/theta/detect";
+import { CATEGORY_COLOR } from "@/lib/theta/data";
 import { ledgerHasData, useTheta } from "@/lib/theta/store";
-import { fmtUSD } from "@/lib/format";
+import { fmtPct, fmtUSD } from "@/lib/format";
 
 const CADENCE_LABEL = { monthly: "Monthly", yearly: "Yearly", weekly: "Weekly" } as const;
 
@@ -18,7 +21,12 @@ function shortDate(iso: string): string {
 }
 
 export default function RecurringPage() {
-  const { ready, ledger, view, markRecurringPaid, removeRecurring } = useTheta();
+  const { ready, ledger, view, markRecurringPaid, removeRecurring, addRecurring } = useTheta();
+
+  const detected = useMemo(() => {
+    if (!ledger) return [];
+    return newSubscriptions(detectRecurring(ledger.transactions), ledger.recurring);
+  }, [ledger]);
 
   if (!ready) return null;
   if (!ledger || !view || !ledgerHasData(ledger)) return <ThetaEmpty page="Recurring charges" />;
@@ -98,6 +106,69 @@ export default function RecurringPage() {
           <p className="px-6 py-12 text-center text-[13px] text-faint">No recurring charges.</p>
         )}
       </Card>
+
+      {detected.length > 0 && (
+        <Card className="mt-5 px-5 py-5" i={4}>
+          <CardHeader
+            eyebrow="Auto-detected"
+            title="Subscriptions you're not tracking"
+            className="mb-1"
+          />
+          <p className="mb-4 text-[12.5px] leading-relaxed text-mute">
+            Steady, repeating charges found in your transactions but not on the list above.
+            Track one to fold it into your recurring burn.
+          </p>
+          <div className="flex flex-col divide-y divide-edge/60">
+            {detected.map((d) => (
+              <DetectedRow
+                key={`${d.merchant}-${d.cadence}`}
+                d={d}
+                onTrack={() =>
+                  addRecurring({
+                    name: d.merchant,
+                    category: d.category,
+                    amount: d.amount,
+                    cadence: d.cadence,
+                    nextDate: d.nextDate,
+                  })
+                }
+              />
+            ))}
+          </div>
+        </Card>
+      )}
+    </div>
+  );
+}
+
+function DetectedRow({ d, onTrack }: { d: DetectedRecurring; onTrack: () => void }) {
+  return (
+    <div className="flex items-center justify-between gap-3 py-3 first:pt-0 last:pb-0 text-[13px]">
+      <div className="min-w-0">
+        <div className="flex items-center gap-2">
+          <span className="truncate text-ink">{d.merchant}</span>
+          <span
+            className="shrink-0 rounded-full px-1.5 py-0.5 text-[10px]"
+            style={{ color: CATEGORY_COLOR[d.category], background: `color-mix(in srgb, ${CATEGORY_COLOR[d.category]} 14%, transparent)` }}
+          >
+            {d.category}
+          </span>
+          {d.priceCreep && (
+            <span className="shrink-0 rounded-full bg-warn/15 px-1.5 py-0.5 text-[10px] text-warn">
+              ↑ {fmtPct(d.priceCreep.pctChange, 0)} ({fmtUSD(d.priceCreep.from)}→{fmtUSD(d.priceCreep.to)})
+            </span>
+          )}
+        </div>
+        <div className="mt-0.5 text-[11.5px] text-faint">
+          {fmtUSD(d.amount)} · {d.cadence} · {d.count} charges · {fmtUSD(d.annualCost, true)}/yr
+        </div>
+      </div>
+      <button
+        onClick={onTrack}
+        className="shrink-0 rounded-md border border-edge2 px-2.5 py-1 text-[11.5px] text-mute transition-colors hover:border-white/30 hover:text-ink"
+      >
+        Track
+      </button>
     </div>
   );
 }

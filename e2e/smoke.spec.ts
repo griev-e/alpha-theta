@@ -53,11 +53,38 @@ for (const [path, marker] of ALPHA_PAGES) {
   });
 }
 
-test("renders theta dashboard", async ({ page }) => {
-  await page.goto("/theta");
-  await expect(page.locator("main")).toBeVisible();
-  await expect(page.locator("body")).not.toContainText("Application error");
-});
+/**
+ * theta's own routes. theta seeds its illustrative sample ledger on first load
+ * in open mode (no theta.ledger.v1 in storage), so these render with data
+ * without extra seeding — the new analytics pages (health, projection, debt)
+ * included. Live providers stay unstubbed, so the AI sections must degrade to
+ * their idle/offline states rather than throw.
+ */
+const THETA_PAGES: [string, string | RegExp][] = [
+  ["/theta", /Net worth|Dashboard|theta/i],
+  ["/theta/networth", /Net Worth/i],
+  ["/theta/health", /Health/i],
+  ["/theta/intelligence", /Intelligence/i],
+  ["/theta/accounts", /Accounts/i],
+  ["/theta/transactions", /Transaction/i],
+  ["/theta/cashflow", /Cash Flow/i],
+  ["/theta/debt", /Debt/i],
+  ["/theta/budgets", /Budget/i],
+  ["/theta/goals", /Goals/i],
+  ["/theta/recurring", /Recurring/i],
+  ["/theta/projection", /Projection/i],
+  ["/theta/import", /Import/i],
+  ["/theta/settings", /Settings/i],
+];
+
+for (const [path, marker] of THETA_PAGES) {
+  test(`renders ${path}`, async ({ page }) => {
+    await page.goto(path);
+    await expect(page.locator("main")).toBeVisible();
+    await expect(page.locator("body")).toContainText(marker, { timeout: 15_000 });
+    await expect(page.locator("body")).not.toContainText("Application error");
+  });
+}
 
 /**
  * The empty book is the render corner most likely to throw — analytics that

@@ -56,7 +56,8 @@ export function SimplefinCard({ i = 2 }: { i?: number }) {
           bank link is stored to your account rather than this browser. Set{" "}
           <span className="font-mono text-[12px] text-faint">AUTH_SECRET</span> +{" "}
           <span className="font-mono text-[12px] text-faint">DATABASE_URL</span> and
-          sign in to use it. Until then, import a CSV.
+          sign in to connect a bank. Until then, load the sample ledger or add
+          accounts and transactions by hand.
         </p>
       </Card>
     );

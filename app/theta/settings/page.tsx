@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useState } from "react";
 import { useTheta } from "@/lib/theta/store";
 import { CATEGORIZE_RULES } from "@/lib/theta/categorize";
+import { useThetaAssumptions, type ThetaFieldKey } from "@/lib/theta/assumptionsStore";
+import { ASSUMPTION_PRESETS } from "@/lib/theta/assumptions";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { PageHeader } from "@/components/ui/PageHeader";
 
@@ -131,7 +133,7 @@ export default function SettingsPage() {
             <Row title="Accounts" desc="Balances you track in theta">
               <span className="font-mono text-[12px] text-mute">{accountCount} accounts</span>
             </Row>
-            <Row title="Your data" desc="Import a CSV, load the sample, or clear it">
+            <Row title="Your data" desc="Connect a bank, load the sample, or clear it">
               <Link href="/theta/import" className="font-mono text-[12px] text-vio/80 transition-colors hover:text-vio">
                 Manage →
               </Link>
@@ -144,6 +146,89 @@ export default function SettingsPage() {
           </p>
         </Card>
       </div>
+
+      <AssumptionsCard />
+    </div>
+  );
+}
+
+/** Editable, preset-anchored planning assumptions — theta's parallel of alpha's
+ *  Benchmark page assumptions. Feeds the projection, goals and debt engines. */
+const FIELDS: { key: ThetaFieldKey; label: string; hint: string }[] = [
+  { key: "investReturn", label: "Invested return", hint: "Annual nominal return on brokerage / retirement balances" },
+  { key: "investVol", label: "Invested volatility", hint: "Annualized swing of invested assets — sets the projection fan width" },
+  { key: "cashYield", label: "Cash yield", hint: "Annual yield on checking / savings" },
+  { key: "inflation", label: "Inflation", hint: "Used for the real (today's-dollars) projection" },
+  { key: "incomeGrowth", label: "Income growth", hint: "Annual rise in take-home pay — grows your contribution capacity" },
+  { key: "creditApr", label: "Credit APR (default)", hint: "Fallback rate for credit cards with no rate set" },
+  { key: "loanApr", label: "Loan APR (default)", hint: "Fallback rate for loans with no rate set" },
+];
+
+function AssumptionsCard() {
+  const { assumptions, preset, setField, applyPreset } = useThetaAssumptions();
+
+  return (
+    <Card className="mt-5 px-5 py-5" i={4}>
+      <CardHeader
+        eyebrow="Planning"
+        title="Assumptions"
+        className="mb-4"
+        right={
+          <div className="flex gap-1.5">
+            {ASSUMPTION_PRESETS.map((p) => (
+              <button
+                key={p.id}
+                onClick={() => applyPreset(p.id)}
+                title={p.blurb}
+                className={`h-7 rounded-md border px-2.5 text-[11.5px] font-medium transition-colors ${
+                  preset === p.id ? "border-white/30 bg-white/[0.06] text-ink" : "border-edge2 text-mute hover:text-ink"
+                }`}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
+        }
+      />
+      <p className="mb-4 text-[12px] leading-relaxed text-faint">
+        The forward inputs behind the projection, goal-feasibility and debt engines — editable views, not
+        facts. {preset ? `Currently the "${ASSUMPTION_PRESETS.find((p) => p.id === preset)?.label}" preset.` : "Customized."}
+      </p>
+      <div className="grid gap-x-6 gap-y-1 sm:grid-cols-2">
+        {FIELDS.map((f) => (
+          <div key={f.key} className="flex items-center justify-between gap-4 border-b border-edge/60 py-3">
+            <div className="min-w-0">
+              <div className="text-[13px] text-ink">{f.label}</div>
+              <div className="mt-0.5 text-[11.5px] leading-snug text-faint">{f.hint}</div>
+            </div>
+            <PercentField key={`${f.key}-${assumptions[f.key]}`} value={assumptions[f.key]} onCommit={(v) => setField(f.key, v)} />
+          </div>
+        ))}
+      </div>
+    </Card>
+  );
+}
+
+/** A percent input storing a fraction (7% ⇄ 0.07). Commits on blur / Enter. */
+function PercentField({ value, onCommit }: { value: number; onCommit: (v: number) => void }) {
+  const [text, setText] = useState((value * 100).toFixed(1));
+  const commit = () => {
+    const n = Number(text.replace(/[^0-9.]/g, ""));
+    if (Number.isFinite(n)) onCommit(n / 100);
+  };
+  return (
+    <div className="flex shrink-0 items-center gap-1">
+      <input
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+        }}
+        inputMode="decimal"
+        className="field h-8 w-16 text-right font-mono tnum text-[13px]"
+      />
+      <span className="text-[12px] text-faint">%</span>
     </div>
   );
 }

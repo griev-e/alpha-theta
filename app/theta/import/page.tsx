@@ -1,44 +1,72 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { parseTransactionsCSV, SAMPLE_CSV_TEXT } from "@/lib/theta/csv";
 import { useTheta } from "@/lib/theta/store";
 import { SimplefinCard } from "@/components/theta/SimplefinCard";
+import type { CategorizeResponse } from "@/lib/theta/intelligence";
 
 export default function ThetaImportPage() {
-  const { ready, ledger, isSample, importTransactions, loadSample, clear } = useTheta();
-  const [text, setText] = useState("");
+  const { ready, ledger, isSample, loadSample, clear, setTransactionCategory } = useTheta();
   const [msg, setMsg] = useState<{ tone: "ok" | "err"; text: string } | null>(null);
-  const fileRef = useRef<HTMLInputElement>(null);
+  const [categorizing, setCategorizing] = useState(false);
+
+  // One representative transaction id per uncategorized merchant — the set the
+  // AI categorizer can clean up (everything still sitting in "Other").
+  const uncategorized = useMemo(() => {
+    const byMerchant = new Map<string, { id: string; merchant: string; amount: number }>();
+    for (const t of ledger?.transactions ?? []) {
+      if (t.category !== "Other") continue;
+      const key = t.merchant.trim().toLowerCase();
+      if (!byMerchant.has(key)) byMerchant.set(key, { id: t.id, merchant: t.merchant, amount: t.amount });
+    }
+    return [...byMerchant.values()];
+  }, [ledger]);
 
   if (!ready) return null;
   const accounts = ledger?.accounts ?? [];
 
-  function doImport(raw: string) {
-    const { transactions, skipped } = parseTransactionsCSV(raw, accounts);
-    if (transactions.length === 0) {
-      setMsg({ tone: "err", text: "No valid rows found. Check the date and amount columns." });
-      return;
+  async function autoCategorize() {
+    if (uncategorized.length === 0) return;
+    setCategorizing(true);
+    setMsg(null);
+    try {
+      const res = await fetch("/api/theta/categorize", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ items: uncategorized.map((u) => ({ merchant: u.merchant, amount: u.amount })) }),
+      });
+      const data = (await res.json().catch(() => ({}))) as Partial<CategorizeResponse> & { error?: string };
+      if (!res.ok) {
+        setMsg({
+          tone: "err",
+          text:
+            res.status === 501
+              ? "AI categorizer isn't configured on this deployment (set ANTHROPIC_API_KEY)."
+              : (data.error ?? "Couldn't reach the categorizer. Try again."),
+        });
+        return;
+      }
+      const byMerchant = new Map(uncategorized.map((u) => [u.merchant.trim().toLowerCase(), u.id]));
+      let applied = 0;
+      for (const r of data.results ?? []) {
+        if (r.category === "Other") continue;
+        const id = byMerchant.get(r.merchant.trim().toLowerCase());
+        if (id) {
+          setTransactionCategory(id, r.category);
+          applied++;
+        }
+      }
+      setMsg({
+        tone: "ok",
+        text: applied > 0 ? `Categorized ${applied} merchant${applied === 1 ? "" : "s"}.` : "Nothing new to categorize.",
+      });
+    } catch {
+      setMsg({ tone: "err", text: "Couldn't reach the categorizer. Try again." });
+    } finally {
+      setCategorizing(false);
     }
-    importTransactions(transactions);
-    setText("");
-    setMsg({
-      tone: "ok",
-      text: `Imported ${transactions.length} transaction${transactions.length === 1 ? "" : "s"}${
-        skipped ? ` · skipped ${skipped} unparseable row${skipped === 1 ? "" : "s"}` : ""
-      }.`,
-    });
-  }
-
-  function onFile(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => doImport(String(reader.result ?? ""));
-    reader.readAsText(file);
-    e.target.value = "";
   }
 
   return (
@@ -46,54 +74,42 @@ export default function ThetaImportPage() {
       <PageHeader
         eyebrow="System"
         title="Import & Data"
-        description="Connect a bank, bring in your own transactions, or manage the sample ledger."
+        description="Connect a bank to sync balances and transactions automatically, or manage the sample ledger."
       />
 
-      <div className="mb-5">
-        <SimplefinCard i={0} />
-      </div>
-
       <div className="grid gap-5 lg:grid-cols-[1.4fr_1fr]">
-        <Card className="px-5 py-5" i={0}>
-          <CardHeader eyebrow="Transactions" title="Import a CSV" className="mb-4" />
-          <p className="mb-3 text-[13px] leading-relaxed text-mute">
-            Paste or upload a CSV. Columns are matched by name in any order —
-            <span className="font-mono text-[12px] text-faint"> date, merchant, amount, category, account</span>.
-            Negative amounts (or parenthesized) are money out. Importing replaces
-            your current transactions.
-          </p>
+        <div className="flex flex-col gap-5">
+          <SimplefinCard i={0} />
 
-          <textarea
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            spellCheck={false}
-            placeholder={SAMPLE_CSV_TEXT}
-            className="h-44 w-full resize-none rounded-lg border border-edge2 bg-panel p-3 font-mono text-[12px] text-ink placeholder:text-faint/60 outline-none transition-colors focus:border-white/30"
-          />
-
-          <div className="mt-3 flex flex-wrap items-center gap-2.5">
-            <button onClick={() => doImport(text)} disabled={!text.trim()} className="btn-primary disabled:opacity-40">
-              Import pasted
-            </button>
-            <button onClick={() => fileRef.current?.click()} className="btn-secondary">
-              Upload file…
-            </button>
-            <button onClick={() => setText(SAMPLE_CSV_TEXT)} className="text-[12px] text-faint transition-colors hover:text-ink">
-              Use example
-            </button>
-            <input ref={fileRef} type="file" accept=".csv,text/csv,text/plain" onChange={onFile} className="hidden" />
-          </div>
-
-          {msg && (
-            <div className={`mt-3 rounded-md border px-3 py-2 text-[12.5px] ${
-              msg.tone === "ok" ? "border-pos/30 bg-pos/10 text-pos" : "border-neg/30 bg-neg/10 text-neg"
-            }`}>
-              {msg.text}
+          <Card className="px-5 py-5" i={1}>
+            <CardHeader
+              eyebrow="Cleanup"
+              title="Auto-categorize with AI"
+              className="mb-3"
+            />
+            <p className="mb-3 text-[13px] leading-relaxed text-mute">
+              Synced and manually-added transactions that the keyword rules
+              couldn&apos;t place stay in <span className="text-ink">Other</span>. Let
+              Claude sort the rest into theta&apos;s categories in one pass.
+            </p>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={autoCategorize}
+                disabled={categorizing || uncategorized.length === 0}
+                className="btn-primary disabled:opacity-40"
+              >
+                {categorizing ? "Categorizing…" : "Categorize"}
+              </button>
+              <span className="text-[12px] text-faint">
+                {uncategorized.length > 0
+                  ? `${uncategorized.length} merchant${uncategorized.length === 1 ? "" : "s"} in "Other"`
+                  : "Nothing uncategorized"}
+              </span>
             </div>
-          )}
-        </Card>
+          </Card>
+        </div>
 
-        <Card className="px-5 py-5" i={1}>
+        <Card className="px-5 py-5" i={2}>
           <CardHeader eyebrow="Ledger" title="Your data" className="mb-4" />
           <div className="flex flex-col divide-y divide-edge/60 text-[13px]">
             <Stat2 label="Accounts" value={accounts.length} />
@@ -121,6 +137,14 @@ export default function ThetaImportPage() {
           </p>
         </Card>
       </div>
+
+      {msg && (
+        <div className={`mt-5 rounded-md border px-3 py-2 text-[12.5px] ${
+          msg.tone === "ok" ? "border-pos/30 bg-pos/10 text-pos" : "border-neg/30 bg-neg/10 text-neg"
+        }`}>
+          {msg.text}
+        </div>
+      )}
     </div>
   );
 }

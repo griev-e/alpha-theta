@@ -8,6 +8,23 @@ export type PatchNote = {
 // Newest first. Add an entry here whenever a notable change ships.
 export const PATCH_NOTES: PatchNote[] = [
   {
+    version: "1.43",
+    date: "2026-07-03",
+    title: "theta grows up: projections, financial health, debt payoff, and smarter money analytics",
+    changes: [
+      "theta now derives its cash-flow and net-worth history from your actual transactions instead of storing a static series — flows bucket by calendar month and past net worth is reconstructed by reverse-walking each account's balance, so the charts self-correct when you import older data and internal transfers no longer create phantom swings. Your existing ledger is migrated automatically.",
+      "New Net-Worth Projection page: a Monte Carlo of your whole balance sheet — invested assets grow with market risk, cash compounds at its yield, and your monthly savings ride on top — with 5-to-30-year horizons, an optional target and its probability, and a today's-dollars (inflation-adjusted) median. Deterministic per balance sheet, like alpha's simulator.",
+      "New Financial Health scorecard: a weighted 0–100 grade across emergency runway, savings rate, debt-to-income, credit utilization, liquidity and housing burden — each scored against a published reference band, not a made-up threshold, with coverage-reweighting when a metric lacks data. Includes an optional Claude (Sonnet 4.6) review that reasons across the findings and ranks what to do first.",
+      "New Debt Payoff planner: amortizes your liabilities under avalanche or snowball, dates the payoff, totals the interest, and shows exactly what an extra $X/month buys you in time and interest saved.",
+      "Goals now come with a feasibility read: the pace you need, the date the current pace projects to, the contribution required to hit your target date, an on-track / behind / at-risk status, and a Monte-Carlo probability of success.",
+      "Recurring page auto-detects subscriptions from your transactions — steady, repeating charges you're not yet tracking — and flags price creep (the bill that quietly climbed). Track one in a click.",
+      "Spending analytics now rank each category against its own trailing history (percentiles, not fixed dollar thresholds), surfacing what's genuinely running hot for you rather than what's simply large.",
+      "Editable planning assumptions (invested return, volatility, cash yield, inflation, income growth, default APRs) with base / optimistic / conservative presets, in Settings — the forward inputs behind the projection, goals and debt engines.",
+      "alpha↔theta bridge: link a theta brokerage or retirement account to one of your alpha portfolios and its balance tracks that portfolio's live market value instead of a number you maintain by hand. Accounts also gained editable APRs (for the debt planner) and credit limits (for the utilization score).",
+      "Import & Data is now bank-first: SimpleFIN sync is the primary way to bring in accounts and transactions, with a one-pass AI auto-categorizer (Haiku 4.5) to clean up anything the keyword rules left in \"Other\".",
+    ],
+  },
+  {
     version: "1.42",
     date: "2026-07-03",
     title: "CSV import now always replaces the active portfolio",
