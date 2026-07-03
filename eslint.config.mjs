@@ -1,17 +1,24 @@
-import { dirname } from "path";
-import { fileURLToPath } from "url";
-import { FlatCompat } from "@eslint/eslintrc";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
-const compat = new FlatCompat({ baseDirectory: __dirname });
+import coreWebVitals from "eslint-config-next/core-web-vitals";
+import typescript from "eslint-config-next/typescript";
 
 const eslintConfig = [
   {
     ignores: [".next/**", "node_modules/**", "next-env.d.ts"],
   },
-  ...compat.extends("next/core-web-vitals", "next/typescript"),
+  ...coreWebVitals,
+  ...typescript,
+  {
+    // New in eslint-plugin-react-hooks 7 (React Compiler lint set). The
+    // codebase's SSR-safe localStorage hydration and paint-then-compute
+    // patterns (useAsyncCompute, useLiveData, the stores) trip them by
+    // design — keep them visible as warnings rather than build-failing
+    // errors until those patterns are revisited.
+    rules: {
+      "react-hooks/set-state-in-effect": "warn",
+      "react-hooks/refs": "warn",
+      "react-hooks/immutability": "warn",
+    },
+  },
 ];
 
 export default eslintConfig;
