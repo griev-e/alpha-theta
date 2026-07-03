@@ -10,6 +10,7 @@ import { usePortfolio, useLiveStatus, usePortfolioActions } from "@/lib/store";
 import { useSidebarWidth } from "@/lib/useSidebarWidth";
 import { ThetaProvider } from "@/lib/theta/store";
 import { AppTitle, Sigil, SignOutButton } from "./brand";
+import { PortfolioSwitcher } from "./PortfolioSwitcher";
 import { ThetaShell } from "./ThetaShell";
 import {
   IconBenchmark,
@@ -305,6 +306,8 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
         </div>
 
+        <PortfolioSwitcher />
+
         <SidebarNav />
 
         {/* Drag handle — adjusts sidebar width, persisted in localStorage. */}
@@ -357,6 +360,9 @@ export function AppShell({ children }: { children: ReactNode }) {
               )}
               <SignOutButton />
             </div>
+          </div>
+          <div className="pb-1">
+            <PortfolioSwitcher />
           </div>
           <div className="flex gap-1 overflow-x-auto px-3 pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {NAV.map((item) => {

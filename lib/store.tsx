@@ -17,6 +17,18 @@ import { primeLiveCMA } from "./live/cma";
 import { useLiveData } from "./live/useLiveData";
 import { useReturnHistory } from "./live/useReturnHistory";
 import { getServerState, putPortfolio } from "./persist";
+import {
+  activePortfolio,
+  addPortfolio,
+  makePortfolio,
+  migrate,
+  removePortfolio,
+  renamePortfolio as renameInSet,
+  selectPortfolio as selectInSet,
+  updateActive,
+  uniqueName,
+  type PortfolioSet,
+} from "./portfolios";
 import { SAMPLE_CASH, SAMPLE_CSV } from "./sample";
 import type { Portfolio, RawHolding } from "./types";
 
@@ -28,13 +40,6 @@ const LEGACY_STORAGE_KEYS = [
   "hlee.portfolio.v1",
   "meridian.portfolio.v1",
 ];
-
-interface Stored {
-  holdings: RawHolding[];
-  cash: number;
-  asOf: string;
-  isDemo?: boolean;
-}
 
 export interface LiveStatus {
   /** ISO time of the last successful quote refresh, null = none yet. */
@@ -48,27 +53,60 @@ export interface LiveStatus {
   refreshing: boolean;
 }
 
+/** Lightweight descriptor of one portfolio in the set, for the switcher UI. */
+export interface PortfolioSummary {
+  id: string;
+  name: string;
+  isDemo: boolean;
+  /** Number of holdings (excludes cash). */
+  count: number;
+}
+
+/** Options for how an import lands. */
+export interface ImportOptions {
+  /** Import into a brand-new portfolio instead of replacing the active one. */
+  asNew?: boolean;
+  /** Name for the new portfolio (only used with `asNew`). */
+  name?: string;
+}
+
 /**
  * Portfolio data — changes only when the book itself moves (import, cash edit,
- * or a real price tick that rebuilds the portfolio). Deliberately split from
- * `LiveStatus`: the live status carries a `quotesAt` timestamp that updates on
- * every 60s poll even when no price moved, so folding it in here would re-render
- * every analytics page once a minute for nothing.
+ * portfolio switch, or a real price tick that rebuilds the portfolio).
+ * Deliberately split from `LiveStatus`: the live status carries a `quotesAt`
+ * timestamp that updates on every 60s poll even when no price moved, so folding
+ * it in here would re-render every analytics page once a minute for nothing.
  */
 interface PortfolioData {
   /** null until localStorage has been read (avoids hydration flicker). */
   ready: boolean;
+  /** True when the active portfolio has holdings to analyze. */
   hasData: boolean;
   isDemo: boolean;
   portfolio: Portfolio | null;
+  /** Every portfolio in the set (for the switcher). Empty when none exist. */
+  portfolios: PortfolioSummary[];
+  /** id of the active portfolio, or null when the set is empty. */
+  activeId: string | null;
 }
 
 /** Stable action handles — identity survives price ticks. */
 interface PortfolioActions {
-  importHoldings: (holdings: RawHolding[], cash: number | null) => void;
+  /** Import holdings into the active portfolio (or a new one via `opts.asNew`). */
+  importHoldings: (
+    holdings: RawHolding[],
+    cash: number | null,
+    opts?: ImportOptions
+  ) => void;
   loadDemo: () => void;
   setCash: (cash: number) => void;
-  clear: () => void;
+  /** Create an empty portfolio and switch to it. */
+  createPortfolio: (name?: string) => void;
+  renamePortfolio: (id: string, name: string) => void;
+  /** Delete a portfolio; reassigns the active one, or empties the set. */
+  deletePortfolio: (id: string) => void;
+  /** Switch which portfolio is active. */
+  selectPortfolio: (id: string) => void;
   /** Force-refetch live quotes + fundamentals, bypassing caches. */
   refreshLive: () => Promise<void>;
 }
@@ -83,7 +121,7 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
   // original localStorage model (open mode / not signed in).
   const serverMode = enabled && status === "authenticated";
 
-  const [stored, setStored] = useState<Stored | null>(null);
+  const [set, setSet] = useState<PortfolioSet | null>(null);
   const [ready, setReady] = useState(false);
 
   // True once it's safe to write to the server: only after a successful hydrate.
@@ -97,7 +135,8 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
 
   // Hydrate from the right backend. In server mode we read ONLY from the server
   // (never the shared-browser localStorage), so one user's portfolio can't leak
-  // to the next person who signs in on the same machine.
+  // to the next person who signs in on the same machine. `migrate` normalizes
+  // both the multi-portfolio set shape and the legacy single-portfolio blob.
   useEffect(() => {
     if (!enabled) {
       serverWritableRef.current = true; // open mode writes localStorage, never the server
@@ -113,9 +152,9 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
             localStorage.removeItem(legacy);
           }
         }
-        setStored(raw ? (JSON.parse(raw) as Stored) : null);
+        setSet(raw ? migrate(JSON.parse(raw)) : null);
       } catch {
-        setStored(null); // corrupted state — start fresh
+        setSet(null); // corrupted state — start fresh
       }
       setReady(true);
       return;
@@ -135,12 +174,12 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
           // writes disabled, so an import/edit can't overwrite the saved book;
           // the next load retries. In-memory edits still work (private-mode-like).
           serverWritableRef.current = false;
-          setStored(null);
+          setSet(null);
           setReady(true);
           return;
         }
         serverWritableRef.current = true;
-        setStored((s.portfolio as Stored | null) ?? null);
+        setSet(migrate(s.portfolio));
         setReady(true);
       });
       return () => {
@@ -148,13 +187,13 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
       };
     }
     // enabled but unauthenticated (middleware normally prevents reaching here)
-    setStored(null);
+    setSet(null);
     setReady(true);
   }, [enabled, status]);
 
   const persist = useCallback(
-    (next: Stored | null) => {
-      setStored(next);
+    (next: PortfolioSet | null) => {
+      setSet(next);
       if (serverMode) {
         // Skip the server write until a successful hydrate, so a failed load
         // (shown as empty) can't clobber the saved portfolio.
@@ -172,40 +211,96 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
   );
 
   const importHoldings = useCallback(
-    (holdings: RawHolding[], cash: number | null) => {
-      persist({
-        holdings,
-        cash: cash ?? stored?.cash ?? 0,
-        asOf: new Date().toISOString(),
-        isDemo: false,
-      });
+    (holdings: RawHolding[], cash: number | null, opts?: ImportOptions) => {
+      const asOf = new Date().toISOString();
+      if (opts?.asNew || !activePortfolio(set)) {
+        const p = makePortfolio(uniqueName(set, opts?.name || "Portfolio"));
+        p.holdings = holdings;
+        p.cash = cash ?? 0;
+        p.asOf = asOf;
+        persist(addPortfolio(set, p));
+        return;
+      }
+      const active = activePortfolio(set)!;
+      persist(
+        updateActive(set, {
+          holdings,
+          cash: cash ?? active.cash,
+          asOf,
+          isDemo: undefined,
+        })
+      );
     },
-    [persist, stored?.cash]
+    [persist, set]
   );
 
   const loadDemo = useCallback(() => {
     const { holdings } = parsePortfolioCSV(SAMPLE_CSV);
-    persist({
-      holdings,
-      cash: SAMPLE_CASH,
-      asOf: new Date().toISOString(),
-      isDemo: true,
-    });
-  }, [persist]);
+    const asOf = new Date().toISOString();
+    if (!activePortfolio(set)) {
+      const p = makePortfolio(uniqueName(set, "Demo"));
+      p.holdings = holdings;
+      p.cash = SAMPLE_CASH;
+      p.asOf = asOf;
+      p.isDemo = true;
+      persist(addPortfolio(set, p));
+      return;
+    }
+    persist(
+      updateActive(set, {
+        holdings,
+        cash: SAMPLE_CASH,
+        asOf,
+        isDemo: true,
+      })
+    );
+  }, [persist, set]);
 
   const setCash = useCallback(
     (cash: number) => {
-      if (!stored) return;
-      persist({ ...stored, cash });
+      if (!activePortfolio(set)) return;
+      persist(updateActive(set, { cash }));
     },
-    [persist, stored]
+    [persist, set]
   );
 
-  const clear = useCallback(() => persist(null), [persist]);
+  const createPortfolio = useCallback(
+    (name?: string) => {
+      const p = makePortfolio(uniqueName(set, name || "Portfolio"));
+      persist(addPortfolio(set, p));
+    },
+    [persist, set]
+  );
+
+  const renamePortfolio = useCallback(
+    (id: string, name: string) => {
+      if (!set) return;
+      persist(renameInSet(set, id, name));
+    },
+    [persist, set]
+  );
+
+  const deletePortfolio = useCallback(
+    (id: string) => {
+      if (!set) return;
+      persist(removePortfolio(set, id));
+    },
+    [persist, set]
+  );
+
+  const selectPortfolio = useCallback(
+    (id: string) => {
+      if (!set) return;
+      persist(selectInSet(set, id));
+    },
+    [persist, set]
+  );
+
+  const active = useMemo(() => activePortfolio(set), [set]);
 
   const symbols = useMemo(
-    () => stored?.holdings.map((h) => h.symbol) ?? [],
-    [stored]
+    () => active?.holdings.map((h) => h.symbol) ?? [],
+    [active]
   );
   const liveData = useLiveData(symbols);
 
@@ -225,8 +320,8 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
 
   const portfolio = useMemo(
     () =>
-      stored && stored.holdings.length > 0
-        ? buildPortfolio(stored.holdings, stored.cash, stored.asOf, {
+      active && active.holdings.length > 0
+        ? buildPortfolio(active.holdings, active.cash, active.asOf, {
             quotes: liveData.quotes,
             patches: liveData.patches,
             fundamentals,
@@ -235,7 +330,7 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
     // returnsVersion is intentionally a dependency (not consumed by
     // buildPortfolio) so a new batch of primed history re-derives downstream.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [stored, liveData.quotes, liveData.patches, fundamentals, returnsVersion]
+    [active, liveData.quotes, liveData.patches, fundamentals, returnsVersion]
   );
 
   const live = useMemo<LiveStatus>(
@@ -256,14 +351,27 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
     ]
   );
 
+  const summaries = useMemo<PortfolioSummary[]>(
+    () =>
+      set?.portfolios.map((p) => ({
+        id: p.id,
+        name: p.name,
+        isDemo: !!p.isDemo,
+        count: p.holdings.length,
+      })) ?? [],
+    [set]
+  );
+
   const data = useMemo<PortfolioData>(
     () => ({
       ready,
       hasData: !!portfolio,
-      isDemo: !!stored?.isDemo,
+      isDemo: !!active?.isDemo,
       portfolio,
+      portfolios: summaries,
+      activeId: set?.activeId ?? null,
     }),
-    [ready, portfolio, stored?.isDemo]
+    [ready, portfolio, active?.isDemo, summaries, set?.activeId]
   );
 
   const actions = useMemo<PortfolioActions>(
@@ -271,10 +379,22 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
       importHoldings,
       loadDemo,
       setCash,
-      clear,
+      createPortfolio,
+      renamePortfolio,
+      deletePortfolio,
+      selectPortfolio,
       refreshLive: liveData.refresh,
     }),
-    [importHoldings, loadDemo, setCash, clear, liveData.refresh]
+    [
+      importHoldings,
+      loadDemo,
+      setCash,
+      createPortfolio,
+      renamePortfolio,
+      deletePortfolio,
+      selectPortfolio,
+      liveData.refresh,
+    ]
   );
 
   // Three nested providers, narrowest churn innermost: `live` ticks every poll,

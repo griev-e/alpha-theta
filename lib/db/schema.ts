@@ -25,7 +25,9 @@ export const userState = pgTable("user_state", {
   userId: text("user_id")
     .primaryKey()
     .references(() => users.id, { onDelete: "cascade" }),
-  /** alpha `Stored` shape: { holdings, cash, asOf, isDemo? } — or null. */
+  /** alpha `PortfolioSet` shape (a set of named portfolios + activeId; see
+   *  lib/portfolios.ts) — stored opaquely, or null. Legacy single-portfolio
+   *  blobs are migrated client-side on read. */
   portfolio: jsonb("portfolio"),
   /** theta `Ledger` shape — or null. */
   ledger: jsonb("ledger"),

@@ -152,6 +152,19 @@ model" goes negative in a high-rate regime) — it's the editable assumption.
   portfolio. It reads/writes `localStorage` (key `alpha.portfolio.v1`,
   migrates legacy keys), drives `useLiveData`, and memoizes the enriched
   `Portfolio` via `buildPortfolio`.
+- **Multiple portfolios per user.** The persisted alpha blob is a *set* of named
+  portfolios (individual account, Roth IRA, …) plus an `activeId`, not a single
+  book — see `lib/portfolios.ts` (`PortfolioSet`/`NamedPortfolio` + the pure
+  migrate/add/rename/remove/select helpers, all unit-tested in
+  `portfolios.test.ts`). `lib/store.tsx` builds `buildPortfolio` only for the
+  **active** portfolio, so every analytics page stays single-portfolio and
+  unchanged; the store just exposes the list + switch/create/rename/delete
+  actions (surfaced by `components/shell/PortfolioSwitcher.tsx` in the shell and
+  the portfolios panel on `/import`). The whole set persists as one **opaque**
+  blob — localStorage in open mode, the `user_state.portfolio` JSONB column in
+  server mode — so the DB, `lib/persist.ts`, and per-user isolation need no
+  change. `migrate()` transparently upgrades the legacy single-portfolio shape
+  (`{ holdings, cash, asOf, isDemo? }`) into a one-entry set on first read.
 - **`lib/analytics/build.ts`** (`buildPortfolio`) is the central enrichment
   step: it reprices holdings from live quotes, computes weights / cost basis /
   P&L / day-change, and merges fundamentals onto each position. **Most pages

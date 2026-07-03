@@ -13,15 +13,33 @@ const EXPECTED_HEADER = "name,symbol,shares,price,averageCost,totalReturn,equity
 
 export default function ImportPage() {
   const router = useRouter();
-  const { ready, portfolio, hasData, isDemo } = usePortfolio();
-  const { importHoldings, loadDemo, setCash, clear } = usePortfolioActions();
+  const { ready, portfolio, hasData, isDemo, portfolios, activeId } = usePortfolio();
+  const {
+    importHoldings,
+    loadDemo,
+    setCash,
+    createPortfolio,
+    renamePortfolio,
+    deletePortfolio,
+  } = usePortfolioActions();
   const [dragOver, setDragOver] = useState(false);
   const [pasted, setPasted] = useState("");
   const [parsed, setParsed] = useState<ParseResult | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
   const [cashInput, setCashInput] = useState<string>("");
   const [confirmClear, setConfirmClear] = useState(false);
+  // Where a committed import lands: replace the active portfolio, or create a
+  // new one (e.g. an individual account alongside a Roth IRA).
+  const [importAsNew, setImportAsNew] = useState(false);
+  const [newName, setNewName] = useState("");
+  // Inline rename state, keyed by portfolio id.
+  const [renaming, setRenaming] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState("");
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  const activeName =
+    portfolios.find((p) => p.id === activeId)?.name ?? "portfolio";
 
   const handleText = useCallback((text: string, name: string | null) => {
     setFileName(name);
@@ -37,10 +55,16 @@ export default function ImportPage() {
 
   const commit = () => {
     if (!parsed || parsed.errors.length > 0 || parsed.holdings.length === 0) return;
-    importHoldings(parsed.holdings, parsed.cash);
+    const asNew = importAsNew || !hasData;
+    importHoldings(parsed.holdings, parsed.cash, {
+      asNew,
+      name: newName.trim() || fileName?.replace(/\.csv$/i, "") || "Portfolio",
+    });
     setParsed(null);
     setPasted("");
     setFileName(null);
+    setImportAsNew(false);
+    setNewName("");
     // Land on the Overview once holdings are in.
     router.push("/");
   };
@@ -202,6 +226,47 @@ export default function ImportPage() {
                             </span>
                           ))}
                         </div>
+                        {hasData && (
+                          <div className="mt-4 space-y-2">
+                            <div className="eyebrow">Import into</div>
+                            <div className="flex flex-col gap-1.5 sm:flex-row">
+                              <button
+                                onClick={() => setImportAsNew(false)}
+                                className={`flex-1 rounded-lg border px-3 py-2 text-left text-[12px] transition ${
+                                  !importAsNew
+                                    ? "border-mint/40 bg-mint/[0.06] text-ink"
+                                    : "border-edge text-mute hover:text-ink"
+                                }`}
+                              >
+                                <span className="font-medium">Replace “{activeName}”</span>
+                                <span className="mt-0.5 block text-[11px] text-faint">
+                                  overwrites the active portfolio
+                                </span>
+                              </button>
+                              <button
+                                onClick={() => setImportAsNew(true)}
+                                className={`flex-1 rounded-lg border px-3 py-2 text-left text-[12px] transition ${
+                                  importAsNew
+                                    ? "border-mint/40 bg-mint/[0.06] text-ink"
+                                    : "border-edge text-mute hover:text-ink"
+                                }`}
+                              >
+                                <span className="font-medium">New portfolio</span>
+                                <span className="mt-0.5 block text-[11px] text-faint">
+                                  keeps existing portfolios
+                                </span>
+                              </button>
+                            </div>
+                            {importAsNew && (
+                              <input
+                                value={newName}
+                                onChange={(e) => setNewName(e.target.value)}
+                                placeholder="Portfolio name (e.g. Roth IRA)"
+                                className="field !text-[12.5px]"
+                              />
+                            )}
+                          </div>
+                        )}
                         <div className="mt-4 flex items-center gap-3">
                           <button
                             onClick={commit}
@@ -215,11 +280,6 @@ export default function ImportPage() {
                           >
                             Cancel
                           </button>
-                          {hasData && (
-                            <span className="text-[11px] text-faint">
-                              replaces the current portfolio
-                            </span>
-                          )}
                         </div>
                       </>
                     )}
@@ -233,6 +293,132 @@ export default function ImportPage() {
 
         {/* Right rail */}
         <div className="space-y-5">
+          <Card className="px-6 py-5" i={1}>
+            <div className="mb-4 flex items-center justify-between">
+              <CardHeader eyebrow="Portfolios" title="Your portfolios" />
+              <button
+                onClick={() => createPortfolio()}
+                className="flex items-center gap-1 rounded-md border border-edge px-2.5 py-1 text-[11.5px] text-mute transition hover:border-mint/30 hover:text-ink"
+              >
+                <svg width="12" height="12" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M10 4 V16 M4 10 H16" />
+                </svg>
+                New
+              </button>
+            </div>
+            {portfolios.length === 0 ? (
+              <div className="text-[12px] text-faint">
+                No portfolios yet — import a CSV or load the demo to create one.
+              </div>
+            ) : (
+              <div className="space-y-1.5">
+                {portfolios.map((p) => {
+                  const active = p.id === activeId;
+                  return (
+                    <div
+                      key={p.id}
+                      className={`rounded-lg border px-3 py-2 transition ${
+                        active ? "border-mint/30 bg-mint/[0.04]" : "border-edge"
+                      }`}
+                    >
+                      {renaming === p.id ? (
+                        <div className="flex items-center gap-1.5">
+                          <input
+                            autoFocus
+                            value={renameValue}
+                            onChange={(e) => setRenameValue(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                renamePortfolio(p.id, renameValue);
+                                setRenaming(null);
+                              }
+                              if (e.key === "Escape") setRenaming(null);
+                            }}
+                            className="h-7 min-w-0 flex-1 rounded-md border border-edge bg-white/[0.03] px-2 text-[12px] text-ink outline-none focus:border-edge2"
+                          />
+                          <button
+                            onClick={() => {
+                              renamePortfolio(p.id, renameValue);
+                              setRenaming(null);
+                            }}
+                            className="h-7 rounded-md bg-accent px-2.5 text-[11px] font-semibold text-void"
+                          >
+                            Save
+                          </button>
+                        </div>
+                      ) : confirmDelete === p.id ? (
+                        <div className="flex items-center gap-2">
+                          <span className="flex-1 text-[12px] text-neg">
+                            Delete “{p.name}”?
+                          </span>
+                          <button
+                            onClick={() => {
+                              deletePortfolio(p.id);
+                              setConfirmDelete(null);
+                            }}
+                            className="rounded-md bg-neg px-2.5 py-1 text-[11px] font-semibold text-void"
+                          >
+                            Yes
+                          </button>
+                          <button
+                            onClick={() => setConfirmDelete(null)}
+                            className="rounded-md border border-edge px-2.5 py-1 text-[11px] text-mute"
+                          >
+                            No
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <span className="flex h-3.5 w-3.5 shrink-0 items-center justify-center text-accent">
+                            {active && (
+                              <svg width="12" height="12" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M4 10.5 L8 14.5 L16 5.5" />
+                              </svg>
+                            )}
+                          </span>
+                          <div className="min-w-0 flex-1">
+                            <div className="truncate text-[13px] text-ink">
+                              {p.name}
+                              {p.isDemo && (
+                                <span className="ml-1.5 rounded border border-warn/30 bg-warn/10 px-1 py-px text-[9px] font-medium text-warn">
+                                  Demo
+                                </span>
+                              )}
+                            </div>
+                            <div className="font-mono text-[10.5px] text-faint">
+                              {p.count} {p.count === 1 ? "holding" : "holdings"}
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => {
+                              setRenameValue(p.name);
+                              setRenaming(p.id);
+                            }}
+                            title="Rename"
+                            className="rounded-md p-1 text-faint transition hover:text-ink"
+                          >
+                            <svg width="13" height="13" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M13.5 3.5 L16.5 6.5 L7 16 L4 16 L4 13 Z" />
+                            </svg>
+                          </button>
+                          <button
+                            onClick={() => setConfirmDelete(p.id)}
+                            title="Delete"
+                            className="rounded-md p-1 text-faint transition hover:text-neg"
+                          >
+                            <svg width="13" height="13" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M4 5.5 H16 M8 5.5 V4 H12 V5.5 M6 5.5 L6.7 16 H13.3 L14 5.5" />
+                            </svg>
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </Card>
+
           <Card className="px-6 py-5" i={2}>
             <CardHeader eyebrow="Cash" title="Cash position" className="mb-4" />
             <div className="flex items-center gap-3">
@@ -309,20 +495,22 @@ export default function ImportPage() {
               {!confirmClear ? (
                 <button
                   onClick={() => setConfirmClear(true)}
-                  disabled={!hasData}
+                  disabled={!activeId}
                   className="w-full rounded-lg border border-edge bg-void/40 px-4 py-2.5 text-left text-[13px] text-neg/90 transition enabled:hover:border-neg/40 disabled:opacity-40"
                 >
-                  <span className="font-medium">Clear stored data</span>
+                  <span className="font-medium">Delete active portfolio</span>
                   <span className="mt-0.5 block text-[11px] text-faint">
-                    removes the portfolio from this browser
+                    removes “{activeName}” — other portfolios stay
                   </span>
                 </button>
               ) : (
                 <div className="flex items-center gap-2 rounded-lg border border-neg/40 bg-neg/[0.06] px-4 py-2.5">
-                  <span className="flex-1 text-[12px] text-neg">Delete everything?</span>
+                  <span className="flex-1 text-[12px] text-neg">
+                    Delete “{activeName}”?
+                  </span>
                   <button
                     onClick={() => {
-                      clear();
+                      if (activeId) deletePortfolio(activeId);
                       setConfirmClear(false);
                     }}
                     className="rounded-md bg-neg px-3 py-1 text-[12px] font-semibold text-void"
