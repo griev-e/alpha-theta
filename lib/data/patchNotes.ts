@@ -8,6 +8,16 @@ export type PatchNote = {
 // Newest first. Add an entry here whenever a notable change ships.
 export const PATCH_NOTES: PatchNote[] = [
   {
+    version: "1.41",
+    date: "2026-07-03",
+    title: "Track multiple portfolios — individual, Roth IRA, and more",
+    changes: [
+      "alpha now holds more than one portfolio at a time. Keep your individual brokerage account and your Roth IRA (or any split you like) as separate books and switch between them from the new picker in the sidebar — each has its own holdings, cash, and every downstream analytic. Your data stays per-user and per-browser exactly as before; nothing is shared or uploaded.",
+      "CSV import is unchanged and now targets the portfolio you choose: replace the active one, or import straight into a brand-new portfolio (name it on the spot). The Import & Data page gained a portfolios panel to create, rename, switch, and delete them.",
+      "Your existing portfolio is migrated automatically into the new multi-portfolio format on first load — it simply becomes your first named portfolio, and signed-in accounts keep saving server-side as one blob (no schema change).",
+    ],
+  },
+  {
     version: "1.40",
     date: "2026-07-02",
     title: "Full-codebase review: 20 fixes across math, data, sync, and security",
