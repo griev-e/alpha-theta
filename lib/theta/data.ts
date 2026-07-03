@@ -28,6 +28,25 @@ export type Account = {
   mask: string; // last 4, display only
   /** Institution web domain, used to fetch a brand logo. Optional. */
   domain?: string;
+  /**
+   * Annual interest rate as a fraction (0.22 = 22% APR) for a liability, used by
+   * the debt-payoff planner. Optional — when unset the planner falls back to a
+   * default rate for the account kind (see `lib/theta/assumptions.ts`).
+   */
+  apr?: number;
+  /**
+   * Credit limit for a revolving (credit) account, used by the health
+   * scorecard's utilization metric. Optional — utilization is simply skipped
+   * (and its weight renormalized) when no limit is known.
+   */
+  creditLimit?: number;
+  /**
+   * alpha↔theta bridge: id of a linked alpha portfolio. When set, this account's
+   * balance is driven by that portfolio's live market value instead of a manual
+   * figure (applied in the theta store — see `applyPortfolioLinks`). Only
+   * meaningful for `brokerage` / `retirement` accounts.
+   */
+  linkedPortfolioId?: string;
 };
 
 export type Category =
@@ -315,3 +334,28 @@ export const EMPTY_LEDGER: Ledger = {
   netWorthHistory: [],
   flowHistory: [],
 };
+
+/**
+ * Normalize whatever we read from storage (or the server blob) into a valid
+ * `Ledger`, filling any array a shape-drifted or older ledger is missing. This
+ * is theta's analogue of alpha's `lib/portfolios.ts` `migrate()` — the derived
+ * history and the new optional `Account` fields (`apr`, `linkedPortfolioId`)
+ * are additive, so a legacy ledger just gains empty defaults and keeps working.
+ * Returns `null` for input that isn't an object at all.
+ */
+export function migrateLedger(raw: unknown): Ledger | null {
+  if (typeof raw !== "object" || raw === null) return null;
+  const l = raw as Partial<Ledger>;
+  const arr = <T,>(v: unknown): T[] => (Array.isArray(v) ? (v as T[]) : []);
+  return {
+    accounts: arr<Account>(l.accounts).map((a) => ({ ...a, trend: arr<number>(a?.trend) })),
+    transactions: arr<Transaction>(l.transactions),
+    budgets: arr<Budget>(l.budgets),
+    goals: arr<Goal>(l.goals),
+    recurring: arr<Recurring>(l.recurring),
+    netWorthHistory: arr(l.netWorthHistory),
+    flowHistory: arr<MonthFlow>(l.flowHistory),
+    hiddenAccounts: l.hiddenAccounts ? arr<string>(l.hiddenAccounts) : undefined,
+    hiddenCategories: l.hiddenCategories ? arr<Category>(l.hiddenCategories) : undefined,
+  };
+}

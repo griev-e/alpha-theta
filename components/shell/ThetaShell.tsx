@@ -7,15 +7,18 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useTheta } from "@/lib/theta/store";
 import { useSidebarWidth } from "@/lib/useSidebarWidth";
-import { AccountChip, AppTitle, Mark, SignOutButton } from "./brand";
+import { AppTitle, Mark, SignOutButton } from "./brand";
 import { IconImport, IconIntelligence } from "./icons";
 import {
   IconAccounts,
   IconBudgets,
   IconCashFlow,
   IconDashboard,
+  IconDebt,
   IconGoals,
+  IconHealth,
   IconNetWorth,
+  IconProjection,
   IconRecurring,
   IconSettings,
   IconTransactions,
@@ -24,13 +27,16 @@ import {
 const NAV = [
   { href: "/theta", label: "Dashboard", icon: IconDashboard, group: "Overview" },
   { href: "/theta/networth", label: "Net Worth", icon: IconNetWorth, group: "Overview" },
+  { href: "/theta/health", label: "Health", icon: IconHealth, group: "Overview" },
   { href: "/theta/intelligence", label: "Intelligence", icon: IconIntelligence, group: "Overview" },
   { href: "/theta/accounts", label: "Accounts", icon: IconAccounts, group: "Money" },
   { href: "/theta/transactions", label: "Transactions", icon: IconTransactions, group: "Money" },
   { href: "/theta/cashflow", label: "Cash Flow", icon: IconCashFlow, group: "Money" },
+  { href: "/theta/debt", label: "Debt Payoff", icon: IconDebt, group: "Money" },
   { href: "/theta/budgets", label: "Budgets", icon: IconBudgets, group: "Planning" },
   { href: "/theta/goals", label: "Goals", icon: IconGoals, group: "Planning" },
   { href: "/theta/recurring", label: "Recurring", icon: IconRecurring, group: "Planning" },
+  { href: "/theta/projection", label: "Projection", icon: IconProjection, group: "Planning" },
   { href: "/theta/import", label: "Import & Data", icon: IconImport, group: "System" },
   { href: "/theta/settings", label: "Settings", icon: IconSettings, group: "System" },
 ];
@@ -212,9 +218,6 @@ export function ThetaShell({ children }: { children: ReactNode }) {
               <AppTitle active="theta" />
             </Link>
             <SignOutButton className="ml-auto" />
-          </div>
-          <div className="mt-3 flex flex-col gap-2">
-            <AccountChip className="px-0.5" />
           </div>
         </div>
 

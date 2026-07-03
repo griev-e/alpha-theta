@@ -14,7 +14,9 @@ import {
   MONTHS,
   type MonthFlow,
   SPEND_CATEGORIES,
+  type Transaction,
 } from "./data";
+import { deriveFlowSeries, deriveNetWorthSeries } from "./history";
 
 export type BudgetStatus = Budget & { spent: number };
 
@@ -77,7 +79,7 @@ export function deriveTheta(ledger: Ledger, now: Date = new Date()): ThetaView {
   // a hidden category's churn shouldn't be counted as income or spending.
   const hiddenAccounts = new Set(ledger.hiddenAccounts ?? []);
   const hiddenCategories = new Set(ledger.hiddenCategories ?? []);
-  const included = (t: { account: string; category: Category }) =>
+  const included = (t: Transaction) =>
     !hiddenAccounts.has(t.account) && !hiddenCategories.has(t.category);
 
   // This month's flows, derived from transactions dated in the current month.
@@ -113,15 +115,22 @@ export function deriveTheta(ledger: Ledger, now: Date = new Date()): ThetaView {
   const totalBudget = budgets.reduce((s, b) => s + b.limit, 0);
   const totalBudgetSpent = budgets.reduce((s, b) => s + b.spent, 0);
 
-  // Series = stored history + the live current point.
-  const cashFlow: MonthFlow[] = [
-    ...ledger.flowHistory,
-    { month: curLabel, income: monthIncome, expenses: monthExpenses },
-  ];
-  const netWorthSeries = [
-    ...ledger.netWorthHistory,
-    { month: curLabel, value: netWorth },
-  ];
+  // Series derived from the transaction record over a trailing window, with the
+  // stored history as a fallback for months no transaction covers (see
+  // lib/theta/history.ts). The current month is always the live derived point,
+  // so the tail still equals this month's flows / current net worth.
+  const cashFlow: MonthFlow[] = deriveFlowSeries(
+    ledger.transactions,
+    ledger.flowHistory,
+    included,
+    { now }
+  );
+  const netWorthSeries = deriveNetWorthSeries(
+    ledger.accounts,
+    ledger.transactions,
+    ledger.netWorthHistory,
+    { now }
+  );
   const prevPoint = netWorthSeries[netWorthSeries.length - 2];
   const netWorthDelta = prevPoint ? netWorth - prevPoint.value : 0;
   const netWorthDeltaPct =

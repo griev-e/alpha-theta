@@ -3,6 +3,8 @@ import { ALLOCATOR_MODEL } from "./allocator";
 import { BRIEF_MODEL } from "./brief";
 import { DISCOVER_MODEL } from "./discover";
 import { OPTIMIZER_MODEL } from "./optimizer";
+import { THETA_CATEGORIZE_MODEL } from "./thetaCategorize";
+import { THETA_REVIEW_MODEL } from "./thetaReview";
 
 /**
  * Contract guard for AI route model selection.
@@ -26,13 +28,17 @@ describe("AI route model selection", () => {
     ["allocator", ALLOCATOR_MODEL],
     ["discover", DISCOVER_MODEL],
     ["optimizer", OPTIMIZER_MODEL],
+    ["theta review", THETA_REVIEW_MODEL],
   ])("%s runs with effort/adaptive on an effort-capable model", (_name, model) => {
     expect(EFFORT_CAPABLE.has(model)).toBe(true);
     // Explicitly forbid the Haiku misconfiguration this test exists to prevent.
     expect(model).not.toBe("claude-haiku-4-5");
   });
 
-  it("the brief runs on Haiku (no effort, thinking disabled)", () => {
-    expect(BRIEF_MODEL).toBe("claude-haiku-4-5");
+  it.each([
+    ["brief", BRIEF_MODEL],
+    ["theta categorize", THETA_CATEGORIZE_MODEL],
+  ])("%s runs on Haiku (no effort, thinking disabled)", (_name, model) => {
+    expect(model).toBe("claude-haiku-4-5");
   });
 });

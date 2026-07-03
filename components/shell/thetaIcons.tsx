@@ -87,3 +87,28 @@ export const IconSettings = () => (
     <path d="M10 2.6 V4.4 M10 15.6 V17.4 M2.6 10 H4.4 M15.6 10 H17.4 M4.7 4.7 L6 6 M14 14 L15.3 15.3 M15.3 4.7 L14 6 M6 14 L4.7 15.3" opacity="0.7" />
   </svg>
 );
+
+export const IconProjection = () => (
+  <svg {...base}>
+    <path d="M3 16.5 V3.5" opacity="0.55" />
+    <path d="M3 16.5 H16.8" opacity="0.55" />
+    <path d="M4 12 L9 8 L16.4 4" />
+    <path d="M4 15 L9 12.5 L16.4 9" opacity="0.55" />
+    <path d="M4 9 L9 4 L16.4 2.4" opacity="0.35" />
+  </svg>
+);
+
+export const IconDebt = () => (
+  <svg {...base}>
+    <path d="M3 15.5 H17" opacity="0.55" />
+    <path d="M4.5 12.5 L8 9 L11 11 L15.5 5.5" />
+    <path d="M12.4 5.5 L15.5 5.5 L15.5 8.4" />
+    <path d="M4.5 12.5 V15.5 M8 9 V15.5 M11 11 V15.5 M15.5 5.5 V15.5" opacity="0.3" />
+  </svg>
+);
+
+export const IconHealth = () => (
+  <svg {...base}>
+    <path d="M3 10 H6 L7.6 6 L10 14 L12 8.5 L13.2 10 H17" />
+  </svg>
+);
