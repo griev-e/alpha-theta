@@ -64,9 +64,7 @@ export interface PortfolioSummary {
 
 /** Options for how an import lands. */
 export interface ImportOptions {
-  /** Import into a brand-new portfolio instead of replacing the active one. */
-  asNew?: boolean;
-  /** Name for the new portfolio (only used with `asNew`). */
+  /** Name for the portfolio, only used when there's no active one to replace. */
   name?: string;
 }
 
@@ -92,7 +90,7 @@ interface PortfolioData {
 
 /** Stable action handles — identity survives price ticks. */
 interface PortfolioActions {
-  /** Import holdings into the active portfolio (or a new one via `opts.asNew`). */
+  /** Import holdings, replacing the active portfolio (or creating one if none exists). */
   importHoldings: (
     holdings: RawHolding[],
     cash: number | null,
@@ -213,7 +211,7 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
   const importHoldings = useCallback(
     (holdings: RawHolding[], cash: number | null, opts?: ImportOptions) => {
       const asOf = new Date().toISOString();
-      if (opts?.asNew || !activePortfolio(set)) {
+      if (!activePortfolio(set)) {
         const p = makePortfolio(uniqueName(set, opts?.name || "Portfolio"));
         p.holdings = holdings;
         p.cash = cash ?? 0;
