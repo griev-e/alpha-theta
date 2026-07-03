@@ -8,6 +8,15 @@ export type PatchNote = {
 // Newest first. Add an entry here whenever a notable change ships.
 export const PATCH_NOTES: PatchNote[] = [
   {
+    version: "1.42",
+    date: "2026-07-03",
+    title: "CSV import now always replaces the active portfolio",
+    changes: [
+      "Importing a CSV while a portfolio is selected now replaces that portfolio's holdings directly, rather than offering a choice between replacing it and creating a new one. To start a separate portfolio (a second brokerage account, a Roth IRA, …), press \"New\" in the Your portfolios panel first, then import into it.",
+      "Replacing a portfolio that already has holdings now asks for confirmation before overwriting; importing into an empty or freshly-created portfolio skips the prompt since there's nothing to lose.",
+    ],
+  },
+  {
     version: "1.41",
     date: "2026-07-03",
     title: "Track multiple portfolios — individual, Roth IRA, and more",

@@ -28,10 +28,11 @@ export default function ImportPage() {
   const [fileName, setFileName] = useState<string | null>(null);
   const [cashInput, setCashInput] = useState<string>("");
   const [confirmClear, setConfirmClear] = useState(false);
-  // Where a committed import lands: replace the active portfolio, or create a
-  // new one (e.g. an individual account alongside a Roth IRA).
-  const [importAsNew, setImportAsNew] = useState(false);
-  const [newName, setNewName] = useState("");
+  // Importing always replaces the active portfolio's contents (to start a
+  // separate portfolio, press "New" in the Your portfolios panel first).
+  // When the active portfolio already has holdings, importing is destructive,
+  // so it's gated behind an inline confirm.
+  const [confirmOverride, setConfirmOverride] = useState(false);
   // Inline rename state, keyed by portfolio id.
   const [renaming, setRenaming] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
@@ -44,6 +45,7 @@ export default function ImportPage() {
   const handleText = useCallback((text: string, name: string | null) => {
     setFileName(name);
     setParsed(parsePortfolioCSV(text));
+    setConfirmOverride(false);
   }, []);
 
   const handleFile = useCallback(
@@ -55,18 +57,25 @@ export default function ImportPage() {
 
   const commit = () => {
     if (!parsed || parsed.errors.length > 0 || parsed.holdings.length === 0) return;
-    const asNew = importAsNew || !hasData;
     importHoldings(parsed.holdings, parsed.cash, {
-      asNew,
-      name: newName.trim() || fileName?.replace(/\.csv$/i, "") || "Portfolio",
+      name: fileName?.replace(/\.csv$/i, "") || "Portfolio",
     });
     setParsed(null);
     setPasted("");
     setFileName(null);
-    setImportAsNew(false);
-    setNewName("");
+    setConfirmOverride(false);
     // Land on the Overview once holdings are in.
     router.push("/");
+  };
+
+  // Importing into a portfolio that already has holdings is destructive, so
+  // gate it behind a confirm; an empty (or brand-new) portfolio needs none.
+  const handleImportClick = () => {
+    if (hasData && !confirmOverride) {
+      setConfirmOverride(true);
+      return;
+    }
+    commit();
   };
 
   const downloadCurrent = () => {
@@ -227,60 +236,50 @@ export default function ImportPage() {
                           ))}
                         </div>
                         {hasData && (
-                          <div className="mt-4 space-y-2">
-                            <div className="eyebrow">Import into</div>
-                            <div className="flex flex-col gap-1.5 sm:flex-row">
-                              <button
-                                onClick={() => setImportAsNew(false)}
-                                className={`flex-1 rounded-lg border px-3 py-2 text-left text-[12px] transition ${
-                                  !importAsNew
-                                    ? "border-mint/40 bg-mint/[0.06] text-ink"
-                                    : "border-edge text-mute hover:text-ink"
-                                }`}
-                              >
-                                <span className="font-medium">Replace “{activeName}”</span>
-                                <span className="mt-0.5 block text-[11px] text-faint">
-                                  overwrites the active portfolio
-                                </span>
-                              </button>
-                              <button
-                                onClick={() => setImportAsNew(true)}
-                                className={`flex-1 rounded-lg border px-3 py-2 text-left text-[12px] transition ${
-                                  importAsNew
-                                    ? "border-mint/40 bg-mint/[0.06] text-ink"
-                                    : "border-edge text-mute hover:text-ink"
-                                }`}
-                              >
-                                <span className="font-medium">New portfolio</span>
-                                <span className="mt-0.5 block text-[11px] text-faint">
-                                  keeps existing portfolios
-                                </span>
-                              </button>
-                            </div>
-                            {importAsNew && (
-                              <input
-                                value={newName}
-                                onChange={(e) => setNewName(e.target.value)}
-                                placeholder="Portfolio name (e.g. Roth IRA)"
-                                className="field !text-[12.5px]"
-                              />
-                            )}
+                          <div className="mt-4 text-[11px] text-faint">
+                            Importing replaces the {parsed.holdings.length !== 1 ? "holdings" : "holding"} in
+                            “{activeName}”. To keep it and start a separate portfolio, press “New” in
+                            Your portfolios first.
                           </div>
                         )}
-                        <div className="mt-4 flex items-center gap-3">
-                          <button
-                            onClick={commit}
-                            className="btn-primary"
-                          >
-                            Import {parsed.holdings.length} holdings
-                          </button>
-                          <button
-                            onClick={() => setParsed(null)}
-                            className="rounded-lg border border-edge px-4 py-2 text-[12.5px] text-mute transition hover:text-ink"
-                          >
-                            Cancel
-                          </button>
-                        </div>
+                        {!confirmOverride ? (
+                          <div className="mt-4 flex items-center gap-3">
+                            <button
+                              onClick={handleImportClick}
+                              className="btn-primary"
+                            >
+                              Import {parsed.holdings.length} holdings
+                            </button>
+                            <button
+                              onClick={() => {
+                                setParsed(null);
+                                setConfirmOverride(false);
+                              }}
+                              className="rounded-lg border border-edge px-4 py-2 text-[12.5px] text-mute transition hover:text-ink"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="mt-4 flex items-center gap-2 rounded-lg border border-neg/40 bg-neg/[0.06] px-4 py-2.5">
+                            <span className="flex-1 text-[12px] text-neg">
+                              Overwrite “{activeName}” with these {parsed.holdings.length}{" "}
+                              holdings? This can&apos;t be undone.
+                            </span>
+                            <button
+                              onClick={commit}
+                              className="rounded-md bg-neg px-3 py-1 text-[12px] font-semibold text-void"
+                            >
+                              Yes
+                            </button>
+                            <button
+                              onClick={() => setConfirmOverride(false)}
+                              className="rounded-md border border-edge px-3 py-1 text-[12px] text-mute"
+                            >
+                              No
+                            </button>
+                          </div>
+                        )}
                       </>
                     )}
                   </div>
