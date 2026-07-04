@@ -71,6 +71,7 @@ function parseBody(body: unknown): DiscoverRequest | null {
 
   return {
     mode: b.mode,
+    includeEtfs: b.includeEtfs !== false,
     portfolio: {
       totalValue: p.totalValue,
       cashWeightPct: p.cashWeightPct,

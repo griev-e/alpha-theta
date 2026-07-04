@@ -98,7 +98,11 @@ const CONVICTION_COLOR: Record<Conviction, string> = {
 
 /* --------------------------------- request --------------------------------- */
 
-function buildRequest(portfolio: Portfolio, mode: DiscoverModeId): DiscoverRequest {
+function buildRequest(
+  portfolio: Portfolio,
+  mode: DiscoverModeId,
+  includeEtfs: boolean
+): DiscoverRequest {
   const risk = riskReport(portfolio, liveBenchmarkProfiles().spx.sectorWeights);
   const positions = [...portfolio.positions]
     .sort((a, b) => b.weight - a.weight)
@@ -120,6 +124,7 @@ function buildRequest(portfolio: Portfolio, mode: DiscoverModeId): DiscoverReque
     });
   return {
     mode,
+    includeEtfs,
     portfolio: {
       totalValue: portfolio.totalValue,
       cashWeightPct: +(portfolio.cashWeight * 100).toFixed(1),
@@ -144,7 +149,7 @@ type DiscoverState =
   | { kind: "error"; message: string }
   | { kind: "ready"; data: DiscoverResponse };
 
-function useDiscover(portfolio: Portfolio) {
+function useDiscover(portfolio: Portfolio, includeEtfs: boolean) {
   const [state, setState] = useState<DiscoverState>({ kind: "idle" });
 
   // Reset when the holdings actually change (re-import), not on a quote tick.
@@ -164,7 +169,7 @@ function useDiscover(portfolio: Portfolio) {
         const res = await fetch("/api/discover", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(buildRequest(portfolio, mode)),
+          body: JSON.stringify(buildRequest(portfolio, mode, includeEtfs)),
         });
         if (res.status === 401) {
           window.location.replace("/lock");
@@ -187,7 +192,7 @@ function useDiscover(portfolio: Portfolio) {
         setState({ kind: "error", message: "Discover is unreachable. Try again." });
       }
     },
-    [portfolio]
+    [portfolio, includeEtfs]
   );
 
   return { state, generate };
@@ -197,7 +202,11 @@ function useDiscover(portfolio: Portfolio) {
 
 export default function DiscoverPage() {
   const { ready, portfolio } = usePortfolio();
-  const { state, generate } = useDiscover(portfolio ?? ({ positions: [] } as unknown as Portfolio));
+  const [includeEtfs, setIncludeEtfs] = useState(true);
+  const { state, generate } = useDiscover(
+    portfolio ?? ({ positions: [] } as unknown as Portfolio),
+    includeEtfs
+  );
 
   const activeMode =
     state.kind === "loading"
@@ -217,6 +226,10 @@ export default function DiscoverPage() {
         description="AI-generated stock ideas, tailored to your book. Pick a research lens and Claude surfaces new names that fit — what they add, how they complement what you own, and the risk."
       />
 
+      <div className="mb-3 flex justify-end">
+        <EtfToggle value={includeEtfs} onChange={setIncludeEtfs} />
+      </div>
+
       <ModeGrid
         active={activeMode}
         busy={state.kind === "loading"}
@@ -235,6 +248,33 @@ export default function DiscoverPage() {
         </AnimatePresence>
       </div>
     </div>
+  );
+}
+
+/* -------------------------------- etf toggle -------------------------------- */
+
+function EtfToggle({ value, onChange }: { value: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <button
+      onClick={() => onChange(!value)}
+      role="switch"
+      aria-checked={value}
+      className="flex items-center gap-2.5 rounded-full border border-edge bg-white/[0.015] px-3 py-1.5 text-left transition-colors hover:border-edge2"
+      title={value ? "Ideas may include ETFs" : "Ideas restricted to individual stocks"}
+    >
+      <span className="text-[11.5px] text-mute">Suggest ETFs</span>
+      <span
+        className={`relative h-[16px] w-[28px] shrink-0 rounded-full transition-colors ${
+          value ? "bg-mint/70" : "bg-white/[0.12]"
+        }`}
+      >
+        <span
+          className={`absolute top-[2px] h-[12px] w-[12px] rounded-full bg-ink transition-transform ${
+            value ? "translate-x-[14px]" : "translate-x-[2px]"
+          }`}
+        />
+      </span>
+    </button>
   );
 }
 

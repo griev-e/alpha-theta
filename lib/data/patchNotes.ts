@@ -8,6 +8,14 @@ export type PatchNote = {
 // Newest first. Add an entry here whenever a notable change ships.
 export const PATCH_NOTES: PatchNote[] = [
   {
+    version: "1.49",
+    date: "2026-07-04",
+    title: "Discover: a toggle to include or exclude ETFs from AI ideas",
+    changes: [
+      "The Discover page now has a \"Suggest ETFs\" switch above the research lenses. On (the default) lets Claude propose ETFs alongside individual stocks, same as before; off restricts every idea to individual stocks only. The choice is part of the request, so it's cached separately per mode and portfolio shape.",
+    ],
+  },
+  {
     version: "1.48",
     date: "2026-07-04",
     title: "theta: a corrected account type now survives bank re-sync",

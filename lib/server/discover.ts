@@ -39,13 +39,14 @@ export const discoverErrorResponse = (err: unknown) =>
     unavailable: "discover unavailable",
   });
 
-/** Day + mode + weight-shape scoped: a quote tick doesn't bust it, an import does. */
+/** Day + mode + ETF preference + weight-shape scoped: a quote tick doesn't bust
+ *  it, an import (or flipping the ETF toggle) does. */
 export function discoverFingerprint(req: DiscoverRequest): string {
   const shape = req.portfolio.positions
     .map((p) => `${p.symbol}:${p.weight.toFixed(3)}`)
     .sort()
     .join(",");
-  return `${new Date().toISOString().slice(0, 10)}|${req.mode}|${shape}`;
+  return `${new Date().toISOString().slice(0, 10)}|${req.mode}|${req.includeEtfs ? "etf" : "stock"}|${shape}`;
 }
 
 export const getCachedDiscover = (key: string): DiscoverResponse | null =>
@@ -87,6 +88,13 @@ const MODE_DIRECTIVE: Record<DiscoverModeId, string> = {
     "DIRECTIVE — Megatrends: surface thematic exposure to major secular trends (e.g. AI infrastructure, energy transition, automation, biotech, defense) that the current book does not yet capture. Higher risk is acceptable; be explicit about it.",
 };
 
+const ETF_DIRECTIVE = {
+  include:
+    "Ideas may be individual stocks or ETFs, whichever best fits the directive.",
+  exclude:
+    "Ideas must be individual stocks only — do not suggest ETFs, index funds, or any other pooled/fund vehicle.",
+};
+
 function buildUserMessage(req: DiscoverRequest): string {
   const p = req.portfolio;
   const snapshot = {
@@ -116,6 +124,7 @@ function buildUserMessage(req: DiscoverRequest): string {
   };
   return [
     MODE_DIRECTIVE[req.mode],
+    req.includeEtfs ? ETF_DIRECTIVE.include : ETF_DIRECTIVE.exclude,
     ``,
     `Portfolio snapshot (percent values are already in %):`,
     JSON.stringify(snapshot),
