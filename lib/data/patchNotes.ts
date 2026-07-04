@@ -8,6 +8,14 @@ export type PatchNote = {
 // Newest first. Add an entry here whenever a notable change ships.
 export const PATCH_NOTES: PatchNote[] = [
   {
+    version: "1.48",
+    date: "2026-07-04",
+    title: "theta: a corrected account type now survives bank re-sync",
+    changes: [
+      "Fixed a bug in yesterday's editable account type: correcting a mistyped account (e.g. a checking account the bank-sync heuristic guessed was a brokerage) didn't stick — the next sync silently reverted it, since SimpleFIN carries no account-type field and the guess is re-derived on every pull. The ledger's existing type now always wins on re-sync, the same way a manually-corrected transaction category already did.",
+    ],
+  },
+  {
     version: "1.47",
     date: "2026-07-04",
     title: "theta: sync respects deleted accounts, editable account type, dismissible subscriptions",

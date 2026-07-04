@@ -11,6 +11,11 @@
  *    keep the *existing* category (which reflects any user edit) and only update
  *    the volatile fields (amount, date, pending). Without this a hand-tagged
  *    "ATM Fee" — which no keyword rule places — reverts to "Other" each sync.
+ *  - **A corrected account type survives a re-sync**, for the same reason: the
+ *    payload carries no account-type field, so `inferKind` re-guesses it from
+ *    the name on every pull. An account already in the ledger keeps its
+ *    existing `kind` (whatever the user set it to, or the original guess if
+ *    they never touched it) rather than being overwritten by a fresh guess.
  *  - **Balance trends extend** rather than reset for an account seen before.
  */
 import type { Account, Ledger, Transaction } from "./data";
@@ -31,7 +36,12 @@ export function mergeSimplefinSync(
   const synced: Account[] = incomingAccounts.map((a) => {
     const existing = prevAcct.get(a.id);
     if (!existing) return a;
-    return { ...existing, ...a, trend: [...existing.trend.slice(1), a.balance] };
+    return {
+      ...existing,
+      ...a,
+      kind: existing.kind, // a user correction (or the original guess) always wins
+      trend: [...existing.trend.slice(1), a.balance],
+    };
   });
   const syncedIds = new Set(incomingAccounts.map((a) => a.id));
   const accounts = [...ledger.accounts.filter((a) => !syncedIds.has(a.id)), ...synced];
