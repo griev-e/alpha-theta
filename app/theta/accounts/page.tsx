@@ -25,6 +25,7 @@ export default function AccountsPage() {
     setAccountApr,
     setAccountLimit,
     setAccountLink,
+    toggleAccountHidden,
     linkOptions,
   } = useTheta();
 
@@ -34,6 +35,7 @@ export default function AccountsPage() {
   const accounts = ledger.accounts;
   const assets = accounts.filter((a) => a.balance >= 0);
   const liabilities = accounts.filter((a) => a.balance < 0);
+  const hiddenSet = new Set(ledger.hiddenAccounts ?? []);
 
   const rowProps = {
     onEdit: updateAccountBalance,
@@ -41,6 +43,8 @@ export default function AccountsPage() {
     onSetApr: setAccountApr,
     onSetLimit: setAccountLimit,
     onSetLink: setAccountLink,
+    onToggleHidden: toggleAccountHidden,
+    hiddenSet,
     linkOptions,
   };
 
@@ -96,6 +100,8 @@ function AccountRow({
   onSetApr,
   onSetLimit,
   onSetLink,
+  onToggleHidden,
+  hiddenSet,
   linkOptions,
 }: {
   a: Account;
@@ -104,14 +110,20 @@ function AccountRow({
   onSetApr: (id: string, apr: number | null) => void;
   onSetLimit: (id: string, limit: number | null) => void;
   onSetLink: (id: string, portfolioId: string | null) => void;
+  onToggleHidden: (id: string) => void;
+  hiddenSet: Set<string>;
   linkOptions: LinkOption[];
 }) {
   const [open, setOpen] = useState(false);
   const liability = a.balance < 0;
   const color = liability ? "var(--color-neg)" : "var(--color-mint)";
   const linkable = isInvested(a.kind) && linkOptions.length > 0;
-  const editable = liability || linkable || a.kind === "credit";
   const linked = !!a.linkedPortfolioId;
+  const hidden = hiddenSet.has(a.id);
+  // The settings panel is available for every account now — excluding an
+  // account's transactions is a universal control (not just for the accounts
+  // that also have a link / APR / credit-limit field).
+  const editable = true;
 
   return (
     <div className="py-3.5 first:pt-0 last:pb-0">
@@ -124,6 +136,17 @@ function AccountRow({
               {linked && (
                 <span className="inline-flex items-center gap-1 rounded-full bg-vio/12 px-1.5 py-0.5 text-[10px] text-vio">
                   <span className="h-1 w-1 rounded-full bg-vio" /> alpha
+                </span>
+              )}
+              {hidden && (
+                <span
+                  className="inline-flex items-center gap-1 rounded-full bg-white/[0.06] px-1.5 py-0.5 text-[10px] text-faint"
+                  title="This account's transactions are excluded from your spending, budgets, and the transactions log."
+                >
+                  <svg width="9" height="9" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M3 3l14 14M8.5 4.6A6.8 6.8 0 0 1 10 4.4c4 0 7 3.6 8 5.6a13 13 0 0 1-2.2 3M6 6.3C4 7.5 2.7 9 2 10c1 2 4 5.6 8 5.6 1.2 0 2.3-.3 3.3-.8" />
+                  </svg>
+                  Excluded
                 </span>
               )}
             </div>
@@ -168,34 +191,71 @@ function AccountRow({
       </div>
 
       {open && editable && (
-        <div className="mt-3 flex flex-wrap items-center gap-x-6 gap-y-3 rounded-lg border border-edge bg-white/[0.02] px-4 py-3 text-[12px]">
-          {linkable && (
-            <label className="flex items-center gap-2">
-              <span className="text-mute">Link to alpha portfolio</span>
-              <select
-                value={a.linkedPortfolioId ?? ""}
-                onChange={(e) => onSetLink(a.id, e.target.value || null)}
-                className="field h-8 cursor-pointer pr-7 text-[12px]"
-              >
-                <option value="">Not linked</option>
-                {linkOptions.map((o) => (
-                  <option key={o.id} value={o.id}>
-                    {o.name}
-                    {o.live ? " (live)" : ""}
-                  </option>
-                ))}
-              </select>
-            </label>
+        <div className="mt-3 flex flex-col gap-3 rounded-lg border border-edge bg-white/[0.02] px-4 py-3 text-[12px]">
+          {(linkable || liability || a.kind === "credit") && (
+            <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
+              {linkable && (
+                <label className="flex items-center gap-2">
+                  <span className="text-mute">Link to alpha portfolio</span>
+                  <select
+                    value={a.linkedPortfolioId ?? ""}
+                    onChange={(e) => onSetLink(a.id, e.target.value || null)}
+                    className="field h-8 cursor-pointer pr-7 text-[12px]"
+                  >
+                    <option value="">Not linked</option>
+                    {linkOptions.map((o) => (
+                      <option key={o.id} value={o.id}>
+                        {o.name}
+                        {o.live ? " (live)" : ""}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
+              {liability && (
+                <PctEdit label="APR" value={a.apr ?? 0} onCommit={(v) => onSetApr(a.id, v > 0 ? v : null)} />
+              )}
+              {a.kind === "credit" && (
+                <LimitEdit value={a.creditLimit ?? 0} onCommit={(v) => onSetLimit(a.id, v)} />
+              )}
+            </div>
           )}
-          {liability && (
-            <PctEdit label="APR" value={a.apr ?? 0} onCommit={(v) => onSetApr(a.id, v > 0 ? v : null)} />
-          )}
-          {a.kind === "credit" && (
-            <LimitEdit value={a.creditLimit ?? 0} onCommit={(v) => onSetLimit(a.id, v)} />
-          )}
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <div className="text-mute">Exclude from transactions</div>
+              <p className="mt-0.5 max-w-md text-[11px] leading-relaxed text-faint">
+                Keeps this account in net worth, but leaves its transactions — like
+                brokerage buys and sells — out of your spending, budgets, cash flow, and
+                the transactions log. Applies to future synced activity too.
+              </p>
+            </div>
+            <Toggle on={hidden} onChange={() => onToggleHidden(a.id)} label="Exclude this account's transactions" />
+          </div>
         </div>
       )}
     </div>
+  );
+}
+
+/** A small accessible on/off switch. */
+function Toggle({ on, onChange, label }: { on: boolean; onChange: () => void; label: string }) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={on}
+      aria-label={label}
+      onClick={onChange}
+      className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors ${
+        on ? "bg-vio/70" : "bg-white/[0.12]"
+      }`}
+    >
+      <span
+        className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+          on ? "translate-x-[18px]" : "translate-x-0.5"
+        }`}
+      />
+    </button>
   );
 }
 
