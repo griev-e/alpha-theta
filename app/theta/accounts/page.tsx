@@ -8,12 +8,14 @@ import { ThetaEmpty, IconButton, TrashIcon } from "@/components/theta/ui";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Stat } from "@/components/ui/Stat";
-import { ACCOUNT_KIND_LABEL, type Account } from "@/lib/theta/data";
+import { ACCOUNT_KIND_LABEL, type Account, type AccountKind } from "@/lib/theta/data";
 import { isInvested } from "@/lib/theta/assumptions";
 import { ledgerHasData, useTheta } from "@/lib/theta/store";
 import { fmtPct, fmtUSD, fmtUSDCompact } from "@/lib/format";
 
 type LinkOption = { id: string; name: string; live: boolean };
+
+const KINDS: AccountKind[] = ["checking", "savings", "brokerage", "retirement", "credit", "loan"];
 
 export default function AccountsPage() {
   const {
@@ -25,6 +27,7 @@ export default function AccountsPage() {
     setAccountApr,
     setAccountLimit,
     setAccountLink,
+    setAccountKind,
     toggleAccountHidden,
     linkOptions,
   } = useTheta();
@@ -43,6 +46,7 @@ export default function AccountsPage() {
     onSetApr: setAccountApr,
     onSetLimit: setAccountLimit,
     onSetLink: setAccountLink,
+    onSetKind: setAccountKind,
     onToggleHidden: toggleAccountHidden,
     hiddenSet,
     linkOptions,
@@ -100,6 +104,7 @@ function AccountRow({
   onSetApr,
   onSetLimit,
   onSetLink,
+  onSetKind,
   onToggleHidden,
   hiddenSet,
   linkOptions,
@@ -110,6 +115,7 @@ function AccountRow({
   onSetApr: (id: string, apr: number | null) => void;
   onSetLimit: (id: string, limit: number | null) => void;
   onSetLink: (id: string, portfolioId: string | null) => void;
+  onSetKind: (id: string, kind: AccountKind) => void;
   onToggleHidden: (id: string) => void;
   hiddenSet: Set<string>;
   linkOptions: LinkOption[];
@@ -192,6 +198,21 @@ function AccountRow({
 
       {open && editable && (
         <div className="mt-3 flex flex-col gap-3 rounded-lg border border-edge bg-white/[0.02] px-4 py-3 text-[12px]">
+          <label className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <span className="text-mute">Account type</span>
+            <select
+              value={a.kind}
+              onChange={(e) => onSetKind(a.id, e.target.value as AccountKind)}
+              className="field h-8 cursor-pointer pr-7 text-[12px]"
+            >
+              {KINDS.map((k) => (
+                <option key={k} value={k}>{ACCOUNT_KIND_LABEL[k]}</option>
+              ))}
+            </select>
+            <span className="w-full text-[11px] text-faint sm:w-auto sm:flex-1 sm:pl-1">
+              Drives the liquid-vs-invested split behind net worth, projection, and your health score.
+            </span>
+          </label>
           {(linkable || liability || a.kind === "credit") && (
             <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
               {linkable && (

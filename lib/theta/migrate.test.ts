@@ -37,6 +37,21 @@ describe("migrateLedger", () => {
     expect(out.transactions).toEqual([]);
   });
 
+  it("carries the dismissal lists through, and leaves them undefined when absent", () => {
+    const withLists = migrateLedger({
+      accounts: [],
+      transactions: [],
+      dismissedSyncAccounts: ["sf:x"],
+      dismissedRecurring: ["atm fee"],
+    })!;
+    expect(withLists.dismissedSyncAccounts).toEqual(["sf:x"]);
+    expect(withLists.dismissedRecurring).toEqual(["atm fee"]);
+
+    const without = migrateLedger({ accounts: [], transactions: [] })!;
+    expect(without.dismissedSyncAccounts).toBeUndefined();
+    expect(without.dismissedRecurring).toBeUndefined();
+  });
+
   it("returns null for non-object input", () => {
     expect(migrateLedger(null)).toBeNull();
     expect(migrateLedger("nope")).toBeNull();

@@ -139,6 +139,18 @@ export type Ledger = {
   hiddenAccounts?: string[];
   /** Categories filtered out of the lists and the income/spending math. */
   hiddenCategories?: string[];
+  /**
+   * SimpleFIN account ids the user manually deleted. A bank re-sync would
+   * otherwise re-add them every time; keeping the ids here lets the sync merge
+   * skip them (and their transactions) so removals stick. Cleared by "restore".
+   */
+  dismissedSyncAccounts?: string[];
+  /**
+   * Normalized merchant names the user dismissed from the auto-detected
+   * subscriptions on the Recurring page (things that repeat but aren't actually
+   * subscriptions). Kept out of future "detected" suggestions until restored.
+   */
+  dismissedRecurring?: string[];
 };
 
 export const MONTHS = [
@@ -357,5 +369,7 @@ export function migrateLedger(raw: unknown): Ledger | null {
     flowHistory: arr<MonthFlow>(l.flowHistory),
     hiddenAccounts: l.hiddenAccounts ? arr<string>(l.hiddenAccounts) : undefined,
     hiddenCategories: l.hiddenCategories ? arr<Category>(l.hiddenCategories) : undefined,
+    dismissedSyncAccounts: l.dismissedSyncAccounts ? arr<string>(l.dismissedSyncAccounts) : undefined,
+    dismissedRecurring: l.dismissedRecurring ? arr<string>(l.dismissedRecurring) : undefined,
   };
 }
