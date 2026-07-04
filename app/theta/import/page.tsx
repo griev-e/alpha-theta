@@ -13,11 +13,16 @@ export default function ThetaImportPage() {
   const [categorizing, setCategorizing] = useState(false);
 
   // One representative transaction id per uncategorized merchant — the set the
-  // AI categorizer can clean up (everything still sitting in "Other").
+  // AI categorizer can clean up (everything still sitting in "Other"). Excluded
+  // accounts (hidden brokerage trades) and hidden categories are skipped: those
+  // don't map to a spending category, so they shouldn't be sent to the AI.
   const uncategorized = useMemo(() => {
+    const hiddenAcct = new Set(ledger?.hiddenAccounts ?? []);
+    const hiddenCat = new Set(ledger?.hiddenCategories ?? []);
     const byMerchant = new Map<string, { id: string; merchant: string; amount: number }>();
     for (const t of ledger?.transactions ?? []) {
       if (t.category !== "Other") continue;
+      if (hiddenAcct.has(t.account) || hiddenCat.has(t.category)) continue;
       const key = t.merchant.trim().toLowerCase();
       if (!byMerchant.has(key)) byMerchant.set(key, { id: t.id, merchant: t.merchant, amount: t.amount });
     }

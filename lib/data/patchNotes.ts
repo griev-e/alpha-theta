@@ -8,6 +8,16 @@ export type PatchNote = {
 // Newest first. Add an entry here whenever a notable change ships.
 export const PATCH_NOTES: PatchNote[] = [
   {
+    version: "1.46",
+    date: "2026-07-04",
+    title: "theta: excluded accounts no longer feed the auto-tagger + AI categorizer batching fix",
+    changes: [
+      "The transaction auto-tagger now respects account exclusion. If you've excluded an account (e.g. a brokerage), its transactions — buys and sells that don't belong to any spending category — are kept out of the \"needs a category\" banner and the auto-tag review, on both the Transactions and Import pages. This also means the AI categorizer is only ever asked about real spend, instead of being handed brokerage trades it can only file as \"Other\".",
+      "The learned-history layer of the auto-tagger likewise learns only from visible activity, so hidden-account trades never influence a suggestion.",
+      "Fixed the AI categorizer erroring on larger batches: a big set of merchants overran the model's output limit, truncated the JSON mid-response, and failed the whole request. It now processes merchants in bounded chunks, so large imports categorize reliably and one bad chunk degrades to a partial result instead of an error.",
+    ],
+  },
+  {
     version: "1.45",
     date: "2026-07-04",
     title: "theta accounts: exclude an account's transactions in one toggle",

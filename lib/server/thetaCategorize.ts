@@ -1,6 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { CATEGORIES } from "@/lib/theta/data";
 import type {
+  CategorizeItem,
   CategorizeRequest,
   CategorizeResponse,
   CategorizeResult,
@@ -77,33 +78,75 @@ const SCHEMA = {
   },
 };
 
-export async function generateCategorize(
-  req: CategorizeRequest
-): Promise<{ results: CategorizeResult[]; costUSD: number | null }> {
-  const client = new Anthropic({ timeout: 30_000, maxRetries: 1 });
+/**
+ * Split a batch into fixed-size chunks. Each model call's JSON output has to fit
+ * under `max_tokens`; a single large batch (the route allows up to 200 merchants)
+ * would blow past a fixed cap, truncate mid-JSON, and fail the *whole* request on
+ * `JSON.parse`. Chunking keeps every call's output comfortably bounded and lets a
+ * single bad chunk degrade to a partial result instead of a hard error.
+ */
+export function chunkItems<T>(items: T[], size: number): T[][] {
+  const step = Math.max(1, size);
+  const out: T[][] = [];
+  for (let i = 0; i < items.length; i += step) out.push(items.slice(i, i + step));
+  return out;
+}
+
+const CHUNK_SIZE = 40;
+
+/** One model call over a bounded chunk. Anthropic errors (auth/rate/timeout)
+ *  bubble to the caller; a truncated/malformed body degrades to no results for
+ *  that chunk rather than failing the batch. */
+async function categorizeChunk(
+  client: Anthropic,
+  items: CategorizeItem[]
+): Promise<{ results: CategorizeResult[]; costUSD: number }> {
   genLimiter.record();
   const response = await client.messages.create({
     model: MODEL,
-    max_tokens: 2000,
+    // Sized to the chunk (~60 tokens/result + slack) so the JSON never truncates.
+    max_tokens: Math.min(4096, 400 + items.length * 60),
     thinking: { type: "disabled" },
     system: SYSTEM,
     output_config: { format: { type: "json_schema", schema: SCHEMA } },
     messages: [
       {
         role: "user",
-        content: JSON.stringify(req.items.map((i) => ({ merchant: i.merchant, amount: i.amount }))),
+        content: JSON.stringify(items.map((i) => ({ merchant: i.merchant, amount: i.amount }))),
       },
     ],
   });
 
   if (response.stop_reason === "refusal") throw new Error("categorization declined");
+  const cost = usdCost(MODEL, response.usage) ?? 0;
   const text = response.content.find((b) => b.type === "text");
-  if (!text) throw new Error("empty categorization response");
-  const parsed = JSON.parse(text.text) as { results: CategorizeResult[] };
+  if (!text) return { results: [], costUSD: cost };
+  let parsed: { results?: CategorizeResult[] };
+  try {
+    parsed = JSON.parse(text.text) as { results: CategorizeResult[] };
+  } catch {
+    // Truncated or malformed output — salvage nothing from this chunk, but keep
+    // the rest of the batch working.
+    return { results: [], costUSD: cost };
+  }
   // Guard the model's category strings against the enum (defense in depth).
   const valid = new Set<string>(CATEGORIES);
-  const results = parsed.results
+  const results = (parsed.results ?? [])
     .filter((r) => r && typeof r.merchant === "string" && valid.has(r.category))
     .map((r) => ({ merchant: r.merchant, category: r.category }));
-  return { results, costUSD: usdCost(MODEL, response.usage) };
+  return { results, costUSD: cost };
+}
+
+export async function generateCategorize(
+  req: CategorizeRequest
+): Promise<{ results: CategorizeResult[]; costUSD: number | null }> {
+  const client = new Anthropic({ timeout: 30_000, maxRetries: 1 });
+  const chunks = chunkItems(req.items, CHUNK_SIZE);
+  // Chunks run concurrently. A provider error in any chunk rejects and bubbles
+  // to the route's error mapping (so "not configured" / "rate limited" still
+  // surface); only per-chunk JSON truncation is swallowed (above).
+  const settled = await Promise.all(chunks.map((c) => categorizeChunk(client, c)));
+  const results = settled.flatMap((s) => s.results);
+  const costUSD = settled.reduce((sum, s) => sum + s.costUSD, 0);
+  return { results, costUSD };
 }
