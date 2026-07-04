@@ -21,6 +21,7 @@ const RegimeDial = dynamic(
   { ssr: false }
 );
 import { fmtScore, REGIME_COLOR, scoreTone } from "@/components/market/regimeUi";
+import { AiThinking } from "@/components/ui/AiThinking";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { Computing } from "@/components/ui/Computing";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -29,6 +30,10 @@ import type {
   DriverItem,
   RegimeReport,
 } from "@/lib/analytics/regime/types";
+import type {
+  MarketBriefRequest,
+  MarketBriefResponse,
+} from "@/lib/market/types";
 import { fmtPct, relativeTime } from "@/lib/format";
 
 const REFRESH_MS = 10 * 60_000;
@@ -226,6 +231,220 @@ const VERDICT_STYLE: Record<string, string> = {
   neutral: "border-edge bg-white/[0.03] text-faint",
 };
 
+/* ── AI market read ───────────────────────────────────────────────────── */
+
+function buildBriefRequest(r: RegimeReport): MarketBriefRequest {
+  const factor = (d: DriverItem) => ({ label: d.label, detail: d.detail });
+  return {
+    snapshot: {
+      asOf: r.asOf,
+      regime: r.regime,
+      score: +r.score.toFixed(3),
+      confidence: Math.round(r.confidence),
+      consensus: r.consensus,
+      health: Math.round(r.health),
+      direction: r.direction,
+      directionSlope: +r.directionSlope.toFixed(3),
+      maturityDays: r.maturityDays,
+      persistence: +r.persistence.toFixed(2),
+      layers: r.layers.map((l) => ({
+        name: l.name,
+        score: l.score === null ? null : +l.score.toFixed(3),
+        weight: +l.weight.toFixed(3),
+        summary: l.summary,
+      })),
+      bullish: r.drivers.bullish.map(factor),
+      bearish: r.drivers.bearish.map(factor),
+      shifts: r.drivers.shifts.map(factor),
+      risks: r.drivers.risks,
+      opportunities: r.drivers.opportunities,
+    },
+  };
+}
+
+type BriefState =
+  | { kind: "idle" }
+  | { kind: "loading" }
+  | { kind: "disabled" }
+  | { kind: "error"; message: string }
+  | { kind: "ready"; data: MarketBriefResponse };
+
+function fmtCost(usd: number): string {
+  if (usd < 0.01) return `$${usd.toFixed(4)}`;
+  return `$${usd.toFixed(3)}`;
+}
+
+function MarketBriefCard({ report }: { report: RegimeReport }) {
+  const [state, setState] = useState<BriefState>({ kind: "idle" });
+
+  const generate = useCallback(async () => {
+    setState({ kind: "loading" });
+    try {
+      const res = await fetch("/api/market-brief", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(buildBriefRequest(report)),
+      });
+      if (res.status === 401) {
+        window.location.replace("/lock");
+        return;
+      }
+      if (res.status === 501) {
+        setState({ kind: "disabled" });
+        return;
+      }
+      if (res.status === 429) {
+        setState({
+          kind: "error",
+          message: "The strategist is rate limited — try again shortly.",
+        });
+        return;
+      }
+      if (!res.ok) throw new Error(`status ${res.status}`);
+      setState({ kind: "ready", data: (await res.json()) as MarketBriefResponse });
+    } catch {
+      setState({ kind: "error", message: "The strategist is unreachable." });
+    }
+  }, [report]);
+
+  if (state.kind === "disabled") {
+    return (
+      <Card className="mb-5 px-6 py-4" i={0.5} hover={false}>
+        <div className="flex items-center gap-3 text-[12.5px] text-faint">
+          <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-white/20" />
+          AI market read is off — set{" "}
+          <code className="rounded bg-white/[0.05] px-1.5 py-0.5 font-mono text-[11px]">
+            ANTHROPIC_API_KEY
+          </code>{" "}
+          to enable a Claude-written synthesis of the regime.
+        </div>
+      </Card>
+    );
+  }
+
+  return (
+    <Card className="mb-5 overflow-hidden px-6 py-5 sm:px-8" i={0.5} hover={false}>
+      <CardHeader
+        eyebrow="AI strategist"
+        title="The read on this tape"
+        right={
+          state.kind === "ready" ? (
+            <div className="flex items-center gap-3">
+              <span className="font-mono text-[10px] text-faint">
+                {state.data.cached ? "cached · " : ""}
+                {relativeTime(state.data.generatedAt)}
+              </span>
+              <button
+                onClick={generate}
+                className="rounded-md border border-edge px-2.5 py-1 text-[11px] text-mute transition-colors hover:text-ink"
+              >
+                Regenerate
+              </button>
+            </div>
+          ) : undefined
+        }
+        className="mb-4"
+      />
+
+      {state.kind === "idle" && (
+        <div className="flex flex-col items-center gap-4 py-6 text-center">
+          <p className="max-w-2xl text-[12.5px] leading-relaxed text-mute">
+            Have Claude reason across the eight layers, the composite score, and
+            the ranked drivers, and synthesize them into one honest read — what
+            the tape is, what&apos;s moving it, what to watch, and the strongest
+            counter-signal. A model read, not advice.
+          </p>
+          <button onClick={generate} className="btn-primary">
+            Generate market read
+          </button>
+        </div>
+      )}
+
+      {state.kind === "loading" && (
+        <AiThinking
+          label="Reading the tape"
+          messages={[
+            "Weighing the eight layers",
+            "Reconciling the conflicts",
+            "Sizing the drivers",
+            "Writing the read",
+          ]}
+        />
+      )}
+
+      {state.kind === "error" && (
+        <div className="flex flex-col items-center gap-3 py-8 text-center">
+          <div className="text-[13px] text-mute">{state.message}</div>
+          <button onClick={generate} className="btn-secondary">
+            Retry
+          </button>
+        </div>
+      )}
+
+      {state.kind === "ready" && (
+        <div>
+          <h3 className="font-display text-[17px] font-semibold leading-snug text-ink">
+            {state.data.brief.headline}
+          </h3>
+          <p className="mt-2 max-w-3xl text-[13px] leading-relaxed text-mute">
+            {state.data.brief.read}
+          </p>
+
+          <div className="mt-5 grid gap-x-10 gap-y-5 lg:grid-cols-2">
+            {state.data.brief.positioning.length > 0 && (
+              <div>
+                <div className="eyebrow mb-2">what it implies</div>
+                <ul className="space-y-2">
+                  {state.data.brief.positioning.map((p) => (
+                    <li
+                      key={p}
+                      className="flex items-start gap-2.5 text-[12.5px] leading-snug text-mute"
+                    >
+                      <span className="mt-[5px] h-1.5 w-1.5 shrink-0 rounded-full bg-mint/70" />
+                      {p}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            <div className="space-y-5">
+              {state.data.brief.watchItems.length > 0 && (
+                <div>
+                  <div className="eyebrow mb-2">on watch</div>
+                  <ul className="space-y-2">
+                    {state.data.brief.watchItems.map((w) => (
+                      <li
+                        key={w}
+                        className="flex items-start gap-2.5 text-[12.5px] leading-snug text-mute"
+                      >
+                        <span className="mt-[5px] h-1.5 w-1.5 shrink-0 rounded-full bg-sky/70" />
+                        {w}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              <div>
+                <div className="eyebrow mb-2 !text-warn/80">counter-signal</div>
+                <p className="text-[12.5px] leading-snug text-mute">
+                  {state.data.brief.contrarian}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {typeof state.data.costUSD === "number" && (
+            <div className="mt-5 border-t border-edge pt-3 text-right font-mono text-[10px] text-faint">
+              generated with Claude Sonnet 4.6 · est. cost {fmtCost(state.data.costUSD)}
+            </div>
+          )}
+        </div>
+      )}
+    </Card>
+  );
+}
+
 /* ── Page ─────────────────────────────────────────────────────────────── */
 
 const HEADER_DESC =
@@ -361,6 +580,9 @@ export default function MarketPage() {
           </div>
         </div>
       </Card>
+
+      {/* AI market read */}
+      <MarketBriefCard report={r} />
 
       {/* Six-month replay */}
       <div className="mb-5 grid gap-5 md:grid-cols-2">

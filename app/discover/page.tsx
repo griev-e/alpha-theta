@@ -401,60 +401,20 @@ function ErrorPanel({ message, onRetry }: { message: string; onRetry: () => void
 
 function LoadingPanel({ mode }: { mode: DiscoverModeId }) {
   const label = DISCOVER_MODES.find((m) => m.id === mode)?.label ?? "ideas";
-  const accent = MODE_ACCENT[mode];
   return (
     <Shell>
-      <Card className="px-6 py-8" hover={false}>
+      <Card hover={false}>
         <AiThinking
           label={`Researching ${label} ideas for your book`}
-          from={accent}
-          to={accent}
-          className="!py-0"
           messages={[
             "Reading your holdings",
             "Finding the gaps",
             "Screening candidates",
             "Building the thesis",
           ]}
-        >
-          <div className="mt-2 grid w-full gap-3 sm:grid-cols-2">
-            {[0, 1, 2, 3].map((i) => (
-              <ShimmerCard key={i} delay={i * 0.12} />
-            ))}
-          </div>
-        </AiThinking>
+        />
       </Card>
     </Shell>
-  );
-}
-
-function ShimmerCard({ delay }: { delay: number }) {
-  return (
-    <div className="overflow-hidden rounded-xl border border-edge bg-white/[0.012] p-4">
-      <div className="flex items-center gap-2.5">
-        <div className="h-8 w-8 rounded-lg bg-white/[0.05]" />
-        <div className="flex-1 space-y-1.5">
-          <Bar w="40%" delay={delay} />
-          <Bar w="65%" delay={delay + 0.1} />
-        </div>
-      </div>
-      <div className="mt-3 space-y-1.5">
-        <Bar w="100%" delay={delay + 0.15} />
-        <Bar w="90%" delay={delay + 0.2} />
-        <Bar w="55%" delay={delay + 0.25} />
-      </div>
-    </div>
-  );
-}
-
-function Bar({ w, delay }: { w: string; delay: number }) {
-  return (
-    <Motion.div
-      className="h-2 rounded-full bg-white/[0.05]"
-      style={{ width: w }}
-      animate={{ opacity: [0.35, 0.75, 0.35] }}
-      transition={{ duration: 1.4, repeat: Infinity, delay }}
-    />
   );
 }
 

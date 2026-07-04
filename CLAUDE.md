@@ -235,6 +235,7 @@ Maps as a warm-lambda cache. Provider code (`yahoo-finance2`, Anthropic SDK) is
 | `/api/allocate` | `lib/server/allocator.ts` | AI dry-powder allocator for the Rebalance page (Anthropic). POSTs a fundamentals-enriched snapshot; returns a structured cash-deployment plan. Caches one plan per day per portfolio shape. |
 | `/api/optimize` | `lib/server/optimizer.ts` | AI optimizer review for the Optimizer page (Anthropic, Sonnet 4.6). The optimal weights are solved client-side; this POSTs the before/after metrics + largest shifts and returns a structured construction read. Caches one review per day per objective + portfolio shape. |
 | `/api/discover` | `lib/server/discover.ts` | AI stock-idea generator for the Discover page (Anthropic, Sonnet 4.6). POSTs the portfolio shape + chosen research lens; returns structured candidate ideas. |
+| `/api/market-brief` | `lib/server/marketBrief.ts` | AI market read for the Market Analysis page (Anthropic, Sonnet 4.6, adaptive thinking at `high` effort). POSTs a compact snapshot of the regime engine's output (composite score, the eight layers, ranked drivers) and returns a structured synthesis — headline, read, positioning, watch items, counter-signal. Cached one per day per regime shape. |
 | `/api/theta-brief` | `lib/server/thetaBrief.ts` | theta's AI money brief, parallel to `/api/brief` but over the ledger snapshot instead of the portfolio. User-triggered (not auto-run); Sonnet 4.6 with adaptive thinking at `high` effort, cached one per day per ledger shape. |
 | `/api/theta/categorize` | `lib/server/thetaCategorize.ts` | AI batch merchant→category categorizer backing the Transactions/Import auto-tagger's "Improve with AI" pass (Anthropic, Haiku 4.5, thinking disabled). Chunks large merchant batches so one bad chunk degrades to a partial result instead of erroring; cached one response per day per merchant-set shape. |
 | `/api/theta/review` | `lib/server/thetaReview.ts` | AI money review for the Financial Health scorecard — a reasoning pass over the health metrics, spending anomalies, and detected subscriptions (Anthropic, Sonnet 4.6, adaptive thinking at `high` effort). Cached one per day per ledger shape. |
@@ -254,8 +255,8 @@ as `costUSD` in its response so the UI can show what each AI call cost. When
 adding a new Anthropic-backed model, add its pricing here too.
 
 **Shared AI-endpoint plumbing & security hardening.** `lib/server/aiEndpoint.ts`
-holds what the seven Anthropic-backed routes (`brief`, `allocator`, `optimizer`,
-`discover`, `thetaBrief`, `thetaCategorize`, `thetaReview`) used to duplicate:
+holds what the eight Anthropic-backed routes (`brief`, `allocator`, `optimizer`,
+`discover`, `marketBrief`, `thetaBrief`, `thetaCategorize`, `thetaReview`) used to duplicate:
 `AiCache` (the day/shape response cache), `GenLimiter` (an hourly
 per-warm-instance generation cap — a cost backstop), and `mapAnthropicError`
 (provider errors → user-facing status). `lib/server/rateLimit.ts` does double
@@ -487,9 +488,11 @@ with alpha, but otherwise has its own state, shell, and analytics:
   categorizer (`lib/server/thetaCategorize.ts`) uses the same Haiku 4.5,
   thinking-disabled shape for the same reason (an enum-constrained category
   set). The dry-powder allocator (`lib/server/allocator.ts`), the Discover idea
-  generator (`lib/server/discover.ts`), and theta's Financial Health AI review
+  generator (`lib/server/discover.ts`), the Market Analysis read
+  (`lib/server/marketBrief.ts`), and theta's Financial Health AI review
   (`lib/server/thetaReview.ts`) use Sonnet 4.6 (`claude-sonnet-4-6`) with
-  adaptive thinking at `high` effort: allocation, idea generation, and weighing
+  adaptive thinking at `high` effort: allocation, idea generation, synthesizing
+  the eight regime layers into one read, and weighing
   health/spending/subscription findings against each other are all genuine
   reasoning tasks, so they earn the deepest reasoning pass. The optimizer
   review (`lib/server/optimizer.ts`) uses Sonnet 4.6 (`claude-sonnet-4-6`) with
