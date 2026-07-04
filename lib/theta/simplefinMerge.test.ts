@@ -53,6 +53,25 @@ describe("mergeSimplefinSync", () => {
     expect(transactions.map((t) => t.id)).toEqual(["sf:keep:t1"]);
   });
 
+  it("preserves a manually-corrected account type across a re-sync", () => {
+    // The heuristic first guessed "brokerage"; the user corrected it to "checking".
+    const ledger = ledgerWith({ accounts: [acct("sf:a", 1100, { kind: "checking" })] });
+    // The server re-infers "brokerage" again on every pull (no type field in the payload).
+    const sync = { accounts: [acct("sf:a", 1150, { kind: "brokerage" })], transactions: [] };
+
+    const { accounts } = mergeSimplefinSync(ledger, sync);
+    const a = accounts.find((x) => x.id === "sf:a")!;
+    expect(a.kind).toBe("checking"); // the user's correction survives
+    expect(a.balance).toBe(1150); // but the fresh balance still comes through
+  });
+
+  it("uses the freshly-inferred kind for an account seen for the first time", () => {
+    const ledger = ledgerWith({ accounts: [] });
+    const sync = { accounts: [acct("sf:new", 500, { kind: "brokerage" })], transactions: [] };
+    const { accounts } = mergeSimplefinSync(ledger, sync);
+    expect(accounts.find((x) => x.id === "sf:new")?.kind).toBe("brokerage");
+  });
+
   it("upserts a seen account and extends its trend instead of resetting it", () => {
     const ledger = ledgerWith({ accounts: [acct("sf:a", 100, { trend: [10, 20, 30, 40, 50, 60, 70] })] });
     const { accounts } = mergeSimplefinSync(ledger, { accounts: [acct("sf:a", 80)], transactions: [] });
