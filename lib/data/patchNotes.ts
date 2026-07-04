@@ -8,6 +8,15 @@ export type PatchNote = {
 // Newest first. Add an entry here whenever a notable change ships.
 export const PATCH_NOTES: PatchNote[] = [
   {
+    version: "1.45",
+    date: "2026-07-04",
+    title: "theta accounts: exclude an account's transactions in one toggle",
+    changes: [
+      "Every account now has an \"Exclude from transactions\" switch (in its settings gear on the Accounts page). Flip it on a brokerage or retirement account and its buys and sells stop showing up in the transactions log — and stop counting toward your spending, budgets, and cash flow — while the account's balance stays in net worth. It applies to future synced activity too, and excluded accounts show an \"Excluded\" badge.",
+      "This surfaces the existing per-account transaction filter (previously only reachable from the Transactions page's Filter popover) as a persistent, discoverable account setting, so noisy investment activity is easy to keep out of your everyday money view.",
+    ],
+  },
+  {
     version: "1.44",
     date: "2026-07-04",
     title: "theta transactions: a redesigned tab with advanced auto-tagging",
