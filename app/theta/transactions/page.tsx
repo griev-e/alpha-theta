@@ -1,16 +1,19 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
+import { m } from "framer-motion";
 import { TransactionFilter } from "@/components/theta/TransactionFilter";
 import { AddTransactionButton } from "@/components/theta/modals";
 import { ThetaEmpty } from "@/components/theta/ui";
 import { Card } from "@/components/ui/Card";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Stat } from "@/components/ui/Stat";
-import { CATEGORIES, type Category } from "@/lib/theta/data";
+import { CATEGORIES, type Category, type Transaction } from "@/lib/theta/data";
+import { learnRules } from "@/lib/theta/categorize";
 import { ledgerHasData, useTheta } from "@/lib/theta/store";
 import { fmtUSD } from "@/lib/format";
 import { TxRow } from "./TxRow";
+import { AutoTagModal, type UncatItem } from "./AutoTagModal";
 
 const FILTERS: (Category | "All")[] = [
   "All",
@@ -27,18 +30,32 @@ const FILTERS: (Category | "All")[] = [
   "Transfer",
 ];
 
+/** "Today" / "Yesterday" / "Mon, Jun 26" for a date-section header. */
+function dayLabel(iso: string): string {
+  const d = new Date(`${iso}T00:00:00`);
+  if (Number.isNaN(d.getTime())) return iso;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const diff = Math.round((today.getTime() - d.getTime()) / 86_400_000);
+  if (diff === 0) return "Today";
+  if (diff === 1) return "Yesterday";
+  return d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+}
+
 export default function TransactionsPage() {
   const {
     ready,
     ledger,
     deleteTransaction,
     setTransactionCategory,
+    setTransactionCategories,
     toggleAccountHidden,
     toggleCategoryHidden,
     resetTransactionFilters,
   } = useTheta();
   const [query, setQuery] = useState("");
   const [cat, setCat] = useState<Category | "All">("All");
+  const [autoTagOpen, setAutoTagOpen] = useState(false);
 
   const transactions = useMemo(() => ledger?.transactions ?? [], [ledger]);
   const accounts = useMemo(() => ledger?.accounts ?? [], [ledger]);
@@ -50,6 +67,19 @@ export default function TransactionsPage() {
   const presentCategories = useMemo(() => {
     const seen = new Set(transactions.map((t) => t.category));
     return CATEGORIES.filter((c) => seen.has(c));
+  }, [transactions]);
+
+  // What the auto-tagger will clean up: one representative row per "Other"
+  // merchant, plus a memory of everything the user has already tagged.
+  const learned = useMemo(() => learnRules(transactions), [transactions]);
+  const uncategorized = useMemo<UncatItem[]>(() => {
+    const byMerchant = new Map<string, UncatItem>();
+    for (const t of transactions) {
+      if (t.category !== "Other") continue;
+      const key = t.merchant.trim().toLowerCase();
+      if (!byMerchant.has(key)) byMerchant.set(key, { id: t.id, merchant: t.merchant, amount: t.amount });
+    }
+    return [...byMerchant.values()];
   }, [transactions]);
 
   const filtered = useMemo(() => {
@@ -65,6 +95,17 @@ export default function TransactionsPage() {
     });
   }, [transactions, query, cat, hiddenAccounts, hiddenCategories]);
 
+  // Group the visible rows into date sections (input is already newest-first).
+  const groups = useMemo(() => {
+    const map = new Map<string, Transaction[]>();
+    for (const t of filtered) {
+      const arr = map.get(t.date);
+      if (arr) arr.push(t);
+      else map.set(t.date, [t]);
+    }
+    return [...map.entries()];
+  }, [filtered]);
+
   if (!ready) return null;
   if (!ledger || !ledgerHasData(ledger)) return <ThetaEmpty page="Transactions" />;
 
@@ -72,6 +113,9 @@ export default function TransactionsPage() {
   const moneyOut = filtered
     .filter((t) => t.amount < 0 && t.category !== "Transfer")
     .reduce((s, t) => s + Math.abs(t.amount), 0);
+  const net = moneyIn - moneyOut;
+
+  let rowIndex = 0; // running index across groups, for the row stagger
 
   return (
     <div>
@@ -82,17 +126,50 @@ export default function TransactionsPage() {
         right={<AddTransactionButton />}
       />
 
-      <div className="mb-5 grid grid-cols-3 gap-3">
+      <div className="mb-4 grid grid-cols-3 gap-3">
         <Card className="px-5 py-4" i={0} hover={false}>
-          <Stat label="Transactions" value={filtered.length} format={(v) => String(Math.round(v))} size="sm" />
-        </Card>
-        <Card className="px-5 py-4" i={1} hover={false}>
           <Stat label="Money in" value={moneyIn} format={(v) => fmtUSD(v, true)} size="sm" toneClass="text-pos" />
         </Card>
-        <Card className="px-5 py-4" i={2} hover={false}>
+        <Card className="px-5 py-4" i={1} hover={false}>
           <Stat label="Money out" value={moneyOut} format={(v) => fmtUSD(v, true)} size="sm" />
         </Card>
+        <Card className="px-5 py-4" i={2} hover={false}>
+          <Stat
+            label="Net"
+            value={net}
+            format={(v) => `${v >= 0 ? "+" : "−"}${fmtUSD(Math.abs(v), true)}`}
+            size="sm"
+            toneClass={net >= 0 ? "text-pos" : "text-neg"}
+          />
+        </Card>
       </div>
+
+      {uncategorized.length > 0 && (
+        <m.button
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.35, delay: 0.15 }}
+          onClick={() => setAutoTagOpen(true)}
+          className="group mb-4 flex w-full items-center gap-3 rounded-xl border border-vio/30 bg-vio/[0.07] px-4 py-3 text-left transition-colors hover:bg-vio/[0.12]"
+        >
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-vio/15 text-vio">
+            <svg width="17" height="17" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M10 2.5l1.7 4.6 4.6 1.7-4.6 1.7L10 15.1 8.3 10.5 3.7 8.8l4.6-1.7z" />
+            </svg>
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-[13px] font-medium text-ink">
+              {uncategorized.length} merchant{uncategorized.length === 1 ? " needs" : "s need"} a category
+            </span>
+            <span className="block text-[12px] text-mute">
+              Auto-tag them from your history and keyword rules — review before applying.
+            </span>
+          </span>
+          <span className="inline-flex h-8 shrink-0 items-center rounded-lg bg-vio px-3 text-[12.5px] font-medium text-black transition-transform group-hover:scale-[1.03]">
+            Auto-tag
+          </span>
+        </m.button>
+      )}
 
       <Card className="overflow-hidden" i={3}>
         <div className="flex flex-col gap-3 border-b border-edge px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
@@ -137,16 +214,35 @@ export default function TransactionsPage() {
         <div className="overflow-x-auto">
           <table className="w-full min-w-[640px] text-[13px]">
             <tbody>
-              {filtered.map((t, i) => (
-                <TxRow
-                  key={t.id}
-                  t={t}
-                  i={i}
-                  accountName={acctName(t.account)}
-                  onDelete={deleteTransaction}
-                  onChangeCategory={setTransactionCategory}
-                />
-              ))}
+              {groups.map(([date, rows]) => {
+                const dayNet = rows.reduce((s, t) => s + t.amount, 0);
+                return (
+                  <Fragment key={date}>
+                    <tr className="border-b border-edge/60 bg-white/[0.015]">
+                      <td colSpan={4} className="px-6 py-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[11px] font-medium uppercase tracking-[0.05em] text-faint">
+                            {dayLabel(date)}
+                          </span>
+                          <span className={`font-mono tnum text-[11px] ${dayNet >= 0 ? "text-pos/80" : "text-faint"}`}>
+                            {dayNet >= 0 ? "+" : "−"}{fmtUSD(Math.abs(dayNet))}
+                          </span>
+                        </div>
+                      </td>
+                    </tr>
+                    {rows.map((t) => (
+                      <TxRow
+                        key={t.id}
+                        t={t}
+                        i={rowIndex++}
+                        accountName={acctName(t.account)}
+                        onDelete={deleteTransaction}
+                        onChangeCategory={setTransactionCategory}
+                      />
+                    ))}
+                  </Fragment>
+                );
+              })}
               {filtered.length === 0 && (
                 <tr>
                   <td className="px-6 py-10 text-center text-[13px] text-faint">No transactions match.</td>
@@ -156,6 +252,14 @@ export default function TransactionsPage() {
           </table>
         </div>
       </Card>
+
+      <AutoTagModal
+        open={autoTagOpen}
+        onClose={() => setAutoTagOpen(false)}
+        items={uncategorized}
+        learned={learned}
+        onApply={setTransactionCategories}
+      />
     </div>
   );
 }

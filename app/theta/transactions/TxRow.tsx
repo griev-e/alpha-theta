@@ -23,24 +23,30 @@ function CategoryCell({
   const [open, setOpen] = useState(false);
   const accent = CATEGORY_COLOR[category];
 
-  if (!onChange) {
-    return (
-      <span className="inline-flex items-center gap-1.5 text-[12px] text-mute">
-        <span className="h-2 w-2 rounded-full" style={{ background: accent }} />
-        {category}
-      </span>
-    );
-  }
+  const pill = (
+    <span
+      className="inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[11.5px]"
+      style={{
+        borderColor: `color-mix(in srgb, ${accent} 32%, transparent)`,
+        background: `color-mix(in srgb, ${accent} 12%, transparent)`,
+        color: `color-mix(in srgb, ${accent} 82%, white)`,
+      }}
+    >
+      <span className="h-1.5 w-1.5 rounded-full" style={{ background: accent }} />
+      {category}
+    </span>
+  );
+
+  if (!onChange) return pill;
 
   return (
     <span className="relative inline-block">
       <button
         onClick={() => setOpen((o) => !o)}
         title="Change category"
-        className="inline-flex items-center gap-1.5 rounded-md px-1.5 py-1 text-[12px] text-mute transition-colors hover:bg-white/[0.06] hover:text-ink"
+        className="inline-flex items-center gap-1 rounded-full transition-opacity hover:opacity-80"
       >
-        <span className="h-2 w-2 rounded-full" style={{ background: accent }} />
-        {category}
+        {pill}
         <svg width="9" height="9" viewBox="0 0 12 8" fill="none" stroke="currentColor" strokeWidth="1.6" className="text-faint">
           <path d="M1 1l5 5 5-5" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
