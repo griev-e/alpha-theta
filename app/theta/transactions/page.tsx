@@ -61,6 +61,8 @@ export default function TransactionsPage() {
   const accounts = useMemo(() => ledger?.accounts ?? [], [ledger]);
   const hiddenAccounts = useMemo(() => ledger?.hiddenAccounts ?? [], [ledger]);
   const hiddenCategories = useMemo(() => ledger?.hiddenCategories ?? [], [ledger]);
+  const hiddenAcctSet = useMemo(() => new Set(hiddenAccounts), [hiddenAccounts]);
+  const hiddenCatSet = useMemo(() => new Set(hiddenCategories), [hiddenCategories]);
   const acctName = (id: string) => accounts.find((a) => a.id === id)?.name ?? id;
 
   // Categories actually present in the ledger, in the canonical order.
@@ -69,23 +71,28 @@ export default function TransactionsPage() {
     return CATEGORIES.filter((c) => seen.has(c));
   }, [transactions]);
 
-  // What the auto-tagger will clean up: one representative row per "Other"
-  // merchant, plus a memory of everything the user has already tagged.
-  const learned = useMemo(() => learnRules(transactions), [transactions]);
+  // The auto-tagger operates only on visible activity: an excluded account
+  // (e.g. a brokerage whose buys/sells you've hidden) must never surface in the
+  // banner or the review modal — those trades don't belong to any spending
+  // category, so nagging to tag them, or asking the AI to, is exactly the noise
+  // the exclusion was meant to remove. Learn only from visible rows too.
+  const visibleForTagging = useMemo(
+    () => transactions.filter((t) => !hiddenAcctSet.has(t.account) && !hiddenCatSet.has(t.category)),
+    [transactions, hiddenAcctSet, hiddenCatSet]
+  );
+  const learned = useMemo(() => learnRules(visibleForTagging), [visibleForTagging]);
   const uncategorized = useMemo<UncatItem[]>(() => {
     const byMerchant = new Map<string, UncatItem>();
-    for (const t of transactions) {
+    for (const t of visibleForTagging) {
       if (t.category !== "Other") continue;
       const key = t.merchant.trim().toLowerCase();
       if (!byMerchant.has(key)) byMerchant.set(key, { id: t.id, merchant: t.merchant, amount: t.amount });
     }
     return [...byMerchant.values()];
-  }, [transactions]);
+  }, [visibleForTagging]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    const hiddenAcctSet = new Set(hiddenAccounts);
-    const hiddenCatSet = new Set(hiddenCategories);
     return transactions.filter((t) => {
       if (hiddenAcctSet.has(t.account)) return false;
       if (hiddenCatSet.has(t.category)) return false;
@@ -93,7 +100,7 @@ export default function TransactionsPage() {
       if (q && !t.merchant.toLowerCase().includes(q)) return false;
       return true;
     });
-  }, [transactions, query, cat, hiddenAccounts, hiddenCategories]);
+  }, [transactions, query, cat, hiddenAcctSet, hiddenCatSet]);
 
   // Group the visible rows into date sections (input is already newest-first).
   const groups = useMemo(() => {
