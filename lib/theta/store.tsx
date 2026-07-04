@@ -89,6 +89,13 @@ interface ThetaStore {
    */
   setTransactionCategory: (id: string, category: Category) => void;
 
+  /**
+   * Apply a batch of category assignments in one write (used by the auto-tagger's
+   * review step). Each update propagates to every transaction from the same
+   * merchant, just like `setTransactionCategory`.
+   */
+  setTransactionCategories: (updates: { id: string; category: Category }[]) => void;
+
   loadSample: () => void;
   clear: () => void;
 }
@@ -495,6 +502,30 @@ export function ThetaProvider({ children }: { children: ReactNode }) {
     [mutate]
   );
 
+  const setTransactionCategories = useCallback(
+    (updates: { id: string; category: Category }[]) =>
+      mutate((l) => {
+        if (updates.length === 0) return l;
+        // Resolve each update to its merchant group, so a single representative
+        // row re-tags every charge from that merchant (matching the single-row
+        // behavior). Last update for a given merchant wins on collision.
+        const byMerchant = new Map<string, Category>();
+        for (const u of updates) {
+          const t = l.transactions.find((x) => x.id === u.id);
+          if (t) byMerchant.set(t.merchant.trim().toLowerCase(), u.category);
+        }
+        if (byMerchant.size === 0) return l;
+        return {
+          ...l,
+          transactions: l.transactions.map((t) => {
+            const next = byMerchant.get(t.merchant.trim().toLowerCase());
+            return next ? { ...t, category: next } : t;
+          }),
+        };
+      }),
+    [mutate]
+  );
+
   const loadSample = useCallback(
     () => persist(JSON.parse(JSON.stringify(SAMPLE_LEDGER)) as Ledger, true),
     [persist]
@@ -579,6 +610,7 @@ export function ThetaProvider({ children }: { children: ReactNode }) {
       toggleCategoryHidden,
       resetTransactionFilters,
       setTransactionCategory,
+      setTransactionCategories,
       loadSample,
       clear,
     }),
@@ -591,7 +623,7 @@ export function ThetaProvider({ children }: { children: ReactNode }) {
       updateAccountBalance, setAccountApr, setAccountLimit, removeAccount,
       setAccountLink, linkOptions,
       toggleAccountHidden, toggleCategoryHidden, resetTransactionFilters,
-      setTransactionCategory,
+      setTransactionCategory, setTransactionCategories,
       loadSample, clear,
     ]
   );

@@ -8,6 +8,16 @@ export type PatchNote = {
 // Newest first. Add an entry here whenever a notable change ships.
 export const PATCH_NOTES: PatchNote[] = [
   {
+    version: "1.44",
+    date: "2026-07-04",
+    title: "theta transactions: a redesigned tab with advanced auto-tagging",
+    changes: [
+      "The Transactions tab now groups charges into dated sections (Today / Yesterday / weekday) with each day's net, adds a Money-in / Money-out / Net summary, and gives every category a proper tinted pill — a cleaner read of where your money went.",
+      "New advanced auto-tagger, front and center: a banner shows how many merchants are still in \"Other\" and opens a review sheet with a suggested category for each. Suggestions are ranked by a local, zero-cost engine that layers your own tagging history over theta's (now much larger) keyword table, so the tool learns your patterns and gets smarter the more you use it — every suggestion shows where it came from and how confident it is.",
+      "The auto-tagger learns from you: once you've tagged a merchant, every future charge from it is suggested the same way (majority-wins when you've been inconsistent), and applying a batch also re-tags matching charges going forward. An optional one-click \"Improve with AI\" pass (Claude Haiku 4.5) places whatever the local rules couldn't. Nothing is written until you review and press Apply.",
+    ],
+  },
+  {
     version: "1.43",
     date: "2026-07-03",
     title: "theta grows up: projections, financial health, debt payoff, and smarter money analytics",
