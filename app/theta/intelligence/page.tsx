@@ -83,19 +83,6 @@ export default function ThetaIntelligencePage() {
         eyebrow="Overview"
         title="Intelligence"
         description="A Claude-written read on your month — what's working, what to watch, what to do next."
-        right={
-          <button
-            onClick={load}
-            disabled={state.kind === "loading"}
-            className="inline-flex h-8 items-center gap-1.5 rounded-md border border-edge2 px-3 text-[12.5px] font-medium text-mute transition-colors hover:border-white/30 hover:text-ink disabled:opacity-40"
-          >
-            {state.kind === "loading"
-              ? "Thinking…"
-              : state.kind === "ready"
-                ? "Regenerate"
-                : "Generate brief"}
-          </button>
-        }
       />
 
       {/* Deterministic glance — always available, even with no API key. */}
