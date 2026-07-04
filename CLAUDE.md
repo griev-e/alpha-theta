@@ -44,14 +44,18 @@ correlation, quality, factors, scenarios, rebalance, dividends, the optimizer,
 the regime engine and its `mathx` helpers plus each of the 8 signal layers,
 `buildPortfolio`), CSV parsing (both apps, incl. the shared `csvCore` splitter),
 the live-data merge layer (`lib/live/merge.ts`, `lib/live/cma.ts`), theta's
-compute/csv/categorize/simplefin modules, the client save-back layer
-(`lib/persist.ts`), the per-user DB queries' credential-isolation invariant
-(`lib/db/state.ts` — `getUserState` never selects the `simplefin` column), and
-server-side correctness (fundamentals sanitization + the Yahoo/Finnhub gap-fill
-merge, Yahoo/Finnhub provider math, the SimpleFIN mapper, the shared AI-endpoint
-plumbing — cache, generation/request limiters, cost math, error mapping — the
-login rate limiter, and the AI-model contract guard in
-`lib/server/aiModels.test.ts`).
+compute/csv/categorize/simplefin modules plus its newer money-analytics layer
+(debt payoff, financial health + its ledger adapter, subscription detection,
+cash-flow forecast, net-worth Monte Carlo, goal feasibility, derived
+flow/net-worth history, the SimpleFIN merge/dedup rules, the alpha↔theta
+balance bridge), the client save-back layer (`lib/persist.ts`), the per-user DB
+queries' credential-isolation invariant (`lib/db/state.ts` — `getUserState`
+never selects the `simplefin` column), and server-side correctness
+(fundamentals sanitization + the Yahoo/Finnhub gap-fill merge, Yahoo/Finnhub
+provider math, the SimpleFIN mapper, the envelope-encryption round-trip in
+`lib/server/secretBox.ts`, the shared AI-endpoint plumbing — cache,
+generation/request limiters, cost math, error mapping — the login rate
+limiter, and the AI-model contract guard in `lib/server/aiModels.test.ts`).
 
 **React hooks and components** are tested as `*.test.tsx` files that opt into a
 DOM per-file with a `// @vitest-environment jsdom` docblock (jsdom +
@@ -232,9 +236,11 @@ Maps as a warm-lambda cache. Provider code (`yahoo-finance2`, Anthropic SDK) is
 | `/api/optimize` | `lib/server/optimizer.ts` | AI optimizer review for the Optimizer page (Anthropic, Sonnet 4.6). The optimal weights are solved client-side; this POSTs the before/after metrics + largest shifts and returns a structured construction read. Caches one review per day per objective + portfolio shape. |
 | `/api/discover` | `lib/server/discover.ts` | AI stock-idea generator for the Discover page (Anthropic, Sonnet 4.6). POSTs the portfolio shape + chosen research lens; returns structured candidate ideas. |
 | `/api/theta-brief` | `lib/server/thetaBrief.ts` | theta's AI money brief, parallel to `/api/brief` but over the ledger snapshot instead of the portfolio. User-triggered (not auto-run); Sonnet 4.6 with adaptive thinking at `high` effort, cached one per day per ledger shape. |
+| `/api/theta/categorize` | `lib/server/thetaCategorize.ts` | AI batch merchant→category categorizer backing the Transactions/Import auto-tagger's "Improve with AI" pass (Anthropic, Haiku 4.5, thinking disabled). Chunks large merchant batches so one bad chunk degrades to a partial result instead of erroring; cached one response per day per merchant-set shape. |
+| `/api/theta/review` | `lib/server/thetaReview.ts` | AI money review for the Financial Health scorecard — a reasoning pass over the health metrics, spending anomalies, and detected subscriptions (Anthropic, Sonnet 4.6, adaptive thinking at `high` effort). Cached one per day per ledger shape. |
 | `/api/auth/*` | `auth.ts` (NextAuth) | Session, sign-in/out, CSRF. The Credentials provider (username + password, bcrypt) authenticates against the `users` table; the fixed-window limiter in `lib/server/rateLimit.ts` throttles login brute force. Only meaningful when accounts are enabled. |
 | `/api/state` | `lib/db/state.ts` (`lib/server/authState.ts` reads the session) | `GET` returns both saved blobs (alpha portfolio + theta ledger) for the signed-in user; `PUT /api/state/portfolio` and `PUT /api/state/ledger` upsert each independently. 404 when accounts are off, 401 when signed out. |
-| `/api/theta/simplefin` | `lib/server/simplefin.ts` + `lib/db/state.ts` | theta's optional SimpleFIN bank sync (**accounts-only**). `POST /claim` exchanges a setup token for an access URL stored server-side; `POST /sync` pulls accounts+transactions and returns them already mapped to theta shapes (the pure `lib/theta/simplefin.ts`), the client merging by stable id via `applySimplefinSync`; `GET`/`DELETE` report/clear the link. The access URL holds bank credentials — it lives in the `user_state.simplefin` column, is read only by these routes, and **never** reaches the client (`getUserState` omits it). Same `requireUser` gate as `/api/state`. |
+| `/api/theta/simplefin` | `lib/server/simplefin.ts` + `lib/db/state.ts` | theta's optional SimpleFIN bank sync (**accounts-only**). `POST /claim` exchanges a setup token for an access URL stored server-side; `POST /sync` pulls accounts+transactions and returns them already mapped to theta shapes (the pure `lib/theta/simplefin.ts`), the client merging by stable id via `applySimplefinSync`/`lib/theta/simplefinMerge.ts` (which also keeps deleted accounts deleted and preserves user-edited categories/account types across re-sync); `GET`/`DELETE` report/clear the link. The access URL holds bank credentials — it lives in the `user_state.simplefin` column **sealed at rest** by `lib/server/secretBox.ts` (AES-256-GCM, key derived from `AUTH_SECRET`), is read only by these routes, and **never** reaches the client (`getUserState` omits it). Same `requireUser` gate as `/api/state`. A daily best-effort auto-sync (`lib/theta/useSimplefinAutoSync.ts`, mounted in `ThetaShell`) refreshes it on load/focus when the last sync is stale. |
 
 `middleware.ts` enforces the auth gate **when accounts are on**: pages redirect
 to `/lock`, APIs return 401, and `/api/auth/*` + `/lock` are always allowed.
@@ -243,27 +249,32 @@ no-op and the app is fully open — the graceful-degradation default.
 
 `lib/server/cost.ts` has the per-model $/Mtok pricing table and `usdCost()`,
 which turns an Anthropic `usage` object into a USD estimate (cache writes at
-1.25× input, cache reads at 0.1×). `brief.ts` and `optimizer.ts` surface this
-as `costUSD` in their response so the UI can show what each AI call cost.
-When adding a new Anthropic-backed model, add its pricing here too.
+1.25× input, cache reads at 0.1×). Every Anthropic-backed route surfaces this
+as `costUSD` in its response so the UI can show what each AI call cost. When
+adding a new Anthropic-backed model, add its pricing here too.
 
 **Shared AI-endpoint plumbing & security hardening.** `lib/server/aiEndpoint.ts`
-holds what the five Anthropic-backed routes (`brief`, `allocator`, `optimizer`,
-`discover`, `thetaBrief`) used to duplicate: `AiCache` (the day/shape response
-cache), `GenLimiter` (an hourly per-warm-instance generation cap — a cost
-backstop), and `mapAnthropicError` (provider errors → user-facing status).
-`lib/server/rateLimit.ts` does double duty: a fixed-window brute-force lock on
-login attempts (keyed by IP + username, enforced in `auth.ts`) **and** a
-per-IP request limiter in front of the AI + search routes, since those are
-reachable pre-auth in open mode and are cost-incurring (the daily shape cache
-alone can't stop request churn). `next.config.ts` applies a framework-safe CSP
-subset (`base-uri`/`object-src`/`frame-ancestors`/`form-action` — deliberately
-no `script-src`/`style-src`, so App Router hydration and Framer Motion's inline
+holds what the seven Anthropic-backed routes (`brief`, `allocator`, `optimizer`,
+`discover`, `thetaBrief`, `thetaCategorize`, `thetaReview`) used to duplicate:
+`AiCache` (the day/shape response cache), `GenLimiter` (an hourly
+per-warm-instance generation cap — a cost backstop), and `mapAnthropicError`
+(provider errors → user-facing status). `lib/server/rateLimit.ts` does double
+duty: a fixed-window brute-force lock on login attempts (keyed by IP +
+username, enforced in `auth.ts`) **and** a per-IP request limiter in front of
+the AI + search routes, since those are reachable pre-auth in open mode and are
+cost-incurring (the daily shape cache alone can't stop request churn).
+`next.config.ts` applies a framework-safe CSP subset
+(`base-uri`/`object-src`/`frame-ancestors`/`form-action` — deliberately no
+`script-src`/`style-src`, so App Router hydration and Framer Motion's inline
 styles stay untouched) plus HSTS/`X-Frame-Options`/`nosniff`/Permissions-Policy
 to every route via `headers()`. `lib/server/simplefin.ts` guards against SSRF:
 before the claim/sync fetches it requires `https` and rejects hosts that
 resolve to private/loopback/link-local ranges (including the `169.254.169.254`
-cloud-metadata address).
+cloud-metadata address). `lib/server/secretBox.ts` envelope-encrypts (AES-256-GCM,
+HKDF-SHA256 key derived from `AUTH_SECRET`) the one secret the DB holds — the
+SimpleFIN access URL — so it's unreadable from a leaked DB snapshot/backup even
+though the client-isolation rules already keep it off the wire; legacy
+plaintext rows pass through unchanged and reseal on their next write.
 
 ### Analytics modules (`lib/analytics/*`)
 
@@ -304,9 +315,11 @@ confidence, and UI all adapt automatically.
   Data (`/import`), Patch Notes.
 - **Discover** (`/discover`) is an AI stock-idea generator: pick one of six
   research lenses (diversify / growth / value / defensive / quality /
-  thematic), POSTs the portfolio shape to `/api/discover`
-  (`lib/server/discover.ts`, Claude Sonnet 4.6), and returns a structured list of
-  candidate ideas with rationale. Types in `lib/discover/types.ts`.
+  thematic), optionally flip the "Suggest ETFs" toggle off to restrict ideas to
+  individual stocks, and POST the portfolio shape + `includeEtfs` to
+  `/api/discover` (`lib/server/discover.ts`, Claude Sonnet 4.6), returning a
+  structured list of candidate ideas with rationale (cached separately per
+  mode + ETF choice + portfolio shape). Types in `lib/discover/types.ts`.
 - **`/report`** renders a print-optimized, full-portfolio dossier and exports it
   via the browser's native `window.print()` (→ Save as PDF). Toolbar/nav chrome
   is hidden with `no-print` classes — there is no PDF library. It recomputes
@@ -332,10 +345,11 @@ confidence, and UI all adapt automatically.
 ### theta — the sister personal-finance app (`app/theta/*`)
 
 theta is a separate personal-finance terminal living in the same Next.js app,
-behind its own routes (`/theta`, `/theta/networth`, `/theta/intelligence`,
-`/theta/accounts`, `/theta/transactions`, `/theta/cashflow`, `/theta/budgets`,
-`/theta/goals`, `/theta/recurring`, `/theta/import`, `/theta/settings`). It
-shares the project, the optional accounts/auth layer, and `components/ui/*`
+behind its own routes (`/theta`, `/theta/networth`, `/theta/health`,
+`/theta/intelligence`, `/theta/accounts`, `/theta/transactions`,
+`/theta/cashflow`, `/theta/debt`, `/theta/budgets`, `/theta/goals`,
+`/theta/recurring`, `/theta/projection`, `/theta/import`, `/theta/settings`).
+It shares the project, the optional accounts/auth layer, and `components/ui/*`
 with alpha, but otherwise has its own state, shell, and analytics:
 
 - **State** — `lib/theta/store.tsx` (`ThetaProvider`/`useTheta`) mirrors
@@ -347,27 +361,101 @@ with alpha, but otherwise has its own state, shell, and analytics:
   `EMPTY_LEDGER`/`SAMPLE_LEDGER`. `lib/theta/compute.ts` (`deriveTheta`,
   `advanceRecurring`) is theta's analogue to `buildPortfolio` — the pure
   derivation layer most pages consume. `lib/theta/csv.ts` handles transaction
-  CSV import; `lib/theta/categorize.ts` is the shared merchant→category
-  inference (used by CSV import and bank sync when no category is given).
-  `lib/theta/intelligence.ts` builds the `ThetaSnapshot`/`ThetaBrief` consumed
-  by `/api/theta-brief`.
+  CSV import; `lib/theta/categorize.ts` is the local, zero-cost merchant→category
+  keyword table layered with learned history (used by CSV import and bank sync
+  when no category is given); an optional "Improve with AI" pass hits
+  `/api/theta/categorize`. `lib/theta/intelligence.ts` holds the shared types
+  for the `ThetaSnapshot`/`ThetaBrief` (`/api/theta-brief`) and the AI
+  categorizer/review request-response shapes.
+- **Money-analytics engines**, each pure with an explicit `now` (mirroring how
+  `lib/analytics/*` takes no ambient state):
+  - `lib/theta/health.ts` + `lib/theta/healthInputs.ts` — the Financial Health
+    scorecard, a weighted 0–100 blend (emergency runway, savings rate,
+    debt-to-income, credit utilization, liquidity, housing burden) each scored
+    against a published reference band and coverage-reweighted when a metric's
+    inputs are missing, theta's analogue of `lib/analytics/quality.ts`.
+    `healthInputsFromLedger` is the adapter that assembles `HealthInputs` from
+    a `Ledger` + `ThetaView` + assumptions, keeping the scorer itself a pure
+    function of its inputs. Backs `/theta/health`, which offers an optional AI
+    review (`/api/theta/review`, `lib/server/thetaReview.ts`) that reasons
+    across the score, spending anomalies, and detected subscriptions.
+  - `lib/theta/debt.ts` — the debt-payoff planner: amortizes liabilities
+    month-by-month under avalanche (highest-APR first) or snowball
+    (smallest-balance first), routing any budget above the summed minimums at
+    the current target. Backs `/theta/debt`.
+  - `lib/theta/project.ts` — the net-worth trajectory Monte Carlo: invested
+    assets follow GBM, cash compounds at its yield, monthly savings are
+    contributed and grow with assumed income growth, liabilities held flat as a
+    conservative floor. Seeded via the shared `mulberry32` (deterministic per
+    balance sheet, like alpha's Monte Carlo). Backs `/theta/projection`.
+  - `lib/theta/goals.ts` — goal feasibility: pace needed, projected completion
+    date, contribution required to hit a target date, on-track/behind/at-risk
+    status, and a Monte-Carlo success probability (goal pots modeled as
+    short-horizon savings, not the equity book, so they don't inherit
+    portfolio-level volatility).
+  - `lib/theta/detect.ts` — recurring-charge auto-detection: groups
+    transactions by normalized merchant and flags ≥3 charges whose cadence and
+    amount are stable, surfacing subscriptions the ledger doesn't yet track and
+    price creep on ones it does. Dismissible per-charge on the Recurring page.
+  - `lib/theta/forecast.ts` — short-horizon cash-flow forecast: a smooth daily
+    baseline drift (expected income − discretionary spend) plus discrete
+    recurring charges dropped on their scheduled dates, exposing the running
+    balance, its low point, and a runway estimate.
+  - `lib/theta/spending.ts` — distribution-ranked spending analytics: borrows
+    the regime engine's principle of ranking a signal against its own trailing
+    history (percentiles) rather than a fixed dollar threshold, so an anomaly
+    is relative to how *this* person normally spends in that category.
+  - `lib/theta/history.ts` — derives the cash-flow and net-worth chart series
+    from the actual transaction record (flows bucketed by calendar month, net
+    worth reverse-walked from each account's balance) instead of the ledger's
+    old static, hand-anchored arrays; those survive only as a fallback for
+    months with no transaction coverage.
+  - `lib/theta/assumptions.ts` + `lib/theta/assumptionsStore.tsx` — theta's
+    analogue of `lib/data/assumptions.ts`/`lib/assumptions/store.tsx`: the
+    forward inputs (invested return/vol, cash yield, inflation, income growth,
+    fallback APRs) the projection/goals/debt engines need but have no live
+    quote for. User-editable with base/optimistic/conservative presets in
+    Settings, persisted in the store and fed to the engines as an explicit
+    argument.
+  - `lib/theta/bridge.ts` — the alpha↔theta link: a theta brokerage/retirement
+    account can carry a `linkedPortfolioId`; `applyPortfolioLinks` overrides
+    that account's balance with the linked alpha portfolio's live value
+    (only the active alpha portfolio is live-priced, so unresolved links keep
+    their manual balance rather than showing a stale one).
 - **Bank sync (optional, accounts-only)** — `lib/theta/simplefin.ts` is the
   pure mapper from a SimpleFIN payload to theta `Account`/`Transaction` records
   (stable prefixed ids for dedup, account-kind inference, liability-sign
-  normalization). It's driven by the `/api/theta/simplefin/*` routes over
-  `lib/server/simplefin.ts`; the client merges results with `applySimplefinSync`
-  in the store. See the route table above for the credential-isolation rule.
+  normalization); `lib/theta/simplefinMerge.ts` is the pure merge into an
+  *existing* ledger, isolated because its dedup rules back several
+  user-visible behaviors: deleted accounts stay deleted (tracked in
+  `ledger.dismissedSyncAccounts`, with a "Restore on next sync" undo),
+  manually-corrected categories and account types survive a re-sync (the
+  server re-derives both from scratch on every pull, so the ledger's existing
+  value wins over a fresh guess), and balance-history trends extend rather
+  than reset. It's driven by the `/api/theta/simplefin/*` routes over
+  `lib/server/simplefin.ts`; the client applies results via
+  `applySimplefinSync` in the store, and `lib/theta/useSimplefinAutoSync.ts`
+  (mounted once in `ThetaShell`) triggers a best-effort daily refresh on
+  load/focus when the last sync is stale. See the route table above for the
+  credential-isolation and at-rest-encryption rules.
 - **Shell & nav** — `components/shell/ThetaShell.tsx` (own icon set in
   `components/shell/thetaIcons.tsx`) replaces `AppShell` entirely for
   `/theta/*` routes: `AppShell.tsx` detects the `/theta` path prefix, wraps
   the tree in `ThetaProvider`, and renders `ThetaShell` instead of its own
-  chrome. theta's nav groups Overview (Dashboard, Net Worth, Intelligence),
-  Money (Accounts, Transactions, Cash Flow), Planning (Budgets, Goals,
-  Recurring), System (Import & Data, Settings) — add new theta routes there,
-  not to alpha's `NAV` array.
+  chrome. theta's nav groups Overview (Dashboard, Net Worth, Health,
+  Intelligence), Money (Accounts, Transactions, Cash Flow, Debt Payoff),
+  Planning (Budgets, Goals, Recurring, Projection), System (Import & Data,
+  Settings) — add new theta routes there, not to alpha's `NAV` array.
 - **Components** — theta-only UI lives in `components/theta/*`
-  (`EditableMoney.tsx`, `modals.tsx`, `bits.tsx`, `ui.tsx`); shared primitives
-  still come from `components/ui/*`.
+  (`EditableMoney.tsx`, `SimplefinCard.tsx`, `InstitutionLogo.tsx`,
+  `TransactionFilter.tsx`, `modals.tsx`, `bits.tsx`, `ui.tsx`); shared
+  primitives still come from `components/ui/*`.
+- Every account has an editable **type** (checking/savings/brokerage/
+  retirement/credit/loan — drives the liquid-vs-invested split behind net
+  worth, the projection, and Health's runway/liquidity metrics) and an
+  **"Exclude from transactions"** toggle (Accounts page settings gear) that
+  keeps an account's activity out of spending/budgets/cash-flow/the
+  auto-tagger while its balance still counts toward net worth.
 - `app/theta/layout.tsx` overrides the root metadata (title "theta", its own
   favicon at `app/theta/icon.svg`) so the two apps feel distinct even though
   they're one deployment.
@@ -395,19 +483,22 @@ with alpha, but otherwise has its own state, shell, and analytics:
 - **No chart libraries** — extend the SVG components in `components/charts/`.
 - The AI brief uses Claude Haiku 4.5 (`claude-haiku-4-5`, `lib/server/brief.ts`)
   — the JSON schema does the heavy lifting, so the fastest/cheapest current model
-  fits, with thinking disabled for cost control. The dry-powder allocator
-  (`lib/server/allocator.ts`) and the Discover idea generator
-  (`lib/server/discover.ts`) use Sonnet 4.6 (`claude-sonnet-4-6`) with adaptive
-  thinking at `high` effort: allocation and idea generation are both genuine
-  reasoning tasks (concentration, valuation, quality, diversification), so they
-  earn the deepest reasoning pass. The optimizer review
-  (`lib/server/optimizer.ts`) uses Sonnet 4.6 (`claude-sonnet-4-6`) with adaptive
-  thinking at `low` effort — the optimal weights are already solved, so the model
-  only reasons about a grounded result, and `low` effort keeps it cheap. (It must
-  be Sonnet, not Haiku: `output_config.effort` and adaptive thinking are rejected
-  on Haiku 4.5 — see `lib/server/aiModels.test.ts`, which guards this.)
-  Use the latest Claude models when adding AI features; pick the tier the task
-  needs.
+  fits, with thinking disabled for cost control. theta's AI transaction
+  categorizer (`lib/server/thetaCategorize.ts`) uses the same Haiku 4.5,
+  thinking-disabled shape for the same reason (an enum-constrained category
+  set). The dry-powder allocator (`lib/server/allocator.ts`), the Discover idea
+  generator (`lib/server/discover.ts`), and theta's Financial Health AI review
+  (`lib/server/thetaReview.ts`) use Sonnet 4.6 (`claude-sonnet-4-6`) with
+  adaptive thinking at `high` effort: allocation, idea generation, and weighing
+  health/spending/subscription findings against each other are all genuine
+  reasoning tasks, so they earn the deepest reasoning pass. The optimizer
+  review (`lib/server/optimizer.ts`) uses Sonnet 4.6 (`claude-sonnet-4-6`) with
+  adaptive thinking at `low` effort — the optimal weights are already solved, so
+  the model only reasons about a grounded result, and `low` effort keeps it
+  cheap. (It must be Sonnet, not Haiku: `output_config.effort` and adaptive
+  thinking are rejected on Haiku 4.5 — see `lib/server/aiModels.test.ts`, which
+  guards this.) Use the latest Claude models when adding AI features; pick the
+  tier the task needs.
 - Analytics are **models, not advice** — keep methodology copy honest and
   surfaced (the regime engine, scenarios, and Monte Carlo all expose their
   assumptions in the UI).
