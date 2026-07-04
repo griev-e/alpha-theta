@@ -63,6 +63,8 @@ export interface DiscoverPosition {
 
 export interface DiscoverRequest {
   mode: DiscoverModeId;
+  /** When false, ideas are restricted to individual stocks — no ETFs/funds. */
+  includeEtfs: boolean;
   portfolio: {
     totalValue: number;
     cashWeightPct: number;
