@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { m as Motion } from "framer-motion";
 import { PALETTE } from "@/components/charts/Donut";
+import { AiThinking } from "@/components/ui/AiThinking";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { Computing } from "@/components/ui/Computing";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -1125,9 +1126,15 @@ function ReviewCard({
       )}
 
       {state.kind === "loading" && (
-        <div className="relative h-[200px]">
-          <Computing active label="reasoning through the tradeoffs…" />
-        </div>
+        <AiThinking
+          label="Reviewing the construction"
+          messages={[
+            "Reading the frontier",
+            "Weighing the tradeoffs",
+            "Checking the largest shifts",
+            "Writing it up",
+          ]}
+        />
       )}
 
       {state.kind === "error" && (

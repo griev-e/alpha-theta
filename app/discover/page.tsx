@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { AnimatePresence, m as Motion } from "framer-motion";
 import Link from "next/link";
+import { AiThinking } from "@/components/ui/AiThinking";
 import { Card } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -400,72 +401,20 @@ function ErrorPanel({ message, onRetry }: { message: string; onRetry: () => void
 
 function LoadingPanel({ mode }: { mode: DiscoverModeId }) {
   const label = DISCOVER_MODES.find((m) => m.id === mode)?.label ?? "ideas";
-  const accent = MODE_ACCENT[mode];
   return (
     <Shell>
-      <Card className="px-6 py-5" hover={false}>
-        <div className="flex items-center gap-3">
-          <span className="relative flex h-2.5 w-2.5">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full" style={{ background: accent, opacity: 0.5 }} />
-            <span className="relative inline-flex h-2.5 w-2.5 rounded-full" style={{ background: accent }} />
-          </span>
-          <span className="text-[13px] text-ink">
-            Claude is researching <span className="font-medium">{label}</span> ideas for your book
-          </span>
-          <DotPulse />
-        </div>
-        <div className="mt-5 grid gap-3 sm:grid-cols-2">
-          {[0, 1, 2, 3].map((i) => (
-            <ShimmerCard key={i} delay={i * 0.12} />
-          ))}
-        </div>
+      <Card hover={false}>
+        <AiThinking
+          label={`Researching ${label} ideas for your book`}
+          messages={[
+            "Reading your holdings",
+            "Finding the gaps",
+            "Screening candidates",
+            "Building the thesis",
+          ]}
+        />
       </Card>
     </Shell>
-  );
-}
-
-function DotPulse() {
-  return (
-    <span className="ml-0.5 flex gap-1">
-      {[0, 1, 2].map((i) => (
-        <Motion.span
-          key={i}
-          className="h-1 w-1 rounded-full bg-mute"
-          animate={{ opacity: [0.2, 1, 0.2] }}
-          transition={{ duration: 1.1, repeat: Infinity, delay: i * 0.18 }}
-        />
-      ))}
-    </span>
-  );
-}
-
-function ShimmerCard({ delay }: { delay: number }) {
-  return (
-    <div className="overflow-hidden rounded-xl border border-edge bg-white/[0.012] p-4">
-      <div className="flex items-center gap-2.5">
-        <div className="h-8 w-8 rounded-lg bg-white/[0.05]" />
-        <div className="flex-1 space-y-1.5">
-          <Bar w="40%" delay={delay} />
-          <Bar w="65%" delay={delay + 0.1} />
-        </div>
-      </div>
-      <div className="mt-3 space-y-1.5">
-        <Bar w="100%" delay={delay + 0.15} />
-        <Bar w="90%" delay={delay + 0.2} />
-        <Bar w="55%" delay={delay + 0.25} />
-      </div>
-    </div>
-  );
-}
-
-function Bar({ w, delay }: { w: string; delay: number }) {
-  return (
-    <Motion.div
-      className="h-2 rounded-full bg-white/[0.05]"
-      style={{ width: w }}
-      animate={{ opacity: [0.35, 0.75, 0.35] }}
-      transition={{ duration: 1.4, repeat: Infinity, delay }}
-    />
   );
 }
 

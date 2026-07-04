@@ -3,6 +3,7 @@
 import { m } from "framer-motion";
 import { useCallback, useRef, useState } from "react";
 import { ThetaEmpty } from "@/components/theta/ui";
+import { AiThinking } from "@/components/ui/AiThinking";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Stat } from "@/components/ui/Stat";
@@ -82,19 +83,6 @@ export default function ThetaIntelligencePage() {
         eyebrow="Overview"
         title="Intelligence"
         description="A Claude-written read on your month — what's working, what to watch, what to do next."
-        right={
-          <button
-            onClick={load}
-            disabled={state.kind === "loading"}
-            className="inline-flex h-8 items-center gap-1.5 rounded-md border border-edge2 px-3 text-[12.5px] font-medium text-mute transition-colors hover:border-white/30 hover:text-ink disabled:opacity-40"
-          >
-            {state.kind === "loading"
-              ? "Thinking…"
-              : state.kind === "ready"
-                ? "Regenerate"
-                : "Generate brief"}
-          </button>
-        }
       />
 
       {/* Deterministic glance — always available, even with no API key. */}
@@ -127,9 +115,16 @@ export default function ThetaIntelligencePage() {
       )}
 
       {state.kind === "loading" && (
-        <Card className="px-6 py-10 text-center" i={4}>
-          <div className="mx-auto mb-3 h-5 w-5 animate-spin rounded-full border-2 border-vio/30 border-t-vio" />
-          <p className="text-[13px] text-mute">Claude is reading your month…</p>
+        <Card className="px-6 py-8" i={4} hover={false}>
+          <AiThinking
+            label="Reading your month"
+            messages={[
+              "Tallying income & spend",
+              "Spotting the trends",
+              "Finding the moves",
+              "Writing your brief",
+            ]}
+          />
         </Card>
       )}
 

@@ -3,6 +3,7 @@
 import { m } from "framer-motion";
 import { useCallback, useMemo, useState } from "react";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { AiThinking } from "@/components/ui/AiThinking";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { Ring } from "@/components/ui/Ring";
 import { Meter } from "@/components/ui/Meter";
@@ -203,10 +204,15 @@ function ReviewSection({
         </p>
       )}
       {state.kind === "loading" && (
-        <div className="flex items-center gap-3 py-2 text-[13px] text-mute">
-          <span className="h-4 w-4 animate-spin rounded-full border-2 border-vio/30 border-t-vio" />
-          Reasoning across your finances…
-        </div>
+        <AiThinking
+          label="Reasoning across your finances"
+          messages={[
+            "Reading your score",
+            "Weighing the anomalies",
+            "Ranking priorities",
+            "Writing the review",
+          ]}
+        />
       )}
       {state.kind === "offline" && (
         <p className="text-[13px] leading-relaxed text-mute">

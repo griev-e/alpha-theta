@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import { m } from "framer-motion";
 import { Donut } from "@/components/charts/Donut";
+import { Sparkline } from "@/components/charts/Sparkline";
 import { CategoryTag, MoneyFlowBars, ProgressBar } from "@/components/theta/bits";
 import { AddTransactionButton } from "@/components/theta/modals";
 import { ThetaEmpty } from "@/components/theta/ui";
@@ -34,6 +36,9 @@ export default function ThetaDashboard() {
   const assetCount = ledger.accounts.filter((a) => a.balance > 0).length;
   const liabCount = ledger.accounts.filter((a) => a.balance < 0).length;
 
+  const nwSeries = view.netWorthSeries ?? [];
+  const nwValues = nwSeries.map((s) => s.value);
+
   const spendSlices = view.spending.map((s) => ({
     id: s.category,
     label: s.category,
@@ -54,47 +59,76 @@ export default function ThetaDashboard() {
         right={<AddTransactionButton />}
       />
 
-      <Card className="relative mb-5 overflow-hidden px-6 py-6 sm:px-8" i={0}>
-        <div
+      <Card className="relative mb-5 overflow-hidden px-6 py-6 sm:px-8" i={0} hover={false}>
+        <m.div
           aria-hidden
-          className="pointer-events-none absolute -right-24 -top-28 h-72 w-72 rounded-full blur-[90px]"
-          style={{ background: nwUp ? "rgba(167,139,250,0.12)" : "rgba(251,113,133,0.10)" }}
+          className="pointer-events-none absolute -right-20 -top-28 h-72 w-72 rounded-full blur-[90px]"
+          style={{ background: nwUp ? "rgba(94,234,212,0.11)" : "rgba(251,113,133,0.11)" }}
+          animate={{ opacity: [0.55, 1, 0.55], scale: [0.94, 1.06, 0.94] }}
+          transition={{ duration: 6.5, repeat: Infinity, ease: "easeInOut" }}
         />
-        <div className="relative flex flex-col gap-7 lg:flex-row lg:items-stretch lg:gap-8">
-          <div className="lg:w-[260px] lg:shrink-0">
+        <m.div
+          aria-hidden
+          className="pointer-events-none absolute -left-24 top-6 h-60 w-60 rounded-full blur-[90px]"
+          style={{ background: "rgba(167,139,250,0.09)" }}
+          animate={{ opacity: [0.4, 0.85, 0.4], scale: [1.06, 0.94, 1.06] }}
+          transition={{ duration: 7.5, repeat: Infinity, ease: "easeInOut" }}
+        />
+
+        <div className="relative flex flex-col gap-6 lg:flex-row lg:items-stretch lg:gap-8">
+          <div className="lg:w-[240px] lg:shrink-0 lg:self-center">
             <div className="eyebrow">Net worth</div>
-            <div className="mt-1.5 font-mono tnum text-[34px] font-medium leading-none text-ink sm:text-[40px]">
+            <div className="mt-1.5 font-mono tnum text-[36px] font-medium leading-none text-ink sm:text-[44px]">
               <AnimatedNumber value={view.netWorth} format={(v) => fmtUSD(v)} />
             </div>
-            <div className="mt-4 flex items-baseline gap-2 font-mono tnum text-[13px]">
-              <span className={nwUp ? "text-pos" : "text-neg"}>
-                {nwUp ? "▲" : "▼"} {fmtUSD(Math.abs(view.netWorthDelta))}
-              </span>
-              <span className={nwUp ? "text-pos" : "text-neg"}>
-                {fmtPct(view.netWorthDeltaPct, 2, true)}
+            <div className="mt-4 flex flex-wrap items-center gap-2 font-mono tnum text-[12.5px]">
+              <span
+                className={`inline-flex items-center gap-1.5 rounded-md px-2 py-1 ${
+                  nwUp ? "bg-pos/10 text-pos" : "bg-neg/10 text-neg"
+                }`}
+              >
+                <span>{nwUp ? "▲" : "▼"}</span>
+                {fmtUSD(Math.abs(view.netWorthDelta))}
+                <span className="opacity-75">{fmtPct(view.netWorthDeltaPct, 2, true)}</span>
               </span>
               <span className="text-faint">this month</span>
             </div>
           </div>
 
-          <div className="grid flex-1 grid-cols-2 gap-x-6 gap-y-6 sm:grid-cols-4 lg:self-center lg:border-l lg:border-edge lg:pl-8">
-            <Stat label="Assets" value={view.totalAssets} format={fmtUSDCompact} sub={`across ${assetCount} accounts`} />
-            <Stat label="Liabilities" value={view.totalLiabilities} format={fmtUSDCompact} sub={`${liabCount} balances owed`} />
-            <Stat
-              label="This month net"
-              value={view.monthNet}
-              format={(v) => `${v >= 0 ? "+" : "−"}${fmtUSDCompact(Math.abs(v))}`}
-              toneClass={view.monthNet >= 0 ? "text-pos" : "text-neg"}
-              sub="income − spending"
-            />
-            <Stat
-              label="Savings rate"
-              value={view.savingsRate}
-              format={(v) => fmtPct(v, 0)}
-              sub="of income kept"
-              tip="The share of this month's income you didn't spend. A common rule of thumb is to aim for 20% or more."
-            />
-          </div>
+          {nwValues.length > 1 && (
+            <div className="relative min-w-0 flex-1 lg:border-l lg:border-edge lg:pl-8">
+              <div className="mb-1.5 flex items-center justify-between">
+                <div className="eyebrow">Trend</div>
+                <div className="font-mono text-[10.5px] text-faint">
+                  {nwSeries[0].month} – {nwSeries[nwSeries.length - 1].month}
+                </div>
+              </div>
+              <Sparkline
+                values={nwValues}
+                height={96}
+                color={nwUp ? "var(--color-mint)" : "var(--color-neg)"}
+              />
+            </div>
+          )}
+        </div>
+
+        <div className="relative mt-6 grid grid-cols-2 gap-x-6 gap-y-5 border-t border-edge pt-5 sm:grid-cols-4">
+          <Stat label="Assets" value={view.totalAssets} format={fmtUSDCompact} sub={`across ${assetCount} accounts`} />
+          <Stat label="Liabilities" value={view.totalLiabilities} format={fmtUSDCompact} sub={`${liabCount} balances owed`} />
+          <Stat
+            label="This month net"
+            value={view.monthNet}
+            format={(v) => `${v >= 0 ? "+" : "−"}${fmtUSDCompact(Math.abs(v))}`}
+            toneClass={view.monthNet >= 0 ? "text-pos" : "text-neg"}
+            sub="income − spending"
+          />
+          <Stat
+            label="Savings rate"
+            value={view.savingsRate}
+            format={(v) => fmtPct(v, 0)}
+            sub="of income kept"
+            tip="The share of this month's income you didn't spend. A common rule of thumb is to aim for 20% or more."
+          />
         </div>
       </Card>
 

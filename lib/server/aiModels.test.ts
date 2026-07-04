@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { ALLOCATOR_MODEL } from "./allocator";
 import { BRIEF_MODEL } from "./brief";
 import { DISCOVER_MODEL } from "./discover";
+import { MARKET_BRIEF_MODEL } from "./marketBrief";
 import { OPTIMIZER_MODEL } from "./optimizer";
 import { THETA_CATEGORIZE_MODEL } from "./thetaCategorize";
 import { THETA_REVIEW_MODEL } from "./thetaReview";
@@ -27,6 +28,7 @@ describe("AI route model selection", () => {
   it.each([
     ["allocator", ALLOCATOR_MODEL],
     ["discover", DISCOVER_MODEL],
+    ["market brief", MARKET_BRIEF_MODEL],
     ["optimizer", OPTIMIZER_MODEL],
     ["theta review", THETA_REVIEW_MODEL],
   ])("%s runs with effort/adaptive on an effort-capable model", (_name, model) => {

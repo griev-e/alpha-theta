@@ -8,6 +8,23 @@ export type PatchNote = {
 // Newest first. Add an entry here whenever a notable change ships.
 export const PATCH_NOTES: PatchNote[] = [
   {
+    version: "1.51",
+    date: "2026-07-04",
+    title: "An AI strategist on Market Analysis",
+    changes: [
+      "The Market Analysis page can now generate a Claude-written read of the tape. It reasons across the composite regime score, the eight analytical layers, and the contribution-ranked drivers, then returns a synthesis: a headline, what's moving it, what a risk-on/off posture implies, what to watch, and the single strongest counter-signal. Reasoned with Sonnet 4.6 at high effort, cached one read per day per regime shape; the regime numbers themselves are still computed locally and work with the AI off.",
+    ],
+  },
+  {
+    version: "1.50",
+    date: "2026-07-04",
+    title: "A unique AI loading animation, and a richer theta dashboard",
+    changes: [
+      "Every Claude-backed generation — the alpha daily brief, the dry-powder allocator, the optimizer review, Discover's idea generator, the new Market Analysis read, and theta's money brief and Financial Health review — now fills its whole block with a hand-built \"neural field\" while it thinks: a dark, black-and-white constellation of drifting nodes wired by distance-faded links, with pulses of light flowing across the network. It sits on the same near-black as the rest of the app and replaces the plain spinners, so the wait reads as one deliberate thing across both apps. (The zero-cost transaction categorizer, which runs inline, is deliberately left alone.)",
+      "theta's Dashboard got a visual overhaul. The net-worth hero now carries an inline trend chart of your net worth over the trailing months, a softly animated aurora glow, and a clearer up/down delta chip — a much richer snapshot than the flat number it was before.",
+    ],
+  },
+  {
     version: "1.49",
     date: "2026-07-04",
     title: "Discover: a toggle to include or exclude ETFs from AI ideas",
