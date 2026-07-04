@@ -17,6 +17,7 @@ import { advanceRecurring, deriveTheta, type ThetaView } from "./compute";
 import { applyPortfolioLinks } from "./bridge";
 import {
   type Account,
+  type AccountKind,
   type Budget,
   type Category,
   EMPTY_LEDGER,
@@ -28,6 +29,9 @@ import {
   SAMPLE_LEDGER,
   type Transaction,
 } from "./data";
+import { isSimplefinAccount } from "./simplefin";
+import { mergeSimplefinSync } from "./simplefinMerge";
+import { normalizeMerchant } from "./detect";
 
 const STORAGE_KEY = "theta.ledger.v1";
 const SAMPLE_FLAG = "theta.isSample.v1";
@@ -59,12 +63,24 @@ interface ThetaStore {
   addRecurring: (r: Omit<Recurring, "id">) => void;
   markRecurringPaid: (id: string) => void;
   removeRecurring: (id: string) => void;
+  /** Dismiss an auto-detected subscription (by merchant) so it stops being suggested. */
+  dismissDetectedRecurring: (merchant: string) => void;
+  /** Un-dismiss every auto-detected subscription previously hidden. */
+  restoreDetectedRecurring: () => void;
+  /** Un-dismiss every SimpleFIN account previously removed, so the next sync re-adds them. */
+  restoreSyncAccounts: () => void;
 
   updateAccountBalance: (id: string, balance: number) => void;
   /** Set (or clear) an account's optional APR, for the debt planner. */
   setAccountApr: (id: string, apr: number | null) => void;
   /** Set (or clear) a credit account's limit, for the health-score utilization metric. */
   setAccountLimit: (id: string, limit: number | null) => void;
+  /**
+   * Correct an account's kind (checking / savings / brokerage / …). The
+   * bank-sync heuristic can mis-type an account; kind drives the liquid-vs-
+   * invested split behind net-worth, projection, and the health scorecard.
+   */
+  setAccountKind: (id: string, kind: AccountKind) => void;
   removeAccount: (id: string) => void;
 
   /**
@@ -287,28 +303,7 @@ export function ThetaProvider({ children }: { children: ReactNode }) {
 
   const applySimplefinSync = useCallback(
     (sync: { accounts: Account[]; transactions: Transaction[] }) =>
-      mutate((l) => {
-        // Accounts: upsert the synced rows by id; keep manual accounts untouched
-        // and extend (rather than reset) an existing balance trend on each sync.
-        const prev = new Map(l.accounts.map((a) => [a.id, a]));
-        const synced: Account[] = sync.accounts.map((a) => {
-          const existing = prev.get(a.id);
-          if (!existing) return a;
-          return { ...existing, ...a, trend: [...existing.trend.slice(1), a.balance] };
-        });
-        const syncedIds = new Set(sync.accounts.map((a) => a.id));
-        const accounts = [...l.accounts.filter((a) => !syncedIds.has(a.id)), ...synced];
-
-        // Transactions: incoming (stable-id) rows replace prior copies of
-        // themselves (so pending → posted updates in place); manual rows survive.
-        const txIds = new Set(sync.transactions.map((t) => t.id));
-        const transactions = [
-          ...sync.transactions,
-          ...l.transactions.filter((t) => !txIds.has(t.id)),
-        ].sort((a, b) => b.date.localeCompare(a.date));
-
-        return { ...l, accounts, transactions };
-      }),
+      mutate((l) => ({ ...l, ...mergeSimplefinSync(l, sync) })),
     [mutate]
   );
 
@@ -407,6 +402,28 @@ export function ThetaProvider({ children }: { children: ReactNode }) {
     [mutate]
   );
 
+  const dismissDetectedRecurring = useCallback(
+    (merchant: string) =>
+      mutate((l) => {
+        const key = normalizeMerchant(merchant);
+        if (!key) return l;
+        const cur = l.dismissedRecurring ?? [];
+        if (cur.includes(key)) return l;
+        return { ...l, dismissedRecurring: [...cur, key] };
+      }),
+    [mutate]
+  );
+
+  const restoreDetectedRecurring = useCallback(
+    () => mutate((l) => ({ ...l, dismissedRecurring: [] })),
+    [mutate]
+  );
+
+  const restoreSyncAccounts = useCallback(
+    () => mutate((l) => ({ ...l, dismissedSyncAccounts: [] })),
+    [mutate]
+  );
+
   const updateAccountBalance = useCallback(
     (id: string, balance: number) =>
       mutate((l) => ({
@@ -451,9 +468,29 @@ export function ThetaProvider({ children }: { children: ReactNode }) {
     [mutate]
   );
 
+  const setAccountKind = useCallback(
+    (id: string, kind: AccountKind) =>
+      mutate((l) => ({
+        ...l,
+        accounts: l.accounts.map((a) => (a.id === id ? { ...a, kind } : a)),
+      })),
+    [mutate]
+  );
+
   const removeAccount = useCallback(
     (id: string) =>
-      mutate((l) => ({ ...l, accounts: l.accounts.filter((a) => a.id !== id) })),
+      mutate((l) => {
+        // A deleted SimpleFIN account is remembered so the next sync won't
+        // re-add it; a manual account just disappears.
+        const dismissedSyncAccounts = isSimplefinAccount(id)
+          ? [...new Set([...(l.dismissedSyncAccounts ?? []), id])]
+          : l.dismissedSyncAccounts;
+        return {
+          ...l,
+          accounts: l.accounts.filter((a) => a.id !== id),
+          dismissedSyncAccounts,
+        };
+      }),
     [mutate]
   );
 
@@ -600,9 +637,13 @@ export function ThetaProvider({ children }: { children: ReactNode }) {
       addRecurring,
       markRecurringPaid,
       removeRecurring,
+      dismissDetectedRecurring,
+      restoreDetectedRecurring,
+      restoreSyncAccounts,
       updateAccountBalance,
       setAccountApr,
       setAccountLimit,
+      setAccountKind,
       removeAccount,
       setAccountLink,
       linkOptions,
@@ -620,7 +661,8 @@ export function ThetaProvider({ children }: { children: ReactNode }) {
       setBudgetLimit, addBudget, removeBudget,
       addGoal, contributeToGoal, removeGoal,
       addRecurring, markRecurringPaid, removeRecurring,
-      updateAccountBalance, setAccountApr, setAccountLimit, removeAccount,
+      dismissDetectedRecurring, restoreDetectedRecurring, restoreSyncAccounts,
+      updateAccountBalance, setAccountApr, setAccountLimit, setAccountKind, removeAccount,
       setAccountLink, linkOptions,
       toggleAccountHidden, toggleCategoryHidden, resetTransactionFilters,
       setTransactionCategory, setTransactionCategories,

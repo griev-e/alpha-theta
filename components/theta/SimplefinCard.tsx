@@ -24,7 +24,8 @@ function whenSynced(iso: string | null): string {
 
 export function SimplefinCard({ i = 2 }: { i?: number }) {
   const { enabled, status: authStatus } = useAuth();
-  const { applySimplefinSync } = useTheta();
+  const { applySimplefinSync, ledger, restoreSyncAccounts } = useTheta();
+  const hiddenFromSync = ledger?.dismissedSyncAccounts?.length ?? 0;
 
   const [status, setStatus] = useState<Status | null>(null);
   const [token, setToken] = useState("");
@@ -196,6 +197,21 @@ export function SimplefinCard({ i = 2 }: { i?: number }) {
               Disconnect
             </button>
           </div>
+          <p className="mt-2.5 text-[11.5px] leading-relaxed text-faint">
+            Refreshes automatically about once a day while theta is open.
+            {hiddenFromSync > 0 && (
+              <>
+                {" "}
+                {hiddenFromSync} deleted account{hiddenFromSync === 1 ? " is" : "s are"} kept out of sync.{" "}
+                <button
+                  onClick={restoreSyncAccounts}
+                  className="text-vio/80 transition-colors hover:text-vio"
+                >
+                  Restore on next sync
+                </button>
+              </>
+            )}
+          </p>
         </>
       )}
 

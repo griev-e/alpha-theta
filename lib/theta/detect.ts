@@ -35,7 +35,10 @@ export interface DetectedRecurring {
   priceCreep?: { from: number; to: number; pctChange: number };
 }
 
-const normalize = (merchant: string) => merchant.trim().toLowerCase().replace(/\s+/g, " ");
+/** Canonical merchant key used to group charges and to match dismissals. */
+export const normalizeMerchant = (merchant: string): string =>
+  merchant.trim().toLowerCase().replace(/\s+/g, " ");
+const normalize = normalizeMerchant;
 
 const CADENCE_DAYS: Record<Cadence, number> = { weekly: 7, monthly: 30.44, yearly: 365.25 };
 const PER_YEAR: Record<Cadence, number> = { weekly: 52, monthly: 12, yearly: 1 };

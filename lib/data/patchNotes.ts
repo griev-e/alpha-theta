@@ -8,6 +8,18 @@ export type PatchNote = {
 // Newest first. Add an entry here whenever a notable change ships.
 export const PATCH_NOTES: PatchNote[] = [
   {
+    version: "1.47",
+    date: "2026-07-04",
+    title: "theta: sync respects deleted accounts, editable account type, dismissible subscriptions",
+    changes: [
+      "Deleting a SimpleFIN-synced account now sticks: re-syncing your bank no longer re-adds an account you removed on the Accounts page (or its transactions). A \"Restore on next sync\" link on the bank-sync card undoes this if you want the account back.",
+      "Bank sync now refreshes automatically about once a day while theta is open, instead of only on a manual \"Sync now\" — no server-side scheduler needed, so it's a stale-check on load/focus rather than a true background job, but the balances and transactions you see should now stay current on their own.",
+      "Fixed a bug where a manually-corrected transaction category (e.g. tagging \"ATM Fee\", which no keyword rule can place) would silently revert back to \"Other\" the next time the account synced. The ledger's own category now wins over the server's re-derived guess on every sync.",
+      "Every account now has an editable \"Account type\" in its settings (Accounts page) — checking, savings, brokerage, retirement, credit, or loan. This matters beyond labeling: it drives the liquid-vs-invested split behind net worth, the projection, and the Financial Health scorecard's emergency-runway and liquidity metrics. The bank-sync heuristic can mistype an account (e.g. a checking account it guesses is a brokerage), which silently zeroed those two metrics; this makes it a one-click fix.",
+      "The Recurring page's auto-detected subscriptions can now be dismissed (the × on hover) when a repeating charge isn't actually a subscription — it stops being suggested, with a \"Restore N dismissed\" link to bring them back.",
+    ],
+  },
+  {
     version: "1.46",
     date: "2026-07-04",
     title: "theta: excluded accounts no longer feed the auto-tagger + AI categorizer batching fix",

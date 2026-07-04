@@ -6,6 +6,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useTheta } from "@/lib/theta/store";
+import { useSimplefinAutoSync } from "@/lib/theta/useSimplefinAutoSync";
 import { useSidebarWidth } from "@/lib/useSidebarWidth";
 import { AppTitle, Mark, SignOutButton } from "./brand";
 import { IconImport, IconIntelligence } from "./icons";
@@ -200,6 +201,7 @@ function DemoTag({ className = "" }: { className?: string }) {
 export function ThetaShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const { isSample, ready } = useTheta();
+  useSimplefinAutoSync();
   const current = NAV.find((n) => n.href === pathname);
   const showSample = ready && isSample;
   const sidebar = useSidebarWidth("theta.sidebarWidth.v1");
