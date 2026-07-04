@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, m as Motion } from "framer-motion";
 import { PALETTE } from "@/components/charts/Donut";
+import { AiThinking } from "@/components/ui/AiThinking";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { Computing } from "@/components/ui/Computing";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -931,9 +932,15 @@ function AllocatorCard({
       )}
 
       {state.kind === "loading" && (
-        <div className="relative h-[200px]">
-          <Computing active label="sizing the deployment…" />
-        </div>
+        <AiThinking
+          label="Sizing the deployment"
+          messages={[
+            "Reading your allocation",
+            "Weighing valuation & quality",
+            "Sizing by conviction",
+            "Writing the plan",
+          ]}
+        />
       )}
 
       {state.kind === "error" && (

@@ -8,6 +8,15 @@ export type PatchNote = {
 // Newest first. Add an entry here whenever a notable change ships.
 export const PATCH_NOTES: PatchNote[] = [
   {
+    version: "1.50",
+    date: "2026-07-04",
+    title: "A sleek AI loading screen, and a richer theta dashboard",
+    changes: [
+      "Every Claude-backed generation — the alpha daily brief, the dry-powder allocator, the optimizer review, Discover's idea generator, and theta's money brief and Financial Health review — now shows a consistent, animated loading screen while it thinks: a mint→violet orb, a headline, a cycling phase message, and shimmer \"being written\" lines. It replaces the plain spinners, so the wait reads as one deliberate thing across both apps. (The zero-cost transaction categorizer, which runs inline, is deliberately left alone.)",
+      "theta's Dashboard got a visual overhaul. The net-worth hero now carries an inline trend chart of your net worth over the trailing months, a softly animated aurora glow, and a clearer up/down delta chip — a much richer snapshot than the flat number it was before.",
+    ],
+  },
+  {
     version: "1.49",
     date: "2026-07-04",
     title: "Discover: a toggle to include or exclude ETFs from AI ideas",

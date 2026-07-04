@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { m } from "framer-motion";
+import { AiThinking } from "@/components/ui/AiThinking";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { Computing } from "@/components/ui/Computing";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -144,9 +145,15 @@ function BriefCard({ portfolio }: { portfolio: Portfolio }) {
       )}
 
       {state.kind === "loading" && (
-        <div className="relative h-[180px]">
-          <Computing active label="writing the morning brief…" />
-        </div>
+        <AiThinking
+          label="Writing the morning brief"
+          messages={[
+            "Scanning the movers",
+            "Reading the themes",
+            "Framing the risk",
+            "Composing the note",
+          ]}
+        />
       )}
 
       {state.kind === "error" && (
