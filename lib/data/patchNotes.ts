@@ -20,7 +20,7 @@ export const PATCH_NOTES: PatchNote[] = [
     date: "2026-07-04",
     title: "A unique AI loading animation, and a richer theta dashboard",
     changes: [
-      "Every Claude-backed generation — the alpha daily brief, the dry-powder allocator, the optimizer review, Discover's idea generator, the new Market Analysis read, and theta's money brief and Financial Health review — now fills its whole block with a hand-built \"neural field\" while it thinks: a black-and-white constellation of drifting nodes wired by distance-faded links, with pulses of light flowing across the network and a slow aurora behind. It replaces the plain spinners, so the wait reads as one deliberate thing across both apps. (The zero-cost transaction categorizer, which runs inline, is deliberately left alone.)",
+      "Every Claude-backed generation — the alpha daily brief, the dry-powder allocator, the optimizer review, Discover's idea generator, the new Market Analysis read, and theta's money brief and Financial Health review — now fills its whole block with a hand-built \"neural field\" while it thinks: a dark, black-and-white constellation of drifting nodes wired by distance-faded links, with pulses of light flowing across the network. It sits on the same near-black as the rest of the app and replaces the plain spinners, so the wait reads as one deliberate thing across both apps. (The zero-cost transaction categorizer, which runs inline, is deliberately left alone.)",
       "theta's Dashboard got a visual overhaul. The net-worth hero now carries an inline trend chart of your net worth over the trailing months, a softly animated aurora glow, and a clearer up/down delta chip — a much richer snapshot than the flat number it was before.",
     ],
   },

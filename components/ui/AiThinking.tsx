@@ -8,6 +8,10 @@ import { useEffect, useRef, useState } from "react";
    Claude-backed call, matching the app's near-black surfaces. */
 const PALETTE = ["#f2f2f2", "#b8b8b8", "#8a8a8a"];
 
+/* The app's card surface (`--color-panel`) — the field paints onto this so the
+   loading block stays the same near-black as every other panel on the page. */
+const PANEL = "#0a0a0a";
+
 const DEFAULT_MESSAGES = [
   "Reading the inputs",
   "Weighing the tradeoffs",
@@ -56,17 +60,12 @@ export function AiThinking({
     >
       <NeuralField colors={colors} />
 
-      {/* Vignette so the type stays legible over the busy field. */}
+      {/* A soft text shadow keeps the type legible if a spark drifts behind it,
+          without a vignette gradient (which bands on the near-black surface). */}
       <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0"
-        style={{
-          background:
-            "radial-gradient(ellipse 55% 50% at 50% 50%, rgba(0,0,0,0.62) 0%, rgba(0,0,0,0.28) 42%, transparent 68%)",
-        }}
-      />
-
-      <div className="relative z-10 flex flex-col items-center gap-2 px-6 text-center">
+        className="relative z-10 flex flex-col items-center gap-2 px-6 text-center"
+        style={{ textShadow: "0 0 16px rgba(10,10,10,0.95)" }}
+      >
         <div className="font-display text-[14.5px] font-medium tracking-tight text-ink">
           {label}
         </div>
@@ -203,25 +202,12 @@ function NeuralField({ colors }: { colors: string[] }) {
       seed();
     };
 
-    const draw = (time: number) => {
+    const draw = () => {
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      ctx.clearRect(0, 0, w, h);
-      const t = time / 1000;
-
-      // Aurora: colored blobs orbiting on additive blend.
-      ctx.globalCompositeOperation = "lighter";
-      const R = Math.max(w, h) * 0.6;
-      for (let i = 0; i < rgb.length; i++) {
-        const c = rgb[i];
-        const cx = w * (0.5 + 0.34 * Math.sin(t * 0.18 + i * 2.1));
-        const cy = h * (0.5 + 0.34 * Math.cos(t * 0.15 + i * 1.7));
-        const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, R);
-        grad.addColorStop(0, `rgba(${c.r},${c.g},${c.b},0.08)`);
-        grad.addColorStop(1, `rgba(${c.r},${c.g},${c.b},0)`);
-        ctx.fillStyle = grad;
-        ctx.fillRect(0, 0, w, h);
-      }
-      ctx.globalCompositeOperation = "source-over";
+      // Paint the site's panel surface, then draw the field over it — so the
+      // block reads as the same near-black as the rest of the app, not a glow.
+      ctx.fillStyle = PANEL;
+      ctx.fillRect(0, 0, w, h);
 
       // Drift nodes, bouncing off the edges.
       if (!reduce) {
@@ -243,8 +229,8 @@ function NeuralField({ colors }: { colors: string[] }) {
         for (let j = i + 1; j < nodes.length; j++) {
           const d2 = dist2(i, j);
           if (d2 < D2) {
-            const a = (1 - Math.sqrt(d2) / D) * 0.18;
-            ctx.strokeStyle = `rgba(150,170,205,${a})`;
+            const a = (1 - Math.sqrt(d2) / D) * 0.1;
+            ctx.strokeStyle = `rgba(150,165,195,${a})`;
             ctx.beginPath();
             ctx.moveTo(nodes[i].x, nodes[i].y);
             ctx.lineTo(nodes[j].x, nodes[j].y);
@@ -254,10 +240,10 @@ function NeuralField({ colors }: { colors: string[] }) {
       }
 
       // Node cores.
-      ctx.fillStyle = "rgba(205,215,235,0.55)";
+      ctx.fillStyle = "rgba(190,200,225,0.32)";
       for (const n of nodes) {
         ctx.beginPath();
-        ctx.arc(n.x, n.y, 1.3, 0, Math.PI * 2);
+        ctx.arc(n.x, n.y, 1.2, 0, Math.PI * 2);
         ctx.fill();
       }
 
@@ -283,20 +269,20 @@ function NeuralField({ colors }: { colors: string[] }) {
 
         const trail = ctx.createLinearGradient(tx, ty, x, y);
         trail.addColorStop(0, `rgba(${c.r},${c.g},${c.b},0)`);
-        trail.addColorStop(1, `rgba(${c.r},${c.g},${c.b},0.85)`);
+        trail.addColorStop(1, `rgba(${c.r},${c.g},${c.b},0.7)`);
         ctx.strokeStyle = trail;
-        ctx.lineWidth = 1.6;
+        ctx.lineWidth = 1.5;
         ctx.beginPath();
         ctx.moveTo(tx, ty);
         ctx.lineTo(x, y);
         ctx.stroke();
 
-        const glow = ctx.createRadialGradient(x, y, 0, x, y, 7);
-        glow.addColorStop(0, `rgba(${c.r},${c.g},${c.b},0.95)`);
+        const glow = ctx.createRadialGradient(x, y, 0, x, y, 6);
+        glow.addColorStop(0, `rgba(${c.r},${c.g},${c.b},0.82)`);
         glow.addColorStop(1, `rgba(${c.r},${c.g},${c.b},0)`);
         ctx.fillStyle = glow;
         ctx.beginPath();
-        ctx.arc(x, y, 7, 0, Math.PI * 2);
+        ctx.arc(x, y, 6, 0, Math.PI * 2);
         ctx.fill();
       }
       ctx.globalCompositeOperation = "source-over";
