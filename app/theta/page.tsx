@@ -4,7 +4,7 @@ import Link from "next/link";
 import { m } from "framer-motion";
 import { Donut } from "@/components/charts/Donut";
 import { Sparkline } from "@/components/charts/Sparkline";
-import { CategoryTag, MoneyFlowBars, ProgressBar } from "@/components/theta/bits";
+import { CategoryTag, MoneyFlowBars, ProgressBar, monthElapsedFraction } from "@/components/theta/bits";
 import { AddTransactionButton } from "@/components/theta/modals";
 import { ThetaEmpty } from "@/components/theta/ui";
 import { AnimatedNumber } from "@/components/ui/AnimatedNumber";
@@ -204,7 +204,7 @@ export default function ThetaDashboard() {
                         <span className="text-faint"> / {fmtUSD(b.limit, true)}</span>
                       </span>
                     </div>
-                    <ProgressBar value={b.spent} max={b.limit} color={CATEGORY_COLOR[b.category]} delay={0.1 + i * 0.05} />
+                    <ProgressBar value={b.spent} max={b.limit} color={CATEGORY_COLOR[b.category]} delay={0.1 + i * 0.05} pace={b.limit * monthElapsedFraction()} />
                   </div>
                 );
               })}

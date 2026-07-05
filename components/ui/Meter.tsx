@@ -13,6 +13,7 @@ export function Meter({
   value,
   max = 1,
   benchmark,
+  benchmarkLabel = "Benchmark",
   color = "var(--color-mint)",
   overColor,
   height = 7,
@@ -21,6 +22,9 @@ export function Meter({
   value: number;
   max?: number;
   benchmark?: number;
+  /** Tooltip on the benchmark tick — "Benchmark" for the index, or e.g.
+   *  "On pace" when the tick marks an elapsed-time reference. */
+  benchmarkLabel?: string;
   color?: string;
   overColor?: string;
   height?: number;
@@ -51,7 +55,7 @@ export function Meter({
         transition={{ duration: 0.8, delay, ease: [0.22, 1, 0.36, 1] }}
       />
       {benchFrac !== null && (
-        <Tooltip content="Benchmark" underline={false}>
+        <Tooltip content={benchmarkLabel} underline={false}>
           <m.div
             className="absolute top-1/2 w-[2px] rounded-full bg-vio"
             style={{ height: height + 8, translateY: "-50%" }}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { CategoryTag, ProgressBar } from "@/components/theta/bits";
+import { CategoryTag, ProgressBar, monthElapsedFraction } from "@/components/theta/bits";
 import { EditableMoney } from "@/components/theta/EditableMoney";
 import { AddBudgetModal } from "@/components/theta/modals";
 import { ActionButton, ThetaEmpty, IconButton, PlusIcon, Switch, TrashIcon } from "@/components/theta/ui";
@@ -103,7 +103,7 @@ export default function BudgetsPage() {
                       </span>
                     </div>
                   </div>
-                  <ProgressBar value={b.spent} max={effective} color={CATEGORY_COLOR[b.category]} height={8} delay={0.05 + i * 0.05} />
+                  <ProgressBar value={b.spent} max={effective} color={CATEGORY_COLOR[b.category]} height={8} delay={0.05 + i * 0.05} pace={effective * monthElapsedFraction()} />
                   <div className="mt-1.5 flex items-center justify-end gap-2">
                     <span className="text-[10.5px] uppercase tracking-[0.04em] text-faint">Roll over</span>
                     <Switch
