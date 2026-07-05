@@ -1,6 +1,6 @@
 "use client";
 
-import { m } from "framer-motion";
+import { AnimatePresence, m } from "framer-motion";
 import { useState } from "react";
 import { fmtPct, fmtUSDCompact } from "@/lib/format";
 
@@ -78,22 +78,25 @@ export function Donut({
           ))}
         </svg>
         <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center">
-          <m.div
-            key={hover?.id ?? "total"}
-            initial={{ opacity: 0, y: 4 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.18 }}
-          >
-            <div className="eyebrow">{hover ? hover.label : centerLabel}</div>
-            <div className="mt-1 font-mono tnum text-[20px] text-ink">
-              {hover ? fmtUSDCompact(hover.value) : centerValue}
-            </div>
-            {hover && total > 0 && (
-              <div className="mt-0.5 font-mono text-[12px] text-mute">
-                {fmtPct(hover.value / total, 1)}
+          <AnimatePresence mode="wait">
+            <m.div
+              key={hover?.id ?? "total"}
+              initial={{ opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -4 }}
+              transition={{ duration: 0.16, ease: [0.22, 1, 0.36, 1] }}
+            >
+              <div className="eyebrow">{hover ? hover.label : centerLabel}</div>
+              <div className="mt-1 font-mono tnum text-[20px] text-ink">
+                {hover ? fmtUSDCompact(hover.value) : centerValue}
               </div>
-            )}
-          </m.div>
+              {hover && total > 0 && (
+                <div className="mt-0.5 font-mono text-[12px] text-mute">
+                  {fmtPct(hover.value / total, 1)}
+                </div>
+              )}
+            </m.div>
+          </AnimatePresence>
         </div>
       </div>
       <div className="flex max-h-[230px] min-w-0 grow basis-[110px] flex-col gap-1.5 overflow-y-auto pr-1">

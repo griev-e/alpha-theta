@@ -21,6 +21,7 @@ import {
 import { fmtUSD } from "@/lib/format";
 import { usePortfolio } from "@/lib/store";
 import type { Portfolio } from "@/lib/types";
+import { PageSkeleton } from "@/components/ui/Skeleton";
 
 /* ------------------------------- mode styling ------------------------------- */
 
@@ -216,7 +217,7 @@ export default function DiscoverPage() {
         ? state.data.mode
         : null;
 
-  if (!ready) return null;
+  if (!ready) return <PageSkeleton />;
   if (!portfolio) return <EmptyState page="AI Discover" />;
 
   return (
@@ -388,10 +389,7 @@ function ErrorPanel({ message, onRetry }: { message: string; onRetry: () => void
       <Card className="px-8 py-12 text-center" hover={false}>
         <h2 className="font-display text-[15px] font-medium text-neg">Couldn&apos;t generate ideas</h2>
         <p className="mx-auto mt-2 max-w-md text-[13px] text-mute">{message}</p>
-        <button
-          onClick={onRetry}
-          className="mt-5 rounded-lg border border-edge bg-white/[0.03] px-4 py-2 text-[12px] font-medium text-ink transition-colors hover:border-edge2 hover:bg-white/[0.05]"
-        >
+        <button onClick={onRetry} className="btn-secondary mt-5">
           Try again
         </button>
       </Card>
@@ -505,7 +503,7 @@ function IdeaCard({ idea, i, price }: { idea: DiscoverIdea; i: number; price?: n
       initial={{ opacity: 0, y: 14 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.08 + i * 0.07, duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
-      className="flex flex-col rounded-2xl border border-edge bg-white/[0.015] p-4 transition-transform duration-300 hover:-translate-y-0.5 sm:p-5"
+      className="flex flex-col tile p-4 transition-transform duration-300 hover:-translate-y-0.5 sm:p-5"
       style={{ borderTop: `2px solid ${conv}` }}
     >
       <div className="flex items-start justify-between gap-3">
@@ -539,7 +537,7 @@ function IdeaCard({ idea, i, price }: { idea: DiscoverIdea; i: number; price?: n
 
       <div className="mt-3 rounded-lg border border-edge bg-white/[0.012] px-3 py-2.5">
         <div className="flex items-baseline gap-1.5">
-          <span className="text-[9.5px] font-medium uppercase tracking-wide" style={{ color: conv }}>
+          <span className="text-[10px] font-medium uppercase tracking-wide" style={{ color: conv }}>
             Fits your book
           </span>
         </div>

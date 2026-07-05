@@ -12,6 +12,7 @@ import { detectRecurring, newSubscriptions, normalizeMerchant, type DetectedRecu
 import { CATEGORY_COLOR } from "@/lib/theta/data";
 import { ledgerHasData, useTheta } from "@/lib/theta/store";
 import { fmtPct, fmtUSD } from "@/lib/format";
+import { PageSkeleton } from "@/components/ui/Skeleton";
 
 const CADENCE_LABEL = { monthly: "Monthly", yearly: "Yearly", weekly: "Weekly" } as const;
 
@@ -41,7 +42,7 @@ export default function RecurringPage() {
     );
   }, [ledger]);
 
-  if (!ready) return null;
+  if (!ready) return <PageSkeleton />;
   if (!ledger || !view || !ledgerHasData(ledger)) return <ThetaEmpty page="Recurring charges" />;
 
   const recurring = ledger.recurring;

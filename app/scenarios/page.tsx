@@ -16,6 +16,7 @@ import { fmtPct, fmtUSD } from "@/lib/format";
 import { usePortfolio } from "@/lib/store";
 import type { ScenarioShock } from "@/lib/types";
 import { useAsyncCompute } from "@/lib/useAsyncCompute";
+import { PageSkeleton } from "@/components/ui/Skeleton";
 
 type Kind = "stock" | "market" | "rates";
 
@@ -66,7 +67,7 @@ export default function ScenariosPage() {
     [portfolio, shock, label]
   );
 
-  if (!ready) return null;
+  if (!ready) return <PageSkeleton />;
   if (!portfolio) return <EmptyState page="Scenario analysis" />;
 
   const maxAbs = result

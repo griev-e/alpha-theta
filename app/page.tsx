@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { m } from "framer-motion";
 import { Donut, PALETTE } from "@/components/charts/Donut";
 import { Treemap } from "@/components/charts/Treemap";
@@ -14,6 +14,7 @@ import { deltaToneClass } from "@/components/ui/Delta";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { Segmented } from "@/components/ui/Segmented";
 import { Stat } from "@/components/ui/Stat";
 import { TickerLogo } from "@/components/ui/TickerLogo";
 import { riskReport } from "@/lib/analytics/risk";
@@ -25,9 +26,11 @@ import {
   fmtShares,
   fmtUSD,
   fmtUSDCompact,
+  symbolColorIndex,
 } from "@/lib/format";
 import { usePortfolio } from "@/lib/store";
 import type { Position } from "@/lib/types";
+import { PageSkeleton } from "@/components/ui/Skeleton";
 
 type SortKey = "equity" | "returnPct" | "weight" | "symbol" | "today";
 
@@ -66,7 +69,7 @@ export default function OverviewPage() {
     return arr;
   }, [portfolio, sortKey, asc]);
 
-  if (!ready) return null;
+  if (!ready) return <PageSkeleton />;
   if (!portfolio || !risk) return <EmptyState page="The overview" />;
 
   // Bar scales for the holdings table, computed once instead of per row.
@@ -102,7 +105,7 @@ export default function OverviewPage() {
             id: "cash",
             label: "Cash",
             value: portfolio.cash,
-            color: "rgba(148,163,184,0.55)",
+            color: "color-mix(in srgb, var(--color-track) 55%, transparent)",
           },
         ]
       : []),
@@ -139,7 +142,7 @@ export default function OverviewPage() {
             id: "cash",
             label: "Cash",
             value: portfolio.cash,
-            color: "rgba(148,163,184,0.55)",
+            color: "color-mix(in srgb, var(--color-track) 55%, transparent)",
           },
         ]
       : []),
@@ -253,21 +256,14 @@ export default function OverviewPage() {
             eyebrow="Allocation"
             title="Portfolio Mix"
             right={
-              <div className="flex gap-0.5 rounded-md border border-edge p-0.5">
-                {(["holding", "sector"] as const).map((v) => (
-                  <button
-                    key={v}
-                    onClick={() => setMixView(v)}
-                    className={`rounded px-2 py-0.5 font-mono text-[10.5px] transition-colors ${
-                      mixView === v
-                        ? "bg-white/[0.08] text-ink"
-                        : "text-faint hover:text-ink"
-                    }`}
-                  >
-                    {v === "holding" ? "Holdings" : "Sector"}
-                  </button>
-                ))}
-              </div>
+              <Segmented
+                value={mixView}
+                onChange={setMixView}
+                options={[
+                  { value: "holding", label: "Holdings" },
+                  { value: "sector", label: "Sector" },
+                ]}
+              />
             }
             className="mb-4"
           />
@@ -348,8 +344,8 @@ export default function OverviewPage() {
                   return (
                     <th
                       key={key}
-                      onClick={() => setSort(key)}
-                      className={`group/th cursor-pointer select-none px-6 py-3 text-[11.5px] font-medium uppercase tracking-[0.04em] transition-colors hover:text-ink ${
+                      aria-sort={active ? (asc ? "ascending" : "descending") : "none"}
+                      className={`group/th px-0 py-0 text-[11.5px] font-medium uppercase tracking-[0.04em] ${
                         align === "right"
                           ? "text-right"
                           : align === "center"
@@ -357,37 +353,49 @@ export default function OverviewPage() {
                             : "text-left"
                       } ${active ? "text-mint" : "text-faint"}`}
                     >
-                      <span
-                        className={`inline-flex items-center gap-1 ${
-                          align === "center"
-                            ? "justify-center"
-                            : align === "right"
-                              ? "justify-end"
-                              : ""
+                      <button
+                        type="button"
+                        onClick={() => setSort(key)}
+                        className={`w-full select-none px-6 py-3 transition-colors hover:text-ink ${
+                          align === "right"
+                            ? "text-right"
+                            : align === "center"
+                              ? "text-center"
+                              : "text-left"
                         }`}
                       >
-                        <span>{label}</span>
-                        <svg
-                          viewBox="0 0 10 6"
-                          aria-hidden
-                          className={`h-[6px] w-[10px] transition-all duration-200 ${
-                            asc ? "rotate-180" : ""
-                          } ${
-                            active
-                              ? "opacity-100"
-                              : "opacity-0 group-hover/th:opacity-40"
+                        <span
+                          className={`inline-flex items-center gap-1 ${
+                            align === "center"
+                              ? "justify-center"
+                              : align === "right"
+                                ? "justify-end"
+                                : ""
                           }`}
                         >
-                          <path
-                            d="M1 1l4 4 4-4"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="1.5"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          />
-                        </svg>
-                      </span>
+                          <span>{label}</span>
+                          <svg
+                            viewBox="0 0 10 6"
+                            aria-hidden
+                            className={`h-[6px] w-[10px] transition-all duration-200 ${
+                              asc ? "rotate-180" : ""
+                            } ${
+                              active
+                                ? "opacity-100"
+                                : "opacity-30 group-hover/th:opacity-60"
+                            }`}
+                          >
+                            <path
+                              d="M1 1l4 4 4-4"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="1.5"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            />
+                          </svg>
+                        </span>
+                      </button>
                     </th>
                   );
                 })}
@@ -440,9 +448,25 @@ function HeroDelta({
 
 /** Stable per-symbol accent so colors survive re-sorting. */
 function symbolColor(symbol: string): string {
-  let h = 0;
-  for (let i = 0; i < symbol.length; i++) h = (h * 31 + symbol.charCodeAt(i)) | 0;
-  return PALETTE[Math.abs(h) % PALETTE.length];
+  return PALETTE[symbolColorIndex(symbol, PALETTE.length)];
+}
+
+/**
+ * True for a brief moment right after `value` changes — used to flash a
+ * repriced row's background so a live-data refresh reads as an update rather
+ * than a silent, unremarked-on value swap.
+ */
+function useFlashOnChange(value: number): boolean {
+  const prev = useRef(value);
+  const [flash, setFlash] = useState(false);
+  useEffect(() => {
+    if (prev.current === value) return;
+    prev.current = value;
+    setFlash(true);
+    const id = setTimeout(() => setFlash(false), 60);
+    return () => clearTimeout(id);
+  }, [value]);
+  return flash;
 }
 
 function HoldingRow({
@@ -462,6 +486,10 @@ function HoldingRow({
       ? p.dayChange / (p.equity - p.dayChange)
       : null;
   const neg = p.returnPct < 0;
+  // Flashes the row the instant a live-price refresh repriced it, then lets
+  // the row's own transition-colors ease it back out — a live feed updating
+  // in place instead of numbers silently swapping underneath the reader.
+  const flash = useFlashOnChange(p.price);
 
   return (
     <m.tr
@@ -473,7 +501,8 @@ function HoldingRow({
         opacity: { delay: 0.25 + i * 0.035, duration: 0.35 },
         y: { delay: 0.25 + i * 0.035, duration: 0.35 },
       }}
-      className="group relative border-b border-edge/60 transition-colors hover:bg-white/[0.03]"
+      style={flash ? { backgroundColor: "rgba(94,234,212,0.10)" } : undefined}
+      className="group relative border-b border-edge/60 transition-colors duration-700 hover:bg-white/[0.03]"
     >
       {/* Asset: brand logo + symbol + name */}
       <td className="relative px-6 py-3">
@@ -495,7 +524,7 @@ function HoldingRow({
               <DataSourceDot source={p.dataSource} fundamentals={p.fundamentals} />
               {!p.fundamentals && (
                 <span
-                  className="rounded border border-warn/30 bg-warn/10 px-1 py-px font-mono text-[8.5px] text-warn"
+                  className="rounded border border-edge2 px-1 py-px font-mono text-[10px] text-faint"
                   title="No fundamentals — uses conservative defaults in risk math"
                 >
                   no data

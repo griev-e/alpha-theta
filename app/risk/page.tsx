@@ -15,6 +15,7 @@ import { DEFAULT_BETA, estimatedVolatility } from "@/lib/live/merge";
 import { useAssumptions } from "@/lib/assumptions/store";
 import { fmtNum, fmtPct } from "@/lib/format";
 import { usePortfolio } from "@/lib/store";
+import { PageSkeleton } from "@/components/ui/Skeleton";
 
 /** Per-asset-class accent for the allocation bars. */
 const ASSET_CLASS_COLOR: Record<AssetClass, string> = {
@@ -40,7 +41,7 @@ export default function RiskPage() {
     [portfolio, version]
   );
 
-  if (!ready) return null;
+  if (!ready) return <PageSkeleton />;
   if (!portfolio || !risk) return <EmptyState page="Risk analysis" />;
 
   const concentrationFlag =

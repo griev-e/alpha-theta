@@ -12,6 +12,7 @@ import { ledgerHasData, useTheta } from "@/lib/theta/store";
 import { useThetaAssumptions } from "@/lib/theta/assumptionsStore";
 import { assessGoal, type GoalFeasibility, type GoalStatus } from "@/lib/theta/goals";
 import { fmtPct, fmtUSD, fmtUSDCompact } from "@/lib/format";
+import { PageSkeleton } from "@/components/ui/Skeleton";
 
 const STATUS_META: Record<GoalStatus, { label: string; color: string }> = {
   funded: { label: "Funded", color: "var(--color-pos)" },
@@ -32,7 +33,7 @@ export default function GoalsPage() {
     [ledger, assumptions]
   );
 
-  if (!ready) return null;
+  if (!ready) return <PageSkeleton />;
   if (!ledger || !ledgerHasData(ledger)) return <ThetaEmpty page="Goals" />;
 
   const goals = ledger.goals;

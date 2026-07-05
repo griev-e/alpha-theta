@@ -17,6 +17,7 @@ import { useAssumptions } from "@/lib/assumptions/store";
 import { AssumptionsPanel } from "@/components/benchmark/AssumptionsPanel";
 import { fmtMultiple, fmtNum, fmtPct } from "@/lib/format";
 import { usePortfolio } from "@/lib/store";
+import { PageSkeleton } from "@/components/ui/Skeleton";
 
 export default function BenchmarkPage() {
   const { ready, portfolio } = usePortfolio();
@@ -34,7 +35,7 @@ export default function BenchmarkPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [portfolio, version]);
 
-  if (!ready) return null;
+  if (!ready) return <PageSkeleton />;
   if (!portfolio || !data) return <EmptyState page="Benchmark comparison" />;
 
   const { risk, factors, get, spx, ndx } = data;

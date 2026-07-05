@@ -14,6 +14,7 @@ import { ledgerHasData, useTheta } from "@/lib/theta/store";
 import { fmtUSD } from "@/lib/format";
 import { TxRow } from "./TxRow";
 import { AutoTagModal, type UncatItem } from "./AutoTagModal";
+import { PageSkeleton } from "@/components/ui/Skeleton";
 
 const FILTERS: (Category | "All")[] = [
   "All",
@@ -113,7 +114,7 @@ export default function TransactionsPage() {
     return [...map.entries()];
   }, [filtered]);
 
-  if (!ready) return null;
+  if (!ready) return <PageSkeleton />;
   if (!ledger || !ledgerHasData(ledger)) return <ThetaEmpty page="Transactions" />;
 
   const moneyIn = filtered.filter((t) => t.amount > 0).reduce((s, t) => s + t.amount, 0);

@@ -29,6 +29,7 @@ import { fmtNum, fmtPct, fmtShares, fmtUSD, relativeTime } from "@/lib/format";
 import { usePortfolio } from "@/lib/store";
 import type { Portfolio } from "@/lib/types";
 import { useAsyncCompute } from "@/lib/useAsyncCompute";
+import { PageSkeleton } from "@/components/ui/Skeleton";
 
 const BASES: { id: TargetBasis; label: string }[] = [
   { id: "holding", label: "By holding" },
@@ -122,7 +123,7 @@ export default function RebalancePage() {
     wholeShares
   );
 
-  if (!ready) return null;
+  if (!ready) return <PageSkeleton />;
   if (!portfolio) return <EmptyState page="The rebalancer" />;
 
   // Dry powder = idle cash plus whatever new cash the user is adding. This is
@@ -981,7 +982,7 @@ function AllocatorCard({
                           {d.symbol}
                         </span>
                         <span
-                          className={`rounded px-1.5 py-0.5 text-[9.5px] font-medium uppercase tracking-wide ${conv.cls}`}
+                          className={`rounded px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide ${conv.cls}`}
                         >
                           {conv.label}
                         </span>

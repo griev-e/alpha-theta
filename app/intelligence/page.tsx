@@ -15,15 +15,14 @@ import type {
   NewsItem,
   NewsResponse,
 } from "@/lib/intelligence/types";
-import { daysUntil, fmtDate, fmtPct, relativeTime } from "@/lib/format";
+import { daysUntil, fmtDate, fmtPct, relativeTime, symbolColorIndex } from "@/lib/format";
 import { usePortfolio } from "@/lib/store";
 import type { Portfolio } from "@/lib/types";
+import { PageSkeleton } from "@/components/ui/Skeleton";
 
 /** Stable per-symbol accent so colors survive re-sorting. */
 function symbolColor(symbol: string): string {
-  let h = 0;
-  for (let i = 0; i < symbol.length; i++) h = (h * 31 + symbol.charCodeAt(i)) | 0;
-  return PALETTE[Math.abs(h) % PALETTE.length];
+  return PALETTE[symbolColorIndex(symbol, PALETTE.length)];
 }
 
 /* ---------------------------------- brief --------------------------------- */
@@ -588,7 +587,7 @@ export default function IntelligencePage() {
     [portfolio]
   );
 
-  if (!ready) return null;
+  if (!ready) return <PageSkeleton />;
   if (!portfolio) return <EmptyState page="Intelligence" />;
 
   return (

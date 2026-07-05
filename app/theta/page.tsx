@@ -16,11 +16,12 @@ import { CATEGORY_COLOR } from "@/lib/theta/data";
 import { ledgerHasData, useTheta } from "@/lib/theta/store";
 import { fmtPct, fmtUSD, fmtUSDCompact } from "@/lib/format";
 import { TxRow } from "./transactions/TxRow";
+import { PageSkeleton } from "@/components/ui/Skeleton";
 
 export default function ThetaDashboard() {
   const { ready, ledger, view, deleteTransaction, setTransactionCategory } = useTheta();
 
-  if (!ready) return null;
+  if (!ready) return <PageSkeleton />;
   if (!ledger || !view || !ledgerHasData(ledger)) return <ThetaEmpty page="The dashboard" />;
 
   const nwUp = view.netWorthDelta >= 0;

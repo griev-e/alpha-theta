@@ -13,6 +13,7 @@ import { usePortfolio } from "@/lib/store";
 import { householdRisk } from "@/lib/theta/household";
 import { ledgerHasData, useTheta } from "@/lib/theta/store";
 import { fmtNum, fmtPct, fmtUSD, fmtUSDCompact } from "@/lib/format";
+import { PageSkeleton } from "@/components/ui/Skeleton";
 
 /** Account kinds whose balances are liquid (not exposed to the equity market). */
 const LIQUID_KINDS = new Set(["checking", "savings"]);
@@ -47,7 +48,7 @@ export default function NetWorthPage() {
     return { ...result, name, beta: risk.beta };
   }, [ledger, view, portfolio, activeId, portfolios]);
 
-  if (!ready) return null;
+  if (!ready) return <PageSkeleton />;
   if (!ledger || !view || !ledgerHasData(ledger)) return <ThetaEmpty page="Net worth" />;
 
   const series = view.netWorthSeries;

@@ -5,11 +5,14 @@ import { useCallback, useEffect, useRef, useState } from "react";
 const MIN_WIDTH = 180;
 const MAX_WIDTH = 420;
 const DEFAULT_WIDTH = 240;
+const KEY_STEP = 16;
 
 /**
  * Persisted, drag-to-resize sidebar width. Reads/writes localStorage under
  * `storageKey` so each app (alpha/theta) remembers its own width across
- * reloads. `onMouseDown` goes on a thin handle at the sidebar's right edge.
+ * reloads. `onMouseDown` + `onDoubleClick` + `onKeyDown` all go on the same
+ * thin handle at the sidebar's right edge, so the resize affordance works for
+ * mouse, dblclick-to-reset, and keyboard (arrow keys nudge, Home resets) alike.
  */
 export function useSidebarWidth(storageKey: string) {
   const [width, setWidth] = useState(DEFAULT_WIDTH);
@@ -70,5 +73,43 @@ export function useSidebarWidth(storageKey: string) {
     [width]
   );
 
-  return { width, dragging, onMouseDown };
+  const persist = useCallback(
+    (w: number) => {
+      setWidth(w);
+      try {
+        localStorage.setItem(storageKey, String(w));
+      } catch {
+        /* private mode — width just won't persist */
+      }
+    },
+    [storageKey]
+  );
+
+  const onDoubleClick = useCallback(() => persist(DEFAULT_WIDTH), [persist]);
+
+  const onKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        persist(Math.max(MIN_WIDTH, width - KEY_STEP));
+      } else if (e.key === "ArrowRight") {
+        e.preventDefault();
+        persist(Math.min(MAX_WIDTH, width + KEY_STEP));
+      } else if (e.key === "Home") {
+        e.preventDefault();
+        persist(DEFAULT_WIDTH);
+      }
+    },
+    [width, persist]
+  );
+
+  return {
+    width,
+    dragging,
+    onMouseDown,
+    onDoubleClick,
+    onKeyDown,
+    min: MIN_WIDTH,
+    max: MAX_WIDTH,
+  };
 }

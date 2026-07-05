@@ -14,6 +14,7 @@ const PriceChart = dynamic(
 import { Card, CardHeader } from "@/components/ui/Card";
 import { deltaToneClass } from "@/components/ui/Delta";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { Segmented } from "@/components/ui/Segmented";
 import { TickerLogo } from "@/components/ui/TickerLogo";
 import { Tooltip } from "@/components/ui/Tooltip";
 import { factorScores } from "@/lib/analytics/factors";
@@ -36,6 +37,7 @@ import {
 } from "@/lib/research/useResearch";
 import { usePortfolio } from "@/lib/store";
 import type { AnalystRating, Fundamentals, Position } from "@/lib/types";
+import { PageSkeleton } from "@/components/ui/Skeleton";
 
 const RANGES: { id: HistoryRange; label: string }[] = [
   { id: "1m", label: "1M" },
@@ -87,7 +89,7 @@ export default function ResearchPage() {
     );
   }, [portfolio]);
 
-  if (!ready) return null;
+  if (!ready) return <PageSkeleton />;
 
   const picks = portfolio?.positions.map((p) => p.symbol) ?? [];
 
@@ -312,21 +314,11 @@ function ResearchView({
         </div>
 
         <div className="mt-5 flex items-center justify-between">
-          <div className="flex gap-1">
-            {RANGES.map((r) => (
-              <button
-                key={r.id}
-                onClick={() => onRange(r.id)}
-                className={`rounded-lg px-2.5 py-1 font-mono text-[11px] transition-colors ${
-                  r.id === range
-                    ? "bg-white/[0.08] text-ink"
-                    : "text-faint hover:text-mute"
-                }`}
-              >
-                {r.label}
-              </button>
-            ))}
-          </div>
+          <Segmented
+            value={range}
+            onChange={onRange}
+            options={RANGES.map((r) => ({ value: r.id, label: r.label }))}
+          />
           {periodReturn !== null && (
             <span
               className={`font-mono tnum text-[12px] ${deltaToneClass(periodReturn)}`}
@@ -503,7 +495,7 @@ function ResearchView({
           eyebrow="Style profile"
           title={`How ${symbol} loads on the four factors`}
           right={
-            <span className="font-mono text-[9.5px] uppercase tracking-wider text-faint">
+            <span className="font-mono text-[10px] uppercase tracking-wider text-faint">
               tick = S&P 500
             </span>
           }
@@ -611,7 +603,7 @@ function CompareCard({
     <Card className="px-5 py-4" i={i}>
       <div className="mb-4 flex items-baseline justify-between">
         <div className="eyebrow">{title}</div>
-        <span className="font-mono text-[9.5px] uppercase tracking-wider text-faint">
+        <span className="font-mono text-[10px] uppercase tracking-wider text-faint">
           vs S&P 500
         </span>
       </div>
@@ -639,7 +631,7 @@ function CompareRow({
         <span className="text-[12px] text-mute">
           {label}
           {estimated && (
-            <span className="ml-1 font-mono text-[8.5px] uppercase tracking-wider text-faint">
+            <span className="ml-1 font-mono text-[10px] uppercase tracking-wider text-faint">
               est
             </span>
           )}

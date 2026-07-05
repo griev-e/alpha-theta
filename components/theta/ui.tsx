@@ -2,11 +2,20 @@
 
 import { AnimatePresence, m } from "framer-motion";
 import Link from "next/link";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import { Mark } from "@/components/shell/brand";
+import { EmptyPanel } from "@/components/ui/EmptyState";
 import { useTheta } from "@/lib/theta/store";
 
-/** Centered modal dialog — backdrop click + Escape close it. */
+const FOCUSABLE =
+  'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+/**
+ * Centered modal dialog — backdrop click + Escape close it. Traps Tab inside
+ * the dialog while open, focuses its first control on open, and returns focus
+ * to whatever triggered it on close, so opening one from the keyboard doesn't
+ * strand focus behind the overlay.
+ */
 export function Modal({
   open,
   onClose,
@@ -18,13 +27,44 @@ export function Modal({
   title: string;
   children: ReactNode;
 }) {
+  const panelRef = useRef<HTMLDivElement>(null);
+  const restoreFocusTo = useRef<HTMLElement | null>(null);
+
   useEffect(() => {
     if (!open) return;
+    restoreFocusTo.current = document.activeElement as HTMLElement | null;
+
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") {
+        onClose();
+        return;
+      }
+      if (e.key !== "Tab") return;
+      const panel = panelRef.current;
+      if (!panel) return;
+      const focusables = panel.querySelectorAll<HTMLElement>(FOCUSABLE);
+      if (focusables.length === 0) return;
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
     };
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+
+    const raf = requestAnimationFrame(() => {
+      panelRef.current?.querySelector<HTMLElement>(FOCUSABLE)?.focus();
+    });
+
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      cancelAnimationFrame(raf);
+      restoreFocusTo.current?.focus();
+    };
   }, [open, onClose]);
 
   return (
@@ -42,8 +82,10 @@ export function Modal({
             onClick={onClose}
           />
           <m.div
+            ref={panelRef}
             role="dialog"
             aria-modal="true"
+            aria-label={title}
             initial={{ opacity: 0, y: 14, scale: 0.97 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 10, scale: 0.97 }}
@@ -52,11 +94,7 @@ export function Modal({
           >
             <div className="mb-4 flex items-center justify-between">
               <h2 className="font-display text-[15px] font-medium text-ink">{title}</h2>
-              <button
-                onClick={onClose}
-                aria-label="Close"
-                className="flex h-7 w-7 items-center justify-center rounded-md text-mute transition-colors hover:bg-white/[0.06] hover:text-ink"
-              >
+              <button onClick={onClose} aria-label="Close" className="btn-ghost">
                 <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round">
                   <path d="M5 5l10 10M15 5L5 15" />
                 </svg>
@@ -163,9 +201,7 @@ export function IconButton({
       onClick={onClick}
       aria-label={label}
       title={label}
-      className={`flex h-7 w-7 items-center justify-center rounded-md text-mute transition-colors hover:bg-white/[0.06] ${
-        danger ? "hover:text-neg" : "hover:text-ink"
-      }`}
+      className={`btn-ghost ${danger ? "danger" : ""}`}
     >
       {children}
     </button>
@@ -188,7 +224,11 @@ export function PlusIcon() {
   );
 }
 
-/** Small pill button used for header actions ("Add", "Mark paid"). */
+/**
+ * Small pill button used for header actions ("Add", "Mark paid") — same
+ * height and radius as `.btn-primary`/`.btn-secondary` so it reads as the
+ * same button system with room for a leading icon.
+ */
 export function ActionButton({
   onClick,
   children,
@@ -201,11 +241,7 @@ export function ActionButton({
   return (
     <button
       onClick={onClick}
-      className={`inline-flex h-8 items-center gap-1.5 rounded-md px-3 text-[12.5px] font-medium transition-colors ${
-        variant === "primary"
-          ? "bg-ink text-black hover:bg-white"
-          : "border border-edge2 text-mute hover:border-white/30 hover:text-ink"
-      }`}
+      className={`gap-1.5 ${variant === "primary" ? "btn-primary" : "btn-secondary"}`}
     >
       {children}
     </button>
@@ -216,28 +252,20 @@ export function ActionButton({
 export function ThetaEmpty({ page }: { page: string }) {
   const { loadSample } = useTheta();
   return (
-    <m.div
-      initial={{ opacity: 0, scale: 0.985 }}
-      animate={{ opacity: 1, scale: 1 }}
-      transition={{ duration: 0.4 }}
-      className="panel mx-auto mt-16 max-w-md px-8 py-10 text-center"
-    >
-      <div className="mb-4 flex justify-center opacity-90">
-        <Mark kind="theta" size={44} />
-      </div>
-      <h2 className="font-display text-lg font-semibold text-ink">No data yet</h2>
-      <p className="mt-2 text-[13px] leading-relaxed text-mute">
-        {page} needs accounts and transactions. Load the sample ledger to explore,
-        or import your own.
-      </p>
-      <div className="mt-6 flex items-center justify-center gap-3">
+    <EmptyPanel
+      icon={<Mark kind="theta" size={44} />}
+      heading="No data yet"
+      body={`${page} needs accounts and transactions. Load the sample ledger to explore, or import your own.`}
+      primary={
         <button onClick={loadSample} className="btn-primary">
           Load sample
         </button>
+      }
+      secondary={
         <Link href="/theta/import" className="btn-secondary">
           Import
         </Link>
-      </div>
-    </m.div>
+      }
+    />
   );
 }

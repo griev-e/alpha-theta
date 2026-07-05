@@ -103,7 +103,7 @@ export function FanChart({
               x2={W - PAD.r}
               y1={y(v)}
               y2={y(v)}
-              stroke="rgba(148,163,184,0.07)"
+              stroke="color-mix(in srgb, var(--color-track) 7%, transparent)"
             />
             <text
               x={W - PAD.r + 8}

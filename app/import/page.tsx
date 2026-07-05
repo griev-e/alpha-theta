@@ -8,6 +8,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { parsePortfolioCSV, toCSV, type ParseResult } from "@/lib/csv";
 import { fmtUSD } from "@/lib/format";
 import { usePortfolio, usePortfolioActions } from "@/lib/store";
+import { PageSkeleton } from "@/components/ui/Skeleton";
 
 const EXPECTED_HEADER = "name,symbol,shares,price,averageCost,totalReturn,equity";
 
@@ -105,7 +106,7 @@ export default function ImportPage() {
     URL.revokeObjectURL(url);
   };
 
-  if (!ready) return null;
+  if (!ready) return <PageSkeleton />;
 
   return (
     <div>
@@ -379,7 +380,7 @@ export default function ImportPage() {
                             <div className="truncate text-[13px] text-ink">
                               {p.name}
                               {p.isDemo && (
-                                <span className="ml-1.5 rounded border border-warn/30 bg-warn/10 px-1 py-px text-[9px] font-medium text-warn">
+                                <span className="ml-1.5 rounded border border-warn/30 bg-warn/10 px-1 py-px text-[10px] font-medium text-warn">
                                   Demo
                                 </span>
                               )}

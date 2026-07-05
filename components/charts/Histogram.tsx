@@ -24,7 +24,7 @@ export function Histogram({
       {/* Hover read-out: how many simulated outcomes landed in this bucket. */}
       {hb && (
         <div
-          className="pointer-events-none absolute z-10 -translate-x-1/2 -translate-y-full rounded-lg border border-edge2 bg-[#0d0d0d] px-2.5 py-1.5 text-[11px] leading-tight shadow-[0_8px_28px_-6px_rgba(0,0,0,0.85)]"
+          className="pointer-events-none absolute z-10 -translate-x-1/2 -translate-y-full rounded-lg border border-edge2 bg-[var(--color-elevated)] px-2.5 py-1.5 text-[11px] leading-tight shadow-[0_8px_28px_-6px_rgba(0,0,0,0.85)]"
           style={{
             left: `${((hover! + 0.5) / bins.length) * 100}%`,
             top: -6,
@@ -59,7 +59,7 @@ export function Histogram({
               style={{
                 background: aboveTarget
                   ? "linear-gradient(180deg, rgba(94,234,212,0.85), rgba(94,234,212,0.25))"
-                  : "linear-gradient(180deg, rgba(148,163,184,0.4), rgba(148,163,184,0.12))",
+                  : "linear-gradient(180deg, color-mix(in srgb, var(--color-track) 40%, transparent), color-mix(in srgb, var(--color-track) 12%, transparent))",
                 filter: hover === i ? "brightness(1.4)" : undefined,
               }}
               initial={{ height: 0 }}

@@ -22,10 +22,29 @@
   --color-vio: #a78bfa;
   --color-sky: #7dd3fc;
 
+  /* Neutral slate used for chart tracks/gridlines (donut/gauge/ring rails,
+     scatter/radar/fan-chart gridlines). One hue, mixed to whatever opacity
+     each chart needs, instead of restating rgba(148,163,184,…) per file. */
+  --color-track: #94a3b8;
+  /* Elevated dark surface a shade lighter than --color-panel — floating
+     tooltips/menus that sit above a panel rather than being one. */
+  --color-elevated: #0d0d0d;
+  /* The sidebar "live" indicator dot — its own hue so it isn't tied to the
+     data-positive green (a stopped feed is a status, not a return). */
+  --color-live: #236533;
+
   --font-display: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
   --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, "SF Mono", monospace;
 }
+
+/* ── Type scale reference ──────────────────────────────────────────────
+   The sizes actually in use across the app, named so new UI reaches for one
+   of these instead of picking an arbitrary px value:
+     2xs 10px · xs 11px · sm 12px · base 13px · md 15px
+     lg 22px (page title) · hero 34–44px (headline stat)
+   Nothing below 10px — smaller reads as a rendering glitch, not a design
+   choice. */
 
 html {
   background: var(--color-void);
@@ -151,6 +170,100 @@ body {
 .btn-secondary:hover {
   color: var(--color-ink);
   border-color: rgba(255, 255, 255, 0.3);
+}
+.btn-primary:active:not(:disabled),
+.btn-secondary:active,
+.btn-ghost:active,
+.nav-row:active {
+  transform: scale(0.97);
+}
+
+/* Ghost icon button — the "trash/edit/close/refresh" shape used across the
+   shell and both apps, previously restated ad hoc at each call site. */
+.btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 28px;
+  width: 28px;
+  border-radius: 6px;
+  color: var(--color-mute);
+  transition: color 150ms ease, background 150ms ease, transform 100ms ease;
+}
+.btn-ghost:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--color-ink);
+}
+.btn-ghost.danger:hover {
+  color: var(--color-neg);
+}
+
+/* Neutral inset stat tile — a quieter surface nested inside a .panel, used
+   for sub-groupings (metric breakdowns, quick facts) that shouldn't compete
+   with the card border around them. */
+.tile {
+  border-radius: 12px;
+  border: 1px solid var(--color-edge);
+  background: rgba(255, 255, 255, 0.015);
+}
+
+/* Sidebar/nav row — shared by alpha's and theta's SidebarNav so hover/press
+   feedback stays identical between the two shells. */
+.nav-row {
+  transition: color 100ms ease, background-color 100ms ease, transform 100ms ease;
+}
+
+/* Keyboard focus — one visible ring for every interactive element, app-wide.
+   Mouse/touch clicks never trigger :focus-visible, so this only ever shows up
+   for keyboard and assistive-tech navigation. */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--color-mint) 55%, transparent);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* Respect the OS-level motion preference: kill looping CSS animations
+   (Framer's own animations are handled by MotionConfig's reducedMotion="user"
+   in MotionProvider) so nothing spins or pulses indefinitely for someone who
+   has asked their system to reduce motion. */
+@media (prefers-reduced-motion: reduce) {
+  .animate-spin,
+  .animate-ping,
+  .animate-pulse {
+    animation: none !important;
+  }
+}
+
+/* Skeleton shimmer — first-paint placeholders while a store hydrates. */
+@keyframes skeleton-shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+.skeleton {
+  border-radius: 8px;
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.04) 25%,
+    rgba(255, 255, 255, 0.08) 50%,
+    rgba(255, 255, 255, 0.04) 75%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.6s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .skeleton {
+    animation: none;
+    background: rgba(255, 255, 255, 0.05);
+  }
 }
 
 /* Keyboard hint chip */

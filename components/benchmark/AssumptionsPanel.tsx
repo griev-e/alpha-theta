@@ -105,7 +105,7 @@ function Bar({
           >
             <div className="h-1.5 w-px bg-edge2" />
             <div
-              className="font-mono text-[8.5px] leading-none text-faint"
+              className="font-mono text-[10px] leading-none text-faint"
               style={{ marginTop: i % 2 === 0 ? 2 : 12 }}
             >
               {t.label}
