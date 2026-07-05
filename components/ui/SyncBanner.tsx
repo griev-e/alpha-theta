@@ -16,7 +16,7 @@ export function SyncBanner() {
   return (
     <div
       role="alert"
-      className="mx-auto mb-4 flex max-w-3xl items-center gap-3 rounded-xl border border-warn/40 bg-warn/[0.07] px-4 py-2.5 text-[12.5px] text-warn"
+      className="panel-tinted warn mx-auto mb-4 flex max-w-3xl items-center gap-3 px-4 py-2.5 text-[12.5px] text-warn"
     >
       <span className="inline-block h-2 w-2 shrink-0 rounded-full bg-warn" />
       <span className="flex-1 leading-snug">

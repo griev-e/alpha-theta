@@ -59,6 +59,33 @@ export default function RiskPage() {
   const allocGap =
     1 - risk.assetAllocation.reduce((s, a) => s + a.weight, 0);
 
+  // The verdict: one composed sentence the rest of the page proves, assembled
+  // from figures already computed — the page states its thesis before the
+  // instrumentation, rather than making the reader synthesize it from gauges.
+  const betaPhrase =
+    risk.beta > 1.1
+      ? "runs hotter than the market"
+      : risk.beta < 0.9
+        ? "runs cooler than the market"
+        : "tracks the market closely";
+  const volPhrase =
+    risk.volatility > spxVol * 1.15
+      ? "swings wider than the S&P 500"
+      : risk.volatility < spxVol * 0.9
+        ? "swings less than the S&P 500"
+        : "moves in line with the S&P 500";
+  const concentrated = risk.topWeight > 0.2 || risk.effectiveN < 8;
+  const verdict = `At beta ${fmtNum(risk.beta, 2)} it ${betaPhrase}, and ${volPhrase} — ${fmtPct(
+    risk.volatility,
+    0
+  )} annualized. The book behaves like ${fmtNum(
+    risk.effectiveN,
+    0
+  )} equal positions across ${portfolio.positions.length} names${
+    concentrated
+      ? " — concentration is the real story below."
+      : ", a genuinely spread book."
+  }`;
 
   return (
     <div>
@@ -67,6 +94,17 @@ export default function RiskPage() {
         title="Risk Analysis"
         description="Estimated from position weights, factor-model correlations, and live per-name betas and volatilities. Violet ticks mark the S&P 500 reference."
       />
+
+      {/* Verdict — the page's thesis, in the reading voice, before the gauges. */}
+      <p className="mb-5 max-w-3xl text-balance text-[17px] font-medium leading-snug tracking-[-0.01em] text-ink">
+        <span
+          aria-hidden
+          className={`mr-2.5 inline-block h-3 w-[3px] translate-y-[1px] rounded-full ${
+            concentrated ? "bg-warn/70" : "bg-mint/70"
+          }`}
+        />
+        {verdict}
+      </p>
 
       {/* Vitals */}
       <Card className="mb-5 px-6 py-6" i={0}>
@@ -152,7 +190,7 @@ export default function RiskPage() {
           list, not the percentage, so the banner never claims an exclusion that
           didn't happen. */}
       {noData.length > 0 && (
-        <Card className="mb-5 px-6 py-4" i={0}>
+        <div className="panel-tinted warn mb-5 px-6 py-4">
           <div className="flex items-start gap-3">
             <span className="mt-[5px] inline-block h-[7px] w-[7px] shrink-0 rounded-full border border-warn/70" />
             <div>
@@ -181,7 +219,7 @@ export default function RiskPage() {
               </div>
             </div>
           </div>
-        </Card>
+        </div>
       )}
 
       <div className="mb-5 grid gap-5 lg:grid-cols-2">
