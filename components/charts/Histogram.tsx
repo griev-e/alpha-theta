@@ -19,6 +19,14 @@ export function Histogram({
   const total = bins.reduce((s, b) => s + b.count, 0);
   const hb = hover !== null ? bins[hover] : null;
 
+  // Position of the target threshold along the x-axis, so the split between
+  // "made it" and "fell short" is marked explicitly rather than only implied by
+  // the bar coloring. Null when the target sits outside the plotted range.
+  const lo = bins[0]?.x0 ?? 0;
+  const hi = bins[bins.length - 1]?.x1 ?? 1;
+  const targetFrac =
+    target > lo && target < hi && hi > lo ? (target - lo) / (hi - lo) : null;
+
   return (
     <div className="relative">
       {/* Hover read-out: how many simulated outcomes landed in this bucket. */}
@@ -41,13 +49,31 @@ export function Histogram({
       )}
 
       <div
-        className="flex items-end gap-[2px]"
+        className="relative flex items-end gap-[2px]"
         style={{ height }}
         role="img"
         aria-label={`Distribution of ${total} simulated outcomes from ${fmtUSDCompact(
           bins[0]?.x0 ?? 0
         )} to ${fmtUSDCompact(bins[bins.length - 1]?.x1 ?? 0)}.`}
       >
+        {targetFrac !== null && (
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-y-0 z-[1]"
+            style={{ left: `${targetFrac * 100}%` }}
+          >
+            <div
+              className="h-full w-px -translate-x-1/2"
+              style={{
+                borderLeft:
+                  "1px dashed color-mix(in srgb, var(--color-warn) 55%, transparent)",
+              }}
+            />
+            <span className="absolute -top-1 left-0 -translate-x-1/2 rounded bg-warn/15 px-1 py-px font-mono text-[9px] leading-none text-warn">
+              target
+            </span>
+          </div>
+        )}
         {bins.map((b, i) => {
           const aboveTarget = target > 0 && b.x0 >= target;
           return (
