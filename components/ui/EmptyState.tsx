@@ -29,16 +29,61 @@ export function EmptyPanel({
       initial={{ opacity: 0, scale: 0.985 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={{ duration: 0.4 }}
-      className="panel mx-auto mt-16 max-w-md px-8 py-10 text-center"
+      className="panel-rim relative mx-auto mt-16 max-w-md overflow-hidden px-8 py-10 text-center"
     >
-      <div className="mb-4 flex justify-center opacity-90">{icon}</div>
-      <h2 className="font-display text-lg font-semibold text-ink">{heading}</h2>
-      <p className="mt-2 text-[13px] leading-relaxed text-mute">{body}</p>
-      <div className="mt-6 flex items-center justify-center gap-3">
-        {primary}
-        {secondary}
+      <GhostChart />
+      <div className="relative z-10">
+        <div className="mb-4 flex justify-center opacity-90">{icon}</div>
+        <h2 className="font-display text-lg font-semibold text-ink">{heading}</h2>
+        <p className="mt-2 text-[13px] leading-relaxed text-mute">{body}</p>
+        <div className="mt-6 flex items-center justify-center gap-3">
+          {primary}
+          {secondary}
+        </div>
       </div>
     </m.div>
+  );
+}
+
+/**
+ * A faint, abstract chart motif behind an empty state — bars rising into a
+ * curve — so the panel previews the kind of thing that will live here once
+ * there's data, instead of reading as a blank card. Purely decorative and very
+ * low-contrast; it drifts up on mount and then holds.
+ */
+function GhostChart() {
+  const bars = [0.35, 0.55, 0.42, 0.7, 0.5, 0.82, 0.62, 0.95];
+  return (
+    <m.svg
+      aria-hidden
+      viewBox="0 0 240 120"
+      preserveAspectRatio="none"
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.9, ease: [0.22, 1, 0.36, 1] }}
+      className="pointer-events-none absolute inset-x-0 bottom-0 h-28 w-full"
+    >
+      {bars.map((h, i) => {
+        const w = 240 / bars.length;
+        return (
+          <rect
+            key={i}
+            x={i * w + 4}
+            y={120 - h * 108}
+            width={w - 8}
+            height={h * 108}
+            rx={3}
+            fill="rgba(255,255,255,0.02)"
+          />
+        );
+      })}
+      <path
+        d="M0 84 C 40 70, 70 92, 108 60 S 180 30, 240 20"
+        fill="none"
+        stroke="color-mix(in srgb, var(--color-mint) 14%, transparent)"
+        strokeWidth={1.5}
+      />
+    </m.svg>
   );
 }
 

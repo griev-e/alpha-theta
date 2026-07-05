@@ -6,6 +6,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, type ReactNode } from "react";
 import { TopProgress } from "@/components/ui/TopProgress";
+import { PageAura } from "@/components/ui/PageAura";
 import { CommandPalette, type Command } from "./CommandPalette";
 import { FirstViewProvider, useRouteFirstView } from "@/lib/firstView";
 import { useTheta } from "@/lib/theta/store";
@@ -105,9 +106,10 @@ export function ThetaShell({ children }: { children: ReactNode }) {
     <div className="min-h-screen lg:flex">
       <TopProgress accent="var(--color-vio)" />
       <CommandPalette commands={commands} accent="var(--color-vio)" />
+      <PageAura color="rgba(167,139,250,0.05)" />
       {/* Desktop sidebar */}
       <aside
-        className="relative hidden shrink-0 lg:flex sticky top-0 h-screen flex-col border-r border-edge bg-[#050505]"
+        className="relative z-10 hidden shrink-0 lg:flex sticky top-0 h-screen flex-col border-r border-edge bg-[#050505]"
         style={{ width: sidebar.width }}
       >
         <div className="px-3 pb-3 pt-4">
@@ -142,7 +144,7 @@ export function ThetaShell({ children }: { children: ReactNode }) {
         />
       </aside>
 
-      <div className="min-w-0 flex-1">
+      <div className="relative z-10 min-w-0 flex-1">
         {/* Desktop top bar */}
         <header className="sticky top-0 z-40 hidden h-12 items-center border-b border-edge bg-black/80 px-6 backdrop-blur-md lg:flex">
           <span className="text-[13px] text-faint">{current?.group ?? "theta"}</span>
