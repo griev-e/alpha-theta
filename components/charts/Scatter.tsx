@@ -25,6 +25,7 @@ export function Scatter({
   xFormat,
   yFormat,
   height = 380,
+  quadrantLabels,
 }: {
   points: ScatterPoint[];
   xLabel: string;
@@ -32,6 +33,9 @@ export function Scatter({
   xFormat: (v: number) => string;
   yFormat: (v: number) => string;
   height?: number;
+  /** Faint corner labels naming what each quadrant means, so the map reads on
+   *  its own (e.g. tl "expensive · slow", br "cheap · fast"). */
+  quadrantLabels?: { tl?: string; tr?: string; bl?: string; br?: string };
 }) {
   const [containerRef, width] = useElementWidth<HTMLDivElement>();
   const [hover, setHover] = useState<string | null>(null);
@@ -68,6 +72,23 @@ export function Scatter({
         >
           <line x1={x(xMid)} x2={x(xMid)} y1={PAD.t} y2={H - PAD.b} stroke="color-mix(in srgb, var(--color-track) 10%, transparent)" strokeDasharray="4 5" />
           <line x1={PAD.l} x2={W - PAD.r} y1={y(yMid)} y2={y(yMid)} stroke="color-mix(in srgb, var(--color-track) 10%, transparent)" strokeDasharray="4 5" />
+
+          {quadrantLabels && (
+            <g className="font-mono" style={{ fontSize: 9.5, letterSpacing: "0.08em" }} fill="color-mix(in srgb, var(--color-faint) 60%, transparent)">
+              {quadrantLabels.tl && (
+                <text x={PAD.l + 8} y={PAD.t + 14} textAnchor="start">{quadrantLabels.tl.toUpperCase()}</text>
+              )}
+              {quadrantLabels.tr && (
+                <text x={W - PAD.r - 8} y={PAD.t + 14} textAnchor="end">{quadrantLabels.tr.toUpperCase()}</text>
+              )}
+              {quadrantLabels.bl && (
+                <text x={PAD.l + 8} y={H - PAD.b - 8} textAnchor="start">{quadrantLabels.bl.toUpperCase()}</text>
+              )}
+              {quadrantLabels.br && (
+                <text x={W - PAD.r - 8} y={H - PAD.b - 8} textAnchor="end">{quadrantLabels.br.toUpperCase()}</text>
+              )}
+            </g>
+          )}
 
           <text x={W - PAD.r} y={H - 10} textAnchor="end" fill="var(--color-faint)" className="font-mono" style={{ fontSize: 10, letterSpacing: "0.1em" }}>
             {xLabel} →
