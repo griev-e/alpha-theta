@@ -4,6 +4,7 @@ import { m } from "framer-motion";
 import { memo, useMemo, useState } from "react";
 import { fmtPct, fmtUSDCompact } from "@/lib/format";
 import { useElementWidth } from "@/lib/useElementWidth";
+import { ChartTooltip } from "./ChartTooltip";
 
 export interface TreemapItem {
   id: string;
@@ -11,6 +12,8 @@ export interface TreemapItem {
   value: number;
   /** Drives cell color, e.g. return % (clamped ±25%). */
   intensity: number;
+  /** Optional total for a weight readout in the hover tooltip. */
+  total?: number;
 }
 
 interface Rect {
@@ -113,9 +116,14 @@ export const Treemap = memo(function Treemap({
     [items, W, height]
   );
   const [active, setActive] = useState<string | null>(null);
+  const total = useMemo(
+    () => items.reduce((s, d) => s + Math.max(0, d.value), 0),
+    [items],
+  );
+  const activeRect = active ? rects.find((r) => r.item.id === active) : null;
 
   return (
-    <div ref={wrapRef} style={{ height }} className="w-full">
+    <div ref={wrapRef} style={{ height }} className="relative w-full">
       {W > 0 && (
       <svg
         width={W}
@@ -191,6 +199,35 @@ export const Treemap = memo(function Treemap({
           );
         })}
       </svg>
+      )}
+      {activeRect && (
+        <ChartTooltip
+          left={Math.min(Math.max(activeRect.x + activeRect.w / 2, 70), W - 70)}
+          top={activeRect.y + 4}
+          place={activeRect.y < 56 ? "bottom" : "top"}
+        >
+          <div className="flex items-center gap-2">
+            <span className="font-mono text-[12px] font-medium text-ink">
+              {activeRect.item.label}
+            </span>
+            <span
+              className={`font-mono tnum text-[11px] ${
+                activeRect.item.intensity >= 0 ? "text-pos" : "text-neg"
+              }`}
+            >
+              {fmtPct(activeRect.item.intensity, 1, true)}
+            </span>
+          </div>
+          <div className="mt-0.5 font-mono tnum text-[11px] text-mute">
+            {fmtUSDCompact(activeRect.item.value)}
+            {total > 0 && (
+              <span className="text-faint">
+                {" · "}
+                {fmtPct(activeRect.item.value / total, 1)} of book
+              </span>
+            )}
+          </div>
+        </ChartTooltip>
       )}
     </div>
   );
