@@ -68,7 +68,7 @@ export function Gauge({
       >
         <path
           d={arcPath(startAngle, endAngle)}
-          stroke="rgba(148,163,184,0.12)"
+          stroke="color-mix(in srgb, var(--color-track) 12%, transparent)"
           strokeWidth={7}
           fill="none"
           strokeLinecap="round"

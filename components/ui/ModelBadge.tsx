@@ -29,7 +29,7 @@ export function ModelBadge({
       maxWidth={260}
       content={
         <div className="space-y-1">
-          <div className="font-medium text-warn">Modeled estimate</div>
+          <div className="font-medium text-mute">Modeled estimate</div>
           <div>
             A model-based figure, not a measured value — read it as an
             indication, not a precise number or a forecast.
@@ -40,9 +40,9 @@ export function ModelBadge({
     >
       <span
         aria-label="Modeled estimate"
-        className={`inline-flex items-center gap-1 rounded border border-warn/40 px-1 py-[1px] font-mono text-[9px] uppercase tracking-wide text-warn/90 ${className}`}
+        className={`inline-flex items-center gap-1 rounded border border-edge2 px-1 py-[1px] font-mono text-[10px] uppercase tracking-wide text-mute ${className}`}
       >
-        <span className="inline-block h-[5px] w-[5px] rounded-full border border-warn/70" />
+        <span className="inline-block h-[5px] w-[5px] rounded-full border border-faint/70" />
         {label}
       </span>
     </Tooltip>

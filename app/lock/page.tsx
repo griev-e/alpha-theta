@@ -8,10 +8,11 @@ import { APP_HOME, APP_META, type AppKind, Mark } from "@/components/shell/brand
 
 const SERIF = '"Palatino Linotype", "Book Antiqua", Palatino, serif';
 
-// Signature accent (raw RGB) per app — mint for alpha, iris for theta. Drives
-// the hover bloom, the field theming and the unlock choreography tint.
+// Signature accent (raw RGB) per app — alpha's brand red (--color-accent in
+// globals.css) and theta's iris. Drives the hover bloom, the field theming
+// and the unlock choreography tint.
 const ACCENT_RGB: Record<AppKind, string> = {
-  alpha: "176,43,10",
+  alpha: "196,43,43",
   theta: "167,139,250",
 };
 

@@ -11,6 +11,7 @@ import { useThetaAssumptions } from "@/lib/theta/assumptionsStore";
 import { isInvested } from "@/lib/theta/assumptions";
 import { runProjection } from "@/lib/theta/project";
 import { fmtPct, fmtUSD, fmtUSDCompact } from "@/lib/format";
+import { PageSkeleton } from "@/components/ui/Skeleton";
 
 const HORIZONS = [5, 10, 20, 30];
 
@@ -42,7 +43,7 @@ export default function ProjectionPage() {
     [inputs, years, assumptions, target, salt]
   );
 
-  if (!ready) return null;
+  if (!ready) return <PageSkeleton />;
   if (!ledger || !ledgerHasData(ledger)) return <ThetaEmpty page="Projection" />;
 
   const startNW = inputs.investedValue + inputs.cashValue - inputs.liabilities;

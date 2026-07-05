@@ -122,7 +122,7 @@ export function TxRow({
             <div className="flex items-center gap-1.5">
               <span className="truncate text-[13px] text-ink">{t.merchant}</span>
               {t.pending && (
-                <span className="rounded border border-warn/30 bg-warn/10 px-1 py-px font-mono text-[8.5px] uppercase tracking-wide text-warn">
+                <span className="rounded border border-warn/30 bg-warn/10 px-1 py-px font-mono text-[10px] uppercase tracking-wide text-warn">
                   pending
                 </span>
               )}

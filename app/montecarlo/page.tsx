@@ -30,6 +30,7 @@ import { useAssumptions } from "@/lib/assumptions/store";
 import { fmtPct, fmtUSD, fmtUSDCompact } from "@/lib/format";
 import { usePortfolio } from "@/lib/store";
 import { useDebouncedValue } from "@/lib/useDebouncedValue";
+import { PageSkeleton } from "@/components/ui/Skeleton";
 
 export default function MonteCarloPage() {
   const { ready, portfolio } = usePortfolio();
@@ -87,7 +88,7 @@ export default function MonteCarloPage() {
 
   const { result, pending } = useMonteCarlo(mcInputs);
 
-  if (!ready) return null;
+  if (!ready) return <PageSkeleton />;
   if (!portfolio || !risk) return <EmptyState page="Monte Carlo simulation" />;
 
   const prob = result?.probTargetAtHorizon ?? 0;

@@ -148,7 +148,7 @@ export function RegimeDial({
             >
               {reading}
             </m.span>
-            <span className="mt-2 font-mono text-[9.5px] uppercase tracking-[0.18em] text-faint">
+            <span className="mt-2 font-mono text-[10px] uppercase tracking-[0.18em] text-faint">
               Risk score
             </span>
           </div>

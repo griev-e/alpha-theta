@@ -9,6 +9,7 @@ import { ledgerHasData, useTheta } from "@/lib/theta/store";
 import { useThetaAssumptions } from "@/lib/theta/assumptionsStore";
 import { debtLines, planDebtPayoff, type DebtStrategy } from "@/lib/theta/debt";
 import { fmtPct, fmtUSD, fmtUSDCompact } from "@/lib/format";
+import { PageSkeleton } from "@/components/ui/Skeleton";
 
 export default function DebtPage() {
   const { ready, ledger } = useTheta();
@@ -27,7 +28,7 @@ export default function DebtPage() {
   // Minimums-only baseline, to quantify what the extra payment buys.
   const baseline = useMemo(() => planDebtPayoff(lines, totalMinimum, strategy), [lines, totalMinimum, strategy]);
 
-  if (!ready) return null;
+  if (!ready) return <PageSkeleton />;
   if (!ledger || !ledgerHasData(ledger)) return <ThetaEmpty page="Debt payoff" />;
 
   const totalDebt = lines.reduce((s, l) => s + l.balance, 0);

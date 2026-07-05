@@ -21,7 +21,7 @@ export function Computing({
           role="status"
           aria-live="polite"
           aria-busy="true"
-          className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 rounded-[18px] bg-black/55 backdrop-blur-[3px]"
+          className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 rounded-[inherit] bg-black/55 backdrop-blur-[3px]"
         >
           <svg width="34" height="34" viewBox="0 0 34 34" className="animate-spin" style={{ animationDuration: "0.9s" }} aria-hidden="true">
             <circle
@@ -29,7 +29,7 @@ export function Computing({
               cy="17"
               r="14"
               fill="none"
-              stroke="rgba(148,163,184,0.15)"
+              stroke="color-mix(in srgb, var(--color-track) 15%, transparent)"
               strokeWidth="2.5"
             />
             <path

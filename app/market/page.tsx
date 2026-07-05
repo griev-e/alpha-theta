@@ -117,7 +117,7 @@ function StatTile({
   tip?: React.ReactNode;
 }) {
   return (
-    <div className="rounded-xl border border-edge bg-white/[0.015] px-3.5 py-3">
+    <div className="tile px-3.5 py-3">
       {tip ? (
         <Tooltip content={tip}>
           <span className="eyebrow">{label}</span>
@@ -214,7 +214,7 @@ function DriverColumn({
                 {tone === "shift" ? " /1m" : ""}
               </span>
             </div>
-            <div className="font-mono text-[9.5px] uppercase tracking-wide text-faint">
+            <div className="font-mono text-[10px] uppercase tracking-wide text-faint">
               {d.layer}
             </div>
             <p className="mt-1 text-[11px] leading-snug text-mute">{d.detail}</p>
@@ -604,7 +604,7 @@ export default function MarketPage() {
             color="var(--color-mint)"
             belowColor="var(--color-neg)"
           />
-          <div className="mt-2 flex justify-between font-mono text-[9.5px] text-faint">
+          <div className="mt-2 flex justify-between font-mono text-[10px] text-faint">
             <span>{r.history.dates[0]}</span>
             <span>persistence {r.persistence.toFixed(2)}</span>
             <span>{r.history.dates[r.history.dates.length - 1]}</span>
@@ -624,7 +624,7 @@ export default function MarketPage() {
             color="var(--color-sky)"
             belowColor="var(--color-warn)"
           />
-          <div className="mt-2 flex justify-between font-mono text-[9.5px] text-faint">
+          <div className="mt-2 flex justify-between font-mono text-[10px] text-faint">
             <span>{r.history.dates[0]}</span>
             <span>50 = neutral internals</span>
             <span>{r.history.dates[r.history.dates.length - 1]}</span>
@@ -788,7 +788,7 @@ export default function MarketPage() {
                   <tr key={row.id} className="border-b border-edge/60 hover:bg-white/[0.02]">
                     <td className="px-4 py-2.5">
                       <div className="text-[12px] text-ink">{row.label}</div>
-                      <div className="font-mono text-[9.5px] text-faint">
+                      <div className="font-mono text-[10px] text-faint">
                         {row.a}/{row.b}
                       </div>
                     </td>
@@ -803,7 +803,7 @@ export default function MarketPage() {
                     </td>
                     <td className="px-4 py-2.5 text-right">
                       <span
-                        className={`inline-block rounded border px-1.5 py-0.5 font-mono text-[9.5px] ${VERDICT_STYLE[row.verdict]}`}
+                        className={`inline-block rounded border px-1.5 py-0.5 font-mono text-[10px] ${VERDICT_STYLE[row.verdict]}`}
                       >
                         {row.verdict}
                       </span>

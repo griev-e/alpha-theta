@@ -66,8 +66,8 @@ export function Scatter({
           role="img"
           aria-label={`Scatter plot of ${yLabel} versus ${xLabel} across ${points.length} holdings.`}
         >
-          <line x1={x(xMid)} x2={x(xMid)} y1={PAD.t} y2={H - PAD.b} stroke="rgba(148,163,184,0.1)" strokeDasharray="4 5" />
-          <line x1={PAD.l} x2={W - PAD.r} y1={y(yMid)} y2={y(yMid)} stroke="rgba(148,163,184,0.1)" strokeDasharray="4 5" />
+          <line x1={x(xMid)} x2={x(xMid)} y1={PAD.t} y2={H - PAD.b} stroke="color-mix(in srgb, var(--color-track) 10%, transparent)" strokeDasharray="4 5" />
+          <line x1={PAD.l} x2={W - PAD.r} y1={y(yMid)} y2={y(yMid)} stroke="color-mix(in srgb, var(--color-track) 10%, transparent)" strokeDasharray="4 5" />
 
           <text x={W - PAD.r} y={H - 10} textAnchor="end" fill="var(--color-faint)" className="font-mono" style={{ fontSize: 10, letterSpacing: "0.1em" }}>
             {xLabel} →

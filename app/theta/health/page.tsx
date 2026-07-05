@@ -18,6 +18,7 @@ import type { ThetaReview } from "@/lib/theta/intelligence";
 import type { ThetaView } from "@/lib/theta/compute";
 import type { Ledger } from "@/lib/theta/data";
 import { fmtPct } from "@/lib/format";
+import { PageSkeleton } from "@/components/ui/Skeleton";
 
 const GRADE_COLOR: Record<string, string> = {
   A: "var(--color-pos)",
@@ -36,7 +37,7 @@ export default function HealthPage() {
     return scoreHealth(healthInputsFromLedger(ledger, view, assumptions));
   }, [ledger, view, assumptions]);
 
-  if (!ready) return null;
+  if (!ready) return <PageSkeleton />;
   if (!ledger || !ledgerHasData(ledger) || !report) return <ThetaEmpty page="Financial health" />;
 
   const color = GRADE_COLOR[report.grade] ?? "var(--color-mint)";
@@ -188,11 +189,7 @@ function ReviewSection({
         title="Claude's review"
         className="mb-3"
         right={
-          <button
-            onClick={load}
-            disabled={state.kind === "loading"}
-            className="inline-flex h-8 items-center gap-1.5 rounded-md border border-edge2 px-3 text-[12.5px] font-medium text-mute transition-colors hover:border-white/30 hover:text-ink disabled:opacity-40"
-          >
+          <button onClick={load} disabled={state.kind === "loading"} className="btn-secondary">
             {state.kind === "loading" ? "Thinking…" : state.kind === "ready" ? "Regenerate" : "Get review"}
           </button>
         }

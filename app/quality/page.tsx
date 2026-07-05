@@ -20,6 +20,7 @@ import {
 import { fmtMultiple, fmtPct } from "@/lib/format";
 import { usePortfolio } from "@/lib/store";
 import { useAssumptions } from "@/lib/assumptions/store";
+import { PageSkeleton } from "@/components/ui/Skeleton";
 
 const GRADE_COLOR: Record<string, string> = {
   "A+": "text-mint",
@@ -70,7 +71,7 @@ export default function QualityPage() {
     [portfolio, version]
   );
 
-  if (!ready) return null;
+  if (!ready) return <PageSkeleton />;
   if (!portfolio || !report) return <EmptyState page="The quality scorecard" />;
 
   const verdict =
@@ -127,7 +128,7 @@ export default function QualityPage() {
 
             <div className="mt-5 flex items-baseline justify-between">
               <div className="eyebrow">Category breakdown</div>
-              <span className="font-mono text-[9.5px] uppercase tracking-wide text-faint">
+              <span className="font-mono text-[10px] uppercase tracking-wide text-faint">
                 tick = S&P 500
               </span>
             </div>
@@ -196,7 +197,7 @@ function CategoryBreakdownRow({ cat, i }: { cat: QualityCategory; i: number }) {
         {cat.score}
       </span>
       <span
-        className="w-9 shrink-0 text-right font-mono text-[9.5px] text-faint"
+        className="w-9 shrink-0 text-right font-mono text-[10px] text-faint"
         title="Share of the composite this category carries"
       >
         {fmtPct(cat.weight, 0)}
@@ -213,7 +214,7 @@ function DriverCallout({ kind, c }: { kind: "lift" | "drag"; c: MetricContributi
   const title = isLift ? "Biggest lift" : positive ? "Weakest spot" : "Biggest drag";
   const accent = isLift ? "var(--color-pos)" : positive ? "var(--color-sky)" : "var(--color-neg)";
   return (
-    <div className="rounded-xl border border-edge bg-white/[0.015] px-4 py-3">
+    <div className="tile px-4 py-3">
       <div className="flex items-center gap-1.5">
         <span className="h-1.5 w-1.5 rounded-full" style={{ background: accent }} />
         <span className="eyebrow">{title}</span>
@@ -311,7 +312,7 @@ function HoldingCard({
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.1 + i * 0.04, duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-      className="rounded-xl border border-edge bg-white/[0.015] px-4 py-3.5 transition-transform duration-300 hover:-translate-y-0.5"
+      className="tile px-4 py-3.5 transition-transform duration-300 hover:-translate-y-0.5"
       style={{ borderLeft: `2px solid ${tierColor(h.score)}` }}
     >
       <div className="flex items-start justify-between gap-2">
@@ -338,7 +339,7 @@ function HoldingCard({
       <div className="mt-3 flex items-end gap-2">
         {cats.map(({ id, score: s }, ci) => (
           <div key={id} className="flex flex-1 flex-col items-center gap-1">
-            <span className="font-mono tnum text-[8.5px] text-mute">{s}</span>
+            <span className="font-mono tnum text-[10px] text-mute">{s}</span>
             <div className="flex h-9 w-full items-end overflow-hidden rounded bg-white/[0.04]">
               <m.div
                 className="w-full rounded"
@@ -348,13 +349,13 @@ function HoldingCard({
                 transition={{ duration: 0.6, delay: 0.2 + i * 0.04 + ci * 0.04 }}
               />
             </div>
-            <span className="font-mono text-[8.5px] text-faint">{CATEGORY_LETTER[id]}</span>
+            <span className="font-mono text-[10px] text-faint">{CATEGORY_LETTER[id]}</span>
           </div>
         ))}
       </div>
 
       {/* Strongest / softest read so the card says something, not just shows bars. */}
-      <div className="mt-3 flex items-center justify-between gap-2 border-t border-edge pt-2.5 font-mono text-[9.5px]">
+      <div className="mt-3 flex items-center justify-between gap-2 border-t border-edge pt-2.5 font-mono text-[10px]">
         <span className="flex items-center gap-1 text-mute">
           <span className="text-pos">▲</span>
           {CATEGORY_LABEL[strongest.id]}

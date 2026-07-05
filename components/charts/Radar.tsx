@@ -55,7 +55,7 @@ export function Radar({
             key={ring}
             points={polygon(Array(n).fill(ring))}
             fill="none"
-            stroke="rgba(148,163,184,0.1)"
+            stroke="color-mix(in srgb, var(--color-track) 10%, transparent)"
             strokeWidth={ring === 50 ? 1.4 : 0.8}
             strokeDasharray={ring === 50 ? "0" : "3 4"}
           />
@@ -69,7 +69,7 @@ export function Radar({
               y1={cy}
               x2={p.x}
               y2={p.y}
-              stroke="rgba(148,163,184,0.08)"
+              stroke="color-mix(in srgb, var(--color-track) 8%, transparent)"
             />
           );
         })}

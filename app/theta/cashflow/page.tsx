@@ -10,6 +10,7 @@ import { Stat } from "@/components/ui/Stat";
 import { buildCashFlowSankey } from "@/lib/theta/sankey";
 import { ledgerHasData, useTheta } from "@/lib/theta/store";
 import { fmtPct, fmtUSD } from "@/lib/format";
+import { PageSkeleton } from "@/components/ui/Skeleton";
 
 export default function CashFlowPage() {
   const { ready, ledger, view } = useTheta();
@@ -19,7 +20,7 @@ export default function CashFlowPage() {
     [ledger]
   );
 
-  if (!ready) return null;
+  if (!ready) return <PageSkeleton />;
   if (!ledger || !view || !ledgerHasData(ledger)) return <ThetaEmpty page="Cash flow" />;
 
   const flows = view.cashFlow;

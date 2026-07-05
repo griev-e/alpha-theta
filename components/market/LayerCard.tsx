@@ -16,10 +16,11 @@ function SignalSparkbar({ signals }: { signals: SignalResult[] }) {
         const up = s.score >= 0;
         const mag = Math.max(0.08, Math.min(1, Math.abs(s.score)));
         return (
-          <div
+          <Tooltip
             key={s.id}
+            content={`${s.label}: ${fmtScore(s.score)}`}
+            underline={false}
             className="relative h-full w-[5px]"
-            title={`${s.label}: ${fmtScore(s.score)}`}
           >
             <div className="absolute inset-x-0 top-1/2 h-px bg-white/10" />
             <m.div
@@ -33,7 +34,7 @@ function SignalSparkbar({ signals }: { signals: SignalResult[] }) {
               animate={{ height: `${mag * 50}%` }}
               transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
             />
-          </div>
+          </Tooltip>
         );
       })}
     </div>
@@ -56,7 +57,7 @@ export function LayerCard({ layer, i }: { layer: LayerResult; i: number }) {
           underline={false}
           content="Weight — how much this layer counts toward the overall regime score. It's earned each day from the layer's data coverage, how strongly its own signals agree, and how steady it's been over the past month, then renormalized so all eight layers sum to 100%."
         >
-          <span className="rounded border border-edge bg-white/[0.03] px-1.5 py-0.5 font-mono text-[9.5px] text-faint">
+          <span className="rounded border border-edge bg-white/[0.03] px-1.5 py-0.5 font-mono text-[10px] text-faint">
             w {fmtPct(layer.weight, 0)}
           </span>
         </Tooltip>
@@ -96,7 +97,7 @@ export function LayerCard({ layer, i }: { layer: LayerResult; i: number }) {
             aria-expanded={open}
           >
             <SignalSparkbar signals={layer.signals} />
-            <span className="flex shrink-0 items-center gap-1 font-mono text-[9.5px] uppercase tracking-wide text-faint transition-colors group-hover:text-mute">
+            <span className="flex shrink-0 items-center gap-1 font-mono text-[10px] uppercase tracking-wide text-faint transition-colors group-hover:text-mute">
               {open ? "Hide" : `${layer.signals.length} signals`}
               <m.span animate={{ rotate: open ? 180 : 0 }} transition={{ duration: 0.25 }}>
                 ⌄
@@ -135,7 +136,7 @@ export function LayerCard({ layer, i }: { layer: LayerResult; i: number }) {
                     </div>
                   ))}
                 </div>
-                <div className="mt-3 flex flex-wrap items-center gap-x-1 font-mono text-[9.5px] text-faint">
+                <div className="mt-3 flex flex-wrap items-center gap-x-1 font-mono text-[10px] text-faint">
                   <Tooltip content="Agreement — how strongly this layer's own signals point the same way (0–1). High means they reinforce each other; low means the signals are mixed.">
                     <span>agreement</span>
                   </Tooltip>

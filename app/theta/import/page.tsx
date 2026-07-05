@@ -6,6 +6,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { useTheta } from "@/lib/theta/store";
 import { SimplefinCard } from "@/components/theta/SimplefinCard";
 import type { CategorizeResponse } from "@/lib/theta/intelligence";
+import { PageSkeleton } from "@/components/ui/Skeleton";
 
 export default function ThetaImportPage() {
   const { ready, ledger, isSample, loadSample, clear, setTransactionCategory } = useTheta();
@@ -29,7 +30,7 @@ export default function ThetaImportPage() {
     return [...byMerchant.values()];
   }, [ledger]);
 
-  if (!ready) return null;
+  if (!ready) return <PageSkeleton />;
   const accounts = ledger?.accounts ?? [];
 
   async function autoCategorize() {

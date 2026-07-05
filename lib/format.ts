@@ -95,3 +95,13 @@ export function tone(v: number): "pos" | "neg" | "flat" {
   if (v < -0.000001) return "neg";
   return "flat";
 }
+
+/**
+ * Stable per-symbol index into a palette, so a ticker's accent color survives
+ * re-sorting or re-rendering across any page that colors by symbol.
+ */
+export function symbolColorIndex(symbol: string, paletteLength: number): number {
+  let h = 0;
+  for (let i = 0; i < symbol.length; i++) h = (h * 31 + symbol.charCodeAt(i)) | 0;
+  return Math.abs(h) % paletteLength;
+}

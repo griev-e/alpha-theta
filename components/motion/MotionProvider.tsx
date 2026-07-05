@@ -1,6 +1,6 @@
 "use client";
 
-import { LazyMotion } from "framer-motion";
+import { LazyMotion, MotionConfig } from "framer-motion";
 import type { ReactNode } from "react";
 
 /**
@@ -10,13 +10,18 @@ import type { ReactNode } from "react";
  * the initial JS for every route — it arrives as a separate async chunk just
  * after hydration. `strict` makes any stray `motion.*` usage throw in dev, so
  * the full bundle can never sneak back in.
+ *
+ * `reducedMotion="user"` makes every `m.*` animation everywhere in the app
+ * defer to the OS-level "reduce motion" preference — looping glows, drawing
+ * charts, and spring transitions all snap to their end state instead of
+ * animating, with no per-component opt-in needed.
  */
 const loadFeatures = () => import("./features").then((res) => res.default);
 
 export function MotionProvider({ children }: { children: ReactNode }) {
   return (
     <LazyMotion strict features={loadFeatures}>
-      {children}
+      <MotionConfig reducedMotion="user">{children}</MotionConfig>
     </LazyMotion>
   );
 }

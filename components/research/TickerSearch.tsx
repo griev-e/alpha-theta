@@ -151,7 +151,7 @@ export function TickerSearch({
                       </span>
                     </div>
                   </div>
-                  <span className="shrink-0 rounded border border-edge bg-panel px-1.5 py-0.5 font-mono text-[9.5px] uppercase tracking-wider text-faint">
+                  <span className="shrink-0 rounded border border-edge bg-panel px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-faint">
                     {r.exchange || r.type}
                   </span>
                 </button>

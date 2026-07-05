@@ -8,6 +8,17 @@ export type PatchNote = {
 // Newest first. Add an entry here whenever a notable change ships.
 export const PATCH_NOTES: PatchNote[] = [
   {
+    version: "1.53",
+    date: "2026-07-05",
+    title: "Design-system pass: keyboard focus, first-paint skeletons, and a unified button/nav system",
+    changes: [
+      "Every interactive element — buttons, links, inputs, the sortable Overview table headers, the sidebar filter — now shows a visible keyboard-focus ring, and every Framer-driven animation (the looping hero glows included) now honors your OS's \"reduce motion\" setting app-wide.",
+      "Pages no longer flash blank while your portfolio or ledger loads from storage; a matching skeleton placeholder holds the layout instead. Add/Edit modals now trap focus while open and hand it back to whatever you triggered them from when they close.",
+      "alpha's and theta's sidebars share one nav implementation (so the two can't drift from each other going forward), the resize handle between sidebar and content now works from the keyboard (arrow keys, Home to reset) and double-click, and a live-updated holding row briefly flashes to mark a repriced value instead of swapping silently.",
+      "Cleaned up drift accumulated across the app: one button system app-wide (folding in a few one-off pill buttons), a shared empty-state and progress-bar component instead of near-duplicates in alpha and theta, amber reserved for things that need your attention rather than routine data-provenance notes, and the last of the sub-10px metadata text bumped up to stay legible.",
+    ],
+  },
+  {
     version: "1.52",
     date: "2026-07-05",
     title: "Multi-asset honesty, budget rollover, a cash-flow Sankey, and portfolio risk in theta",

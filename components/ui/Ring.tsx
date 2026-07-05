@@ -36,7 +36,7 @@ export function Ring({
           cy={size / 2}
           r={r}
           fill="none"
-          stroke="rgba(148,163,184,0.1)"
+          stroke="color-mix(in srgb, var(--color-track) 10%, transparent)"
           strokeWidth={stroke}
         />
         <m.circle

@@ -17,6 +17,7 @@ import type {
 import { fmtPct, fmtUSD, fmtUSDCompact } from "@/lib/format";
 import { usePortfolio } from "@/lib/store";
 import { useAssumptions } from "@/lib/assumptions/store";
+import { PageSkeleton } from "@/components/ui/Skeleton";
 
 const MONTHS = ["J", "F", "M", "A", "M", "J", "J", "A", "S", "O", "N", "D"];
 const MONTH_FULL = [
@@ -128,7 +129,7 @@ export default function DividendsPage() {
     [portfolio, profiles, version]
   );
 
-  if (!ready) return null;
+  if (!ready) return <PageSkeleton />;
   if (!portfolio) return <EmptyState page="Dividend analysis" />;
 
   if (!report) {
@@ -277,7 +278,7 @@ export default function DividendsPage() {
                 className="group flex h-full flex-1 flex-col items-center justify-end gap-1.5"
                 title={`${MONTH_FULL[i]}: ${fmtUSD(m.income, true)}${m.payers.length ? ` — ${m.payers.join(", ")}` : ""}`}
               >
-                <span className="font-mono tnum text-[9px] text-faint opacity-0 transition-opacity group-hover:opacity-100">
+                <span className="font-mono tnum text-[10px] text-faint opacity-0 transition-opacity group-hover:opacity-100">
                   {fmtUSDCompact(m.income)}
                 </span>
                 <Motion.div
@@ -421,12 +422,12 @@ export default function DividendsPage() {
                       <span className="font-mono font-medium text-ink">
                         {h.symbol}
                       </span>
-                      <span className="font-mono text-[9px] uppercase text-faint">
+                      <span className="font-mono text-[10px] uppercase text-faint">
                         {h.frequency === "none" ? "—" : h.frequency}
                       </span>
                       {h.estimated && (
                         <span
-                          className="rounded border border-warn/30 bg-warn/10 px-1 py-px font-mono text-[8.5px] text-warn"
+                          className="rounded border border-edge2 px-1 py-px font-mono text-[10px] text-faint"
                           title="Income estimated from the dividend yield — provider history unavailable"
                         >
                           est

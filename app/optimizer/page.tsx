@@ -26,6 +26,7 @@ import { useAssumptions } from "@/lib/assumptions/store";
 import { usePortfolio } from "@/lib/store";
 import type { Portfolio } from "@/lib/types";
 import { useElementSize } from "@/lib/useElementWidth";
+import { PageSkeleton } from "@/components/ui/Skeleton";
 
 /* ──────────────────────────────── presets ───────────────────────────────── */
 
@@ -138,7 +139,7 @@ export default function OptimizerPage() {
   );
   const { result, pending } = useOptimizer(solverInputs, objective, constraints);
 
-  if (!ready) return null;
+  if (!ready) return <PageSkeleton />;
   if (!portfolio) return <EmptyState page="The optimizer" />;
 
   const preset = PRESETS.find((p) => p.id === objective)!;
@@ -556,7 +557,7 @@ function FrontierChart({
                 x2={W - PAD.r}
                 y1={y(v)}
                 y2={y(v)}
-                stroke="rgba(148,163,184,0.08)"
+                stroke="color-mix(in srgb, var(--color-track) 8%, transparent)"
               />
               <text
                 x={PAD.l - 8}
@@ -1193,7 +1194,7 @@ function ReviewBody({
                   className="flex items-start gap-2.5"
                 >
                   <span
-                    className={`mt-0.5 shrink-0 rounded px-1.5 py-0.5 text-[9.5px] font-medium uppercase tracking-wide ${m.cls}`}
+                    className={`mt-0.5 shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide ${m.cls}`}
                   >
                     {m.label}
                   </span>
@@ -1256,7 +1257,7 @@ function ReviewBody({
             verdict
           </span>
           <span
-            className={`rounded px-1.5 py-0.5 text-[9.5px] font-medium uppercase tracking-wide ${conv.cls}`}
+            className={`rounded px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide ${conv.cls}`}
           >
             {conv.label}
           </span>

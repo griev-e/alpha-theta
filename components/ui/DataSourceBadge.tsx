@@ -22,17 +22,20 @@ const META: Record<
     blurb:
       "Live data — price and the risk-critical fundamentals (beta, volatility, sector) come from a live provider.",
   },
+  // Amber is reserved for states that need action (a stale feed, a failed
+  // save); provenance is informational, so partial/fallback stay neutral —
+  // "worth knowing," not "something's wrong."
   partial: {
     label: "Partial",
-    dot: "bg-warn",
-    text: "text-warn",
+    dot: "bg-mute",
+    text: "text-mute",
     blurb:
       "Partially live — some values come from a live provider; others the provider didn't return are estimated.",
   },
   fallback: {
     label: "Estimated",
-    dot: "border border-warn/70",
-    text: "text-warn",
+    dot: "border border-faint/70",
+    text: "text-faint",
     blurb:
       "No live fundamentals — the provider returned nothing, so risk fields use neutral estimates. Treat as indicative.",
   },

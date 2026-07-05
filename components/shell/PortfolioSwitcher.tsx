@@ -129,7 +129,7 @@ export function PortfolioSwitcher() {
                     </span>
                     <span className="min-w-0 flex-1 truncate">{p.name}</span>
                     {p.isDemo && (
-                      <span className="shrink-0 rounded border border-warn/30 bg-warn/10 px-1 py-px text-[9px] font-medium text-warn">
+                      <span className="shrink-0 rounded border border-warn/30 bg-warn/10 px-1 py-px text-[10px] font-medium text-warn">
                         Demo
                       </span>
                     )}

@@ -10,6 +10,7 @@ import { Stat } from "@/components/ui/Stat";
 import type { ThetaBrief, ThetaSnapshot } from "@/lib/theta/intelligence";
 import { ledgerHasData, useTheta } from "@/lib/theta/store";
 import { fmtPct, fmtUSD } from "@/lib/format";
+import { PageSkeleton } from "@/components/ui/Skeleton";
 
 type State =
   | { kind: "idle" } // waiting for the user to ask for a brief
@@ -74,7 +75,7 @@ export default function ThetaIntelligencePage() {
     }
   }, [buildSnapshot]);
 
-  if (!ready) return null;
+  if (!ready) return <PageSkeleton />;
   if (!ledger || !view || !ledgerHasData(ledger)) return <ThetaEmpty page="Intelligence" />;
 
   return (

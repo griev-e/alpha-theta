@@ -1,10 +1,15 @@
 "use client";
 
 import { m } from "framer-motion";
+import { Meter } from "@/components/ui/Meter";
 import { CATEGORY_COLOR, type Category, type MonthFlow } from "@/lib/theta/data";
 import { fmtUSDCompact } from "@/lib/format";
 
-/** A rounded progress track with an animated, color-aware fill. */
+/**
+ * Budget progress bar — {@link Meter} with theta's default iris fill and its
+ * "past 100%" red flip, kept as its own named export since every budget row
+ * call site already expects this exact shape.
+ */
 export function ProgressBar({
   value,
   max,
@@ -18,24 +23,15 @@ export function ProgressBar({
   height?: number;
   delay?: number;
 }) {
-  const frac = max > 0 ? value / max : 0;
-  const over = frac > 1;
-  const stroke = over ? "var(--color-neg)" : color;
   return (
-    <div
-      className="w-full overflow-hidden rounded-full bg-white/[0.05]"
-      style={{ height }}
-    >
-      <m.div
-        className="h-full rounded-full"
-        style={{
-          background: `linear-gradient(90deg, color-mix(in srgb, ${stroke} 45%, transparent), ${stroke})`,
-        }}
-        initial={{ width: 0 }}
-        animate={{ width: `${Math.min(1, frac) * 100}%` }}
-        transition={{ delay, duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
-      />
-    </div>
+    <Meter
+      value={value}
+      max={max}
+      color={color}
+      overColor="var(--color-neg)"
+      height={height}
+      delay={delay}
+    />
   );
 }
 

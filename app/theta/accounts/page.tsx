@@ -12,6 +12,7 @@ import { ACCOUNT_KIND_LABEL, type Account, type AccountKind } from "@/lib/theta/
 import { isInvested } from "@/lib/theta/assumptions";
 import { ledgerHasData, useTheta } from "@/lib/theta/store";
 import { fmtPct, fmtUSD, fmtUSDCompact } from "@/lib/format";
+import { PageSkeleton } from "@/components/ui/Skeleton";
 
 type LinkOption = { id: string; name: string; live: boolean };
 
@@ -32,7 +33,7 @@ export default function AccountsPage() {
     linkOptions,
   } = useTheta();
 
-  if (!ready) return null;
+  if (!ready) return <PageSkeleton />;
   if (!ledger || !view || !ledgerHasData(ledger)) return <ThetaEmpty page="Accounts" />;
 
   const accounts = ledger.accounts;
