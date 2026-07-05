@@ -3,9 +3,10 @@
 import { SyncBanner } from "@/components/ui/SyncBanner";
 import { m } from "framer-motion";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useEffect, type ReactNode } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useMemo, type ReactNode } from "react";
 import { TopProgress } from "@/components/ui/TopProgress";
+import { CommandPalette, type Command } from "./CommandPalette";
 import { FirstViewProvider, useRouteFirstView } from "@/lib/firstView";
 import { fmtUSDCompact } from "@/lib/format";
 import { usePortfolio, useLiveStatus, usePortfolioActions } from "@/lib/store";
@@ -112,11 +113,61 @@ function LiveDot({ degraded }: { degraded: boolean }) {
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
-  const { portfolio, isDemo, ready } = usePortfolio();
+  const router = useRouter();
+  const { portfolio, isDemo, ready, portfolios, activeId } = usePortfolio();
   const live = useLiveStatus();
-  const { refreshLive } = usePortfolioActions();
+  const { refreshLive, loadDemo, selectPortfolio } = usePortfolioActions();
   const sidebar = useSidebarWidth("alpha.sidebarWidth.v1");
   const firstView = useRouteFirstView(pathname);
+
+  // Commands for the ⌘K palette: every nav route, a few global actions, and one
+  // switch row per saved portfolio.
+  const commands = useMemo<Command[]>(() => {
+    const nav: Command[] = NAV.map((n) => {
+      const Icon = n.icon;
+      return {
+        id: `nav:${n.href}`,
+        label: n.label,
+        group: "Navigate",
+        keywords: n.group,
+        hint: n.group,
+        icon: <Icon />,
+        run: () => router.push(n.href),
+      };
+    });
+    const actions: Command[] = [
+      {
+        id: "act:refresh",
+        label: "Refresh live data",
+        group: "Actions",
+        keywords: "reload quotes prices",
+        run: () => refreshLive(),
+      },
+      {
+        id: "act:demo",
+        label: "Load demo portfolio",
+        group: "Actions",
+        keywords: "sample example",
+        run: () => loadDemo(),
+      },
+      {
+        id: "act:theta",
+        label: "Switch to theta",
+        group: "Actions",
+        keywords: "personal finance money",
+        run: () => router.push("/theta"),
+      },
+    ];
+    const ports: Command[] = portfolios.map((p) => ({
+      id: `port:${p.id}`,
+      label: p.name,
+      group: "Portfolios",
+      keywords: "switch portfolio",
+      hint: p.id === activeId ? "active" : undefined,
+      run: () => selectPortfolio(p.id),
+    }));
+    return [...nav, ...actions, ...ports];
+  }, [router, refreshLive, loadDemo, selectPortfolio, portfolios, activeId]);
 
   // Per-route document title, driven centrally off the nav list so every alpha
   // route reads "<Page> · alpha" in the browser tab without a metadata export
@@ -170,6 +221,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-screen lg:flex">
       <TopProgress accent="var(--color-accent)" loading={live.refreshing} />
+      <CommandPalette commands={commands} accent="var(--color-accent)" enableTickerSearch />
         {/* Desktop sidebar */}
       <aside
         className="relative hidden shrink-0 lg:flex sticky top-0 h-screen flex-col border-r border-edge bg-[#050505]"

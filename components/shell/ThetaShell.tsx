@@ -3,9 +3,10 @@
 import { SyncBanner } from "@/components/ui/SyncBanner";
 import { m } from "framer-motion";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useEffect, type ReactNode } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useMemo, type ReactNode } from "react";
 import { TopProgress } from "@/components/ui/TopProgress";
+import { CommandPalette, type Command } from "./CommandPalette";
 import { FirstViewProvider, useRouteFirstView } from "@/lib/firstView";
 import { useTheta } from "@/lib/theta/store";
 import { useSimplefinAutoSync } from "@/lib/theta/useSimplefinAutoSync";
@@ -67,6 +68,32 @@ export function ThetaShell({ children }: { children: ReactNode }) {
   const showSample = ready && isSample;
   const sidebar = useSidebarWidth("theta.sidebarWidth.v1");
   const firstView = useRouteFirstView(pathname);
+  const router = useRouter();
+
+  const commands = useMemo<Command[]>(() => {
+    const nav: Command[] = NAV.map((n) => {
+      const Icon = n.icon;
+      return {
+        id: `nav:${n.href}`,
+        label: n.label,
+        group: "Navigate",
+        keywords: n.group,
+        hint: n.group,
+        icon: <Icon />,
+        run: () => router.push(n.href),
+      };
+    });
+    const actions: Command[] = [
+      {
+        id: "act:alpha",
+        label: "Switch to alpha",
+        group: "Actions",
+        keywords: "portfolio analytics investing",
+        run: () => router.push("/"),
+      },
+    ];
+    return [...nav, ...actions];
+  }, [router]);
 
   // Per-route tab title for theta's routes, parallel to AppShell's.
   useEffect(() => {
@@ -77,6 +104,7 @@ export function ThetaShell({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-screen lg:flex">
       <TopProgress accent="var(--color-vio)" />
+      <CommandPalette commands={commands} accent="var(--color-vio)" />
       {/* Desktop sidebar */}
       <aside
         className="relative hidden shrink-0 lg:flex sticky top-0 h-screen flex-col border-r border-edge bg-[#050505]"
