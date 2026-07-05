@@ -22,6 +22,8 @@ const RegimeDial = dynamic(
 );
 import { fmtScore, REGIME_COLOR, scoreTone } from "@/components/market/regimeUi";
 import { AiThinking } from "@/components/ui/AiThinking";
+import { AiMeta } from "@/components/ui/AiMeta";
+import { RevealGroup, RevealItem } from "@/components/ui/Reveal";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { Computing } from "@/components/ui/Computing";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -269,11 +271,6 @@ type BriefState =
   | { kind: "error"; message: string }
   | { kind: "ready"; data: MarketBriefResponse };
 
-function fmtCost(usd: number): string {
-  if (usd < 0.01) return `$${usd.toFixed(4)}`;
-  return `$${usd.toFixed(3)}`;
-}
-
 function MarketBriefCard({ report }: { report: RegimeReport }) {
   const [state, setState] = useState<BriefState>({ kind: "idle" });
 
@@ -330,10 +327,6 @@ function MarketBriefCard({ report }: { report: RegimeReport }) {
         right={
           state.kind === "ready" ? (
             <div className="flex items-center gap-3">
-              <span className="font-mono text-[10px] text-faint">
-                {state.data.cached ? "cached · " : ""}
-                {relativeTime(state.data.generatedAt)}
-              </span>
               <button
                 onClick={generate}
                 className="rounded-md border border-edge px-2.5 py-1 text-[11px] text-mute transition-colors hover:text-ink"
@@ -382,15 +375,17 @@ function MarketBriefCard({ report }: { report: RegimeReport }) {
       )}
 
       {state.kind === "ready" && (
-        <div>
-          <h3 className="font-display text-[17px] font-semibold leading-snug text-ink">
-            {state.data.brief.headline}
-          </h3>
-          <p className="mt-2 max-w-3xl text-[13px] leading-relaxed text-mute">
-            {state.data.brief.read}
-          </p>
+        <RevealGroup>
+          <RevealItem>
+            <h3 className="font-display text-[17px] font-semibold leading-snug text-ink">
+              {state.data.brief.headline}
+            </h3>
+            <p className="mt-2 max-w-3xl text-[13px] leading-relaxed text-mute">
+              {state.data.brief.read}
+            </p>
+          </RevealItem>
 
-          <div className="mt-5 grid gap-x-10 gap-y-5 lg:grid-cols-2">
+          <RevealItem className="mt-5 grid gap-x-10 gap-y-5 lg:grid-cols-2">
             {state.data.brief.positioning.length > 0 && (
               <div>
                 <div className="eyebrow mb-2">what it implies</div>
@@ -432,14 +427,17 @@ function MarketBriefCard({ report }: { report: RegimeReport }) {
                 </p>
               </div>
             </div>
-          </div>
+          </RevealItem>
 
-          {typeof state.data.costUSD === "number" && (
-            <div className="mt-5 border-t border-edge pt-3 text-right font-mono text-[10px] text-faint">
-              generated with Claude Sonnet 4.6 · est. cost {fmtCost(state.data.costUSD)}
-            </div>
-          )}
-        </div>
+          <RevealItem className="mt-5 flex justify-end border-t border-edge pt-3">
+            <AiMeta
+              model="Claude Sonnet 4.6"
+              cached={state.data.cached}
+              costUSD={state.data.costUSD}
+              generatedAt={state.data.generatedAt}
+            />
+          </RevealItem>
+        </RevealGroup>
       )}
     </Card>
   );

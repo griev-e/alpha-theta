@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { m } from "framer-motion";
 import { Donut, PALETTE } from "@/components/charts/Donut";
 import { Treemap } from "@/components/charts/Treemap";
@@ -29,6 +30,8 @@ import {
   symbolColorIndex,
 } from "@/lib/format";
 import { usePortfolio } from "@/lib/store";
+import { useFirstView } from "@/lib/firstView";
+import { DeltaArrow } from "@/components/ui/DeltaArrow";
 import type { Position } from "@/lib/types";
 import { PageSkeleton } from "@/components/ui/Skeleton";
 
@@ -50,6 +53,9 @@ export default function OverviewPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [portfolio, version]
   );
+
+  // Directional pulse on the headline value when a live reprice moves it.
+  const heroTick = usePriceTick(portfolio?.totalValue ?? 0);
 
   const sorted = useMemo(() => {
     if (!portfolio) return [];
@@ -167,7 +173,7 @@ export default function OverviewPage() {
       />
 
       {/* Hero strip — headline net value, then capital & risk metrics */}
-      <Card className="relative mb-5 overflow-hidden px-6 py-6 sm:px-8" i={0}>
+      <Card className="panel-rim relative mb-5 overflow-hidden px-6 py-6 sm:px-8" i={0}>
         <div
           aria-hidden
           className="pointer-events-none absolute -right-24 -top-28 h-72 w-72 rounded-full blur-[90px]"
@@ -179,7 +185,19 @@ export default function OverviewPage() {
           {/* Primary: net value with all-time + today returns stacked beneath */}
           <div className="lg:w-[260px] lg:shrink-0">
             <div className="eyebrow">Net value</div>
-            <div className="mt-1.5 font-mono tnum text-[34px] font-medium leading-none text-ink sm:text-[40px]">
+            <div
+              className="mt-1.5 font-mono tnum text-[34px] font-medium leading-none text-ink transition-[text-shadow] duration-700 sm:text-[40px]"
+              style={
+                heroTick
+                  ? {
+                      textShadow:
+                        heroTick === "up"
+                          ? "0 0 22px rgba(52,211,153,0.45)"
+                          : "0 0 22px rgba(251,113,133,0.45)",
+                    }
+                  : undefined
+              }
+            >
               <AnimatedNumber value={portfolio.totalValue} format={(v) => fmtUSD(v)} />
             </div>
             <div className="mt-4 grid w-fit grid-cols-[auto_auto_auto] items-baseline gap-x-3 gap-y-1.5 font-mono tnum text-[13px]">
@@ -412,6 +430,35 @@ export default function OverviewPage() {
                 />
               ))}
             </tbody>
+            <tfoot>
+              <tr className="border-t border-edge2 text-[13px]">
+                <td className="px-6 py-3">
+                  <span className="font-mono text-[12px] font-medium text-mute">
+                    Total · {portfolio.positions.length}
+                  </span>
+                </td>
+                <td />
+                <td className="px-6 py-3 text-right font-mono tnum text-[13px] text-ink">
+                  {fmtUSD(portfolio.equityValue)}
+                </td>
+                <td className="px-6 py-3 text-center font-mono tnum text-[12px] text-mute">
+                  {fmtPct(1 - portfolio.cashWeight, 0)}
+                </td>
+                <td className="px-6 py-3">
+                  <div className="flex items-center justify-end">
+                    <div className="w-[88px] text-right">
+                      <div className={`font-mono tnum text-[13px] ${deltaToneClass(portfolio.totalReturnPct)}`}>
+                        {fmtPct(portfolio.totalReturnPct, 2, true)}
+                      </div>
+                      <div className={`font-mono tnum text-[11px] ${deltaToneClass(portfolio.totalReturn)} opacity-75`}>
+                        {portfolio.totalReturn >= 0 ? "+" : "−"}
+                        {fmtUSD(Math.abs(portfolio.totalReturn))}
+                      </div>
+                    </div>
+                  </div>
+                </td>
+              </tr>
+            </tfoot>
           </table>
         </div>
       </Card>
@@ -437,8 +484,8 @@ function HeroDelta({
   const toneClass = pos ? "text-pos" : "text-neg";
   return (
     <>
-      <span className={`text-right ${toneClass}`}>
-        {pos ? "▲" : "▼"} {fmtUSD(Math.abs(amount))}
+      <span className={`flex items-center justify-end gap-1 text-right ${toneClass}`}>
+        <DeltaArrow up={pos} /> {fmtUSD(Math.abs(amount))}
       </span>
       <span className={`text-right ${toneClass}`}>{fmtPct(pct, 2, true)}</span>
       <span className="text-faint">{label}</span>
@@ -452,21 +499,23 @@ function symbolColor(symbol: string): string {
 }
 
 /**
- * True for a brief moment right after `value` changes — used to flash a
- * repriced row's background so a live-data refresh reads as an update rather
- * than a silent, unremarked-on value swap.
+ * Non-null for a brief moment right after `value` changes, carrying the
+ * *direction* of the move — so a live-price refresh flashes green on an up-tick
+ * and rose on a down-tick (a silent swap otherwise, or worse, a green flash on
+ * a falling price). The flash is scoped to the price cell, not the whole row.
  */
-function useFlashOnChange(value: number): boolean {
+function usePriceTick(value: number): "up" | "down" | null {
   const prev = useRef(value);
-  const [flash, setFlash] = useState(false);
+  const [dir, setDir] = useState<"up" | "down" | null>(null);
   useEffect(() => {
     if (prev.current === value) return;
+    const next = value > prev.current ? "up" : "down";
     prev.current = value;
-    setFlash(true);
-    const id = setTimeout(() => setFlash(false), 60);
+    setDir(next);
+    const id = setTimeout(() => setDir(null), 600);
     return () => clearTimeout(id);
   }, [value]);
-  return flash;
+  return dir;
 }
 
 function HoldingRow({
@@ -480,29 +529,41 @@ function HoldingRow({
   maxWeight: number;
   maxAbsReturn: number;
 }) {
+  const router = useRouter();
+  const open = () => router.push(`/research?symbol=${encodeURIComponent(p.symbol)}`);
   const accent = symbolColor(p.symbol);
   const dayPct =
     p.dayChange !== null && p.equity - p.dayChange > 0
       ? p.dayChange / (p.equity - p.dayChange)
       : null;
   const neg = p.returnPct < 0;
-  // Flashes the row the instant a live-price refresh repriced it, then lets
-  // the row's own transition-colors ease it back out — a live feed updating
-  // in place instead of numbers silently swapping underneath the reader.
-  const flash = useFlashOnChange(p.price);
+  // Direction of the last live reprice — flashes the price cell green (up) or
+  // rose (down) the instant a refresh moves it, then eases back out: a live
+  // feed updating in place, its direction legible, instead of a silent swap.
+  const tick = usePriceTick(p.price);
+  const firstView = useFirstView();
+  // Entrance stagger only on the first visit, and capped so a long book doesn't
+  // hold the last rows back by a second; the layout spring (re-sorting) stays.
+  const stagger = firstView ? 0.25 + Math.min(i, 10) * 0.035 : 0;
 
   return (
     <m.tr
       layout="position"
-      initial={{ opacity: 0, y: 6 }}
+      initial={firstView ? { opacity: 0, y: 6 } : false}
       animate={{ opacity: 1, y: 0 }}
       transition={{
         layout: { type: "spring", stiffness: 520, damping: 42 },
-        opacity: { delay: 0.25 + i * 0.035, duration: 0.35 },
-        y: { delay: 0.25 + i * 0.035, duration: 0.35 },
+        opacity: { delay: stagger, duration: 0.35 },
+        y: { delay: stagger, duration: 0.35 },
       }}
-      style={flash ? { backgroundColor: "rgba(94,234,212,0.10)" } : undefined}
-      className="group relative border-b border-edge/60 transition-colors duration-700 hover:bg-white/[0.03]"
+      onClick={open}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") open();
+      }}
+      role="link"
+      tabIndex={0}
+      aria-label={`Open ${p.symbol} in Research`}
+      className="group relative cursor-pointer border-b border-edge/60 transition-colors duration-700 hover:bg-white/[0.03]"
     >
       {/* Asset: brand logo + symbol + name */}
       <td className="relative px-6 py-3">
@@ -539,17 +600,29 @@ function HoldingRow({
       </td>
 
       {/* Price + today's move — the glance column */}
-      <td className="px-6 py-3 text-right">
+      <td
+        className="px-6 py-3 text-right transition-colors duration-700"
+        style={
+          tick
+            ? {
+                backgroundColor:
+                  tick === "up"
+                    ? "rgba(52,211,153,0.12)"
+                    : "rgba(251,113,133,0.12)",
+              }
+            : undefined
+        }
+      >
         <div className="font-mono tnum text-[13px] text-ink">
           {fmtUSD(p.price)}
         </div>
         {dayPct !== null && p.dayChange !== null ? (
           <div
-            className={`font-mono tnum text-[11px] ${
+            className={`flex items-center justify-end gap-1 font-mono tnum text-[11px] ${
               p.dayChange >= 0 ? "text-pos" : "text-neg"
             }`}
           >
-            {p.dayChange >= 0 ? "▲" : "▼"} {fmtPct(Math.abs(dayPct), 2)} ·{" "}
+            <DeltaArrow up={p.dayChange >= 0} /> {fmtPct(Math.abs(dayPct), 2)} ·{" "}
             {p.dayChange >= 0 ? "+" : "−"}{fmtUSD(Math.abs(p.dayChange))}
           </div>
         ) : (
@@ -579,7 +652,7 @@ function HoldingRow({
               }}
               initial={{ width: 0 }}
               animate={{ width: `${(p.weight / maxWeight) * 100}%` }}
-              transition={{ delay: 0.4 + i * 0.03, duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+              transition={{ delay: firstView ? 0.4 + Math.min(i, 10) * 0.03 : 0, duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
             />
           </div>
           <span className="font-mono tnum text-[12px] text-mute">
@@ -605,7 +678,7 @@ function HoldingRow({
               animate={{
                 width: `${(Math.abs(p.returnPct) / maxAbsReturn) * 48}%`,
               }}
-              transition={{ delay: 0.35 + i * 0.03, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+              transition={{ delay: firstView ? 0.35 + Math.min(i, 10) * 0.03 : 0, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
             />
           </div>
           <div className="w-[88px] text-right">

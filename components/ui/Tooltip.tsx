@@ -121,7 +121,7 @@ export function Tooltip({
                   zIndex: 9999,
                   pointerEvents: "none",
                 }}
-                className="rounded-lg border border-edge2 bg-[var(--color-elevated)] px-3 py-2 text-[11.5px] leading-snug text-mute shadow-[0_8px_28px_-6px_rgba(0,0,0,0.85)]"
+                className="overlay px-3 py-2 text-[11.5px] leading-snug text-mute"
               >
                 {content}
               </m.div>

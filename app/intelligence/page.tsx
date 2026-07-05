@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { m } from "framer-motion";
 import { AiThinking } from "@/components/ui/AiThinking";
+import { AiMeta } from "@/components/ui/AiMeta";
+import { RevealGroup, RevealItem } from "@/components/ui/Reveal";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { Computing } from "@/components/ui/Computing";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -120,14 +122,6 @@ function BriefCard({ portfolio }: { portfolio: Portfolio }) {
       <CardHeader
         eyebrow="Daily Brief"
         title="The morning read on your book"
-        right={
-          state.kind === "ready" ? (
-            <span className="font-mono text-[10px] text-faint">
-              {state.data.cached ? "cached · " : ""}
-              {relativeTime(state.data.generatedAt)}
-            </span>
-          ) : undefined
-        }
         className="mb-4"
       />
 
@@ -165,25 +159,27 @@ function BriefCard({ portfolio }: { portfolio: Portfolio }) {
       )}
 
       {state.kind === "ready" && (
-        <div>
-          <h3 className="font-display text-[17px] font-semibold leading-snug text-ink">
-            {state.data.brief.headline}
-          </h3>
-          <p className="mt-2 max-w-3xl text-[13px] leading-relaxed text-mute">
-            {state.data.brief.summary}
-          </p>
+        <RevealGroup>
+          <RevealItem>
+            <h3 className="font-display text-[17px] font-semibold leading-snug text-ink">
+              {state.data.brief.headline}
+            </h3>
+            <p className="mt-2 max-w-3xl text-[13px] leading-relaxed text-mute">
+              {state.data.brief.summary}
+            </p>
+          </RevealItem>
 
           {state.data.brief.positioning && (
-            <div className="mt-4 border-l-2 border-edge2 pl-4">
+            <RevealItem className="mt-4 border-l-2 border-edge2 pl-4">
               <div className="eyebrow mb-1.5">positioning</div>
               <p className="max-w-3xl text-[12.5px] leading-relaxed text-mute">
                 {state.data.brief.positioning}
               </p>
-            </div>
+            </RevealItem>
           )}
 
           {state.data.brief.themes?.length > 0 && (
-            <div className="mt-5">
+            <RevealItem className="mt-5">
               <div className="eyebrow mb-2.5">themes</div>
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {state.data.brief.themes.map((t) => (
@@ -200,10 +196,10 @@ function BriefCard({ portfolio }: { portfolio: Portfolio }) {
                   </div>
                 ))}
               </div>
-            </div>
+            </RevealItem>
           )}
 
-          <div className="mt-5 grid gap-x-10 gap-y-5 lg:grid-cols-2">
+          <RevealItem className="mt-5 grid gap-x-10 gap-y-5 lg:grid-cols-2">
             {state.data.brief.movers.length > 0 && (
               <div>
                 <div className="eyebrow mb-2">movers</div>
@@ -251,23 +247,20 @@ function BriefCard({ portfolio }: { portfolio: Portfolio }) {
                 </p>
               </div>
             </div>
-          </div>
+          </RevealItem>
 
-          {typeof state.data.costUSD === "number" && (
-            <div className="mt-5 border-t border-edge pt-3 text-right font-mono text-[10px] text-faint">
-              generated with Claude Haiku 4.5 · est. cost {fmtCost(state.data.costUSD)}
-            </div>
-          )}
-        </div>
+          <RevealItem className="mt-5 flex justify-end border-t border-edge pt-3">
+            <AiMeta
+              model="Claude Haiku 4.5"
+              cached={state.data.cached}
+              costUSD={state.data.costUSD}
+              generatedAt={state.data.generatedAt}
+            />
+          </RevealItem>
+        </RevealGroup>
       )}
     </Card>
   );
-}
-
-/** Compact USD cost — sub-cent figures need more precision than $0.00. */
-function fmtCost(usd: number): string {
-  if (usd < 0.01) return `$${usd.toFixed(4)}`;
-  return `$${usd.toFixed(3)}`;
 }
 
 /* -------------------------------- earnings -------------------------------- */

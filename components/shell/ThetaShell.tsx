@@ -3,8 +3,12 @@
 import { SyncBanner } from "@/components/ui/SyncBanner";
 import { m } from "framer-motion";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import type { ReactNode } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useMemo, type ReactNode } from "react";
+import { TopProgress } from "@/components/ui/TopProgress";
+import { PageAura } from "@/components/ui/PageAura";
+import { CommandPalette, type Command } from "./CommandPalette";
+import { FirstViewProvider, useRouteFirstView } from "@/lib/firstView";
 import { useTheta } from "@/lib/theta/store";
 import { useSimplefinAutoSync } from "@/lib/theta/useSimplefinAutoSync";
 import { useSidebarWidth } from "@/lib/useSidebarWidth";
@@ -64,12 +68,48 @@ export function ThetaShell({ children }: { children: ReactNode }) {
   const current = NAV.find((n) => n.href === pathname);
   const showSample = ready && isSample;
   const sidebar = useSidebarWidth("theta.sidebarWidth.v1");
+  const firstView = useRouteFirstView(pathname);
+  const router = useRouter();
+
+  const commands = useMemo<Command[]>(() => {
+    const nav: Command[] = NAV.map((n) => {
+      const Icon = n.icon;
+      return {
+        id: `nav:${n.href}`,
+        label: n.label,
+        group: "Navigate",
+        keywords: n.group,
+        hint: n.group,
+        icon: <Icon />,
+        run: () => router.push(n.href),
+      };
+    });
+    const actions: Command[] = [
+      {
+        id: "act:alpha",
+        label: "Switch to alpha",
+        group: "Actions",
+        keywords: "portfolio analytics investing",
+        run: () => router.push("/"),
+      },
+    ];
+    return [...nav, ...actions];
+  }, [router]);
+
+  // Per-route tab title for theta's routes, parallel to AppShell's.
+  useEffect(() => {
+    const item = NAV.find((n) => n.href === pathname);
+    document.title = item ? `${item.label} · theta` : "theta";
+  }, [pathname]);
 
   return (
-    <div className="min-h-screen lg:flex">
+    <div className="theta-scope min-h-screen lg:flex">
+      <TopProgress accent="var(--color-vio)" />
+      <CommandPalette commands={commands} accent="var(--color-vio)" />
+      <PageAura color="rgba(167,139,250,0.05)" />
       {/* Desktop sidebar */}
       <aside
-        className="relative hidden shrink-0 lg:flex sticky top-0 h-screen flex-col border-r border-edge bg-[#050505]"
+        className="relative z-10 hidden shrink-0 lg:flex sticky top-0 h-screen flex-col border-r border-edge bg-[#050505]"
         style={{ width: sidebar.width }}
       >
         <div className="px-3 pb-3 pt-4">
@@ -98,13 +138,19 @@ export function ThetaShell({ children }: { children: ReactNode }) {
           onMouseDown={sidebar.onMouseDown}
           onDoubleClick={sidebar.onDoubleClick}
           onKeyDown={sidebar.onKeyDown}
-          className={`absolute right-0 top-0 z-10 h-full w-1.5 -translate-x-1/2 cursor-col-resize ${
+          className={`group/handle absolute right-0 top-0 z-10 flex h-full w-1.5 -translate-x-1/2 cursor-col-resize items-center justify-center ${
             sidebar.dragging ? "bg-white/15" : "hover:bg-white/10"
           }`}
-        />
+        >
+          <span
+            className={`h-8 w-[3px] rounded-full bg-white/25 transition-opacity ${
+              sidebar.dragging ? "opacity-100" : "opacity-0 group-hover/handle:opacity-100"
+            }`}
+          />
+        </div>
       </aside>
 
-      <div className="min-w-0 flex-1">
+      <div className="relative z-10 min-w-0 flex-1">
         {/* Desktop top bar */}
         <header className="sticky top-0 z-40 hidden h-12 items-center border-b border-edge bg-black/80 px-6 backdrop-blur-md lg:flex">
           <span className="text-[13px] text-faint">{current?.group ?? "theta"}</span>
@@ -131,14 +177,16 @@ export function ThetaShell({ children }: { children: ReactNode }) {
 
         <main className="mx-auto w-full max-w-[1380px] min-w-0 px-4 py-6 sm:px-8 sm:py-8">
           <SyncBanner />
-          <m.div
-            key={pathname}
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
-          >
-            {children}
-          </m.div>
+          <FirstViewProvider value={firstView}>
+            <m.div
+              key={pathname}
+              initial={firstView ? { opacity: 0, y: 8 } : false}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+            >
+              {children}
+            </m.div>
+          </FirstViewProvider>
         </main>
       </div>
     </div>

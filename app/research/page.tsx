@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
-import { AnimatePresence, m } from "framer-motion";
+import { m } from "framer-motion";
 import { TickerSearch } from "@/components/research/TickerSearch";
 
 // Rendered only once price history has loaded; deferred so the search box and
@@ -119,23 +119,23 @@ export default function ResearchPage() {
       />
 
       {symbol ? (
-        <AnimatePresence mode="wait">
-          <m.div
-            key={symbol}
-            initial={{ opacity: 0, y: 14 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
-          >
-            <ResearchView
-              symbol={symbol}
-              range={range}
-              onRange={setRange}
-              holding={holding}
-              portfolioIncome={portfolioIncome}
-            />
-          </m.div>
-        </AnimatePresence>
+        // Keyed remount (no AnimatePresence exit gating) so switching tickers
+        // fades the new view straight in instead of leaving a blank frame while
+        // the old one animates out.
+        <m.div
+          key={symbol}
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+        >
+          <ResearchView
+            symbol={symbol}
+            range={range}
+            onRange={setRange}
+            holding={holding}
+            portfolioIncome={portfolioIncome}
+          />
+        </m.div>
       ) : (
         <Card className="mt-8 px-8 py-12 text-center">
           <h2 className="font-display text-lg font-semibold text-ink">

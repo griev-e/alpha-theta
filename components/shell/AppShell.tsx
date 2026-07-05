@@ -3,9 +3,14 @@
 import { SyncBanner } from "@/components/ui/SyncBanner";
 import { m } from "framer-motion";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import type { ReactNode } from "react";
-import { fmtUSDCompact } from "@/lib/format";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { TopProgress } from "@/components/ui/TopProgress";
+import { PageAura } from "@/components/ui/PageAura";
+import { CommandPalette, type Command } from "./CommandPalette";
+import { FirstViewProvider, useRouteFirstView } from "@/lib/firstView";
+import { fmtUSDCompact, relativeTime } from "@/lib/format";
+import { Tooltip } from "@/components/ui/Tooltip";
 import { usePortfolio, useLiveStatus, usePortfolioActions } from "@/lib/store";
 import { useSidebarWidth } from "@/lib/useSidebarWidth";
 import { ThetaProvider } from "@/lib/theta/store";
@@ -56,6 +61,15 @@ const NAV = [
 
 const GROUPS = ["Portfolio", "Analysis", "Simulation", "Data"];
 
+// Section-tinted ambient wash (see PageAura) — one hue per nav group so moving
+// between areas of the app carries a faint, felt-not-seen sense of place.
+const AURA: Record<string, string> = {
+  Portfolio: "rgba(94,234,212,0.05)",
+  Analysis: "rgba(125,211,252,0.05)",
+  Simulation: "rgba(167,139,250,0.05)",
+  Data: "rgba(255,255,255,0.02)",
+};
+
 /** Manual refresh: punches through every cache layer for fresh quotes. */
 function RefreshButton({
   refreshing,
@@ -64,6 +78,20 @@ function RefreshButton({
   refreshing: boolean;
   onRefresh: () => void;
 }) {
+  // Flash a checkmark for a beat when a refresh finishes, so a manual refresh
+  // that lands instantly still reads as "done" rather than a no-op.
+  const [justDone, setJustDone] = useState(false);
+  const wasRefreshing = useRef(refreshing);
+  useEffect(() => {
+    if (wasRefreshing.current && !refreshing) {
+      setJustDone(true);
+      const id = setTimeout(() => setJustDone(false), 900);
+      wasRefreshing.current = refreshing;
+      return () => clearTimeout(id);
+    }
+    wasRefreshing.current = refreshing;
+  }, [refreshing]);
+
   return (
     <button
       onClick={onRefresh}
@@ -72,21 +100,36 @@ function RefreshButton({
       aria-label="Refresh live data"
       className="btn-ghost disabled:pointer-events-none"
     >
-      <svg
-        width="13"
-        height="13"
-        viewBox="0 0 20 20"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.7"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        className={refreshing ? "animate-spin" : ""}
-        style={refreshing ? { animationDuration: "0.8s" } : undefined}
-      >
-        <path d="M16.9 8.2 A 7.2 7.2 0 1 0 17.2 11.6" />
-        <path d="M17.2 3.4 V8.2 H12.4" />
-      </svg>
+      {justDone ? (
+        <svg
+          width="13"
+          height="13"
+          viewBox="0 0 20 20"
+          fill="none"
+          stroke="var(--color-pos)"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="M4 10.5 L8.5 15 L16 5" />
+        </svg>
+      ) : (
+        <svg
+          width="13"
+          height="13"
+          viewBox="0 0 20 20"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.7"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className={refreshing ? "animate-spin" : ""}
+          style={refreshing ? { animationDuration: "0.8s" } : undefined}
+        >
+          <path d="M16.9 8.2 A 7.2 7.2 0 1 0 17.2 11.6" />
+          <path d="M17.2 3.4 V8.2 H12.4" />
+        </svg>
+      )}
     </button>
   );
 }
@@ -110,10 +153,76 @@ function LiveDot({ degraded }: { degraded: boolean }) {
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
-  const { portfolio, isDemo, ready } = usePortfolio();
+  const router = useRouter();
+  const { portfolio, isDemo, ready, portfolios, activeId } = usePortfolio();
   const live = useLiveStatus();
-  const { refreshLive } = usePortfolioActions();
+  const { refreshLive, loadDemo, selectPortfolio } = usePortfolioActions();
   const sidebar = useSidebarWidth("alpha.sidebarWidth.v1");
+  const firstView = useRouteFirstView(pathname);
+
+  // Commands for the ⌘K palette: every nav route, a few global actions, and one
+  // switch row per saved portfolio.
+  const commands = useMemo<Command[]>(() => {
+    const nav: Command[] = NAV.map((n) => {
+      const Icon = n.icon;
+      return {
+        id: `nav:${n.href}`,
+        label: n.label,
+        group: "Navigate",
+        keywords: n.group,
+        hint: n.group,
+        icon: <Icon />,
+        run: () => router.push(n.href),
+      };
+    });
+    const actions: Command[] = [
+      {
+        id: "act:refresh",
+        label: "Refresh live data",
+        group: "Actions",
+        keywords: "reload quotes prices",
+        run: () => refreshLive(),
+      },
+      {
+        id: "act:demo",
+        label: "Load demo portfolio",
+        group: "Actions",
+        keywords: "sample example",
+        run: () => loadDemo(),
+      },
+      {
+        id: "act:theta",
+        label: "Switch to theta",
+        group: "Actions",
+        keywords: "personal finance money",
+        run: () => router.push("/theta"),
+      },
+    ];
+    const ports: Command[] = portfolios.map((p) => ({
+      id: `port:${p.id}`,
+      label: p.name,
+      group: "Portfolios",
+      keywords: "switch portfolio",
+      hint: p.id === activeId ? "active" : undefined,
+      run: () => selectPortfolio(p.id),
+    }));
+    return [...nav, ...actions, ...ports];
+  }, [router, refreshLive, loadDemo, selectPortfolio, portfolios, activeId]);
+
+  // Per-route document title, driven centrally off the nav list so every alpha
+  // route reads "<Page> · alpha" in the browser tab without a metadata export
+  // in each client page. theta owns its own title (ThetaShell), so bail there.
+  useEffect(() => {
+    if (pathname === "/theta" || pathname.startsWith("/theta/")) return;
+    const item = NAV.find((n) => n.href === pathname);
+    const label =
+      pathname === "/report"
+        ? "Export Report"
+        : pathname === "/lock"
+          ? null
+          : item?.label;
+    document.title = label ? `${label} · alpha` : "alpha";
+  }, [pathname]);
 
   // The entrance reveal from the lock screen is handled outside React, by a
   // render-blocking script + CSS overlay in app/layout.tsx, so it covers the
@@ -151,9 +260,12 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="min-h-screen lg:flex">
+      <TopProgress accent="var(--color-accent)" loading={live.refreshing} />
+      <CommandPalette commands={commands} accent="var(--color-accent)" enableTickerSearch />
+      <PageAura color={AURA[current?.group ?? ""] ?? "rgba(255,255,255,0.02)"} />
         {/* Desktop sidebar */}
       <aside
-        className="relative hidden shrink-0 lg:flex sticky top-0 h-screen flex-col border-r border-edge bg-[#050505]"
+        className="relative z-10 hidden shrink-0 lg:flex sticky top-0 h-screen flex-col border-r border-edge bg-[#050505]"
         style={{ width: sidebar.width }}
       >
         <div className="px-3 pb-3 pt-4">
@@ -189,13 +301,19 @@ export function AppShell({ children }: { children: ReactNode }) {
           onMouseDown={sidebar.onMouseDown}
           onDoubleClick={sidebar.onDoubleClick}
           onKeyDown={sidebar.onKeyDown}
-          className={`absolute right-0 top-0 z-10 h-full w-1.5 -translate-x-1/2 cursor-col-resize ${
+          className={`group/handle absolute right-0 top-0 z-10 flex h-full w-1.5 -translate-x-1/2 cursor-col-resize items-center justify-center ${
             sidebar.dragging ? "bg-white/15" : "hover:bg-white/10"
           }`}
-        />
+        >
+          <span
+            className={`h-8 w-[3px] rounded-full bg-white/25 transition-opacity ${
+              sidebar.dragging ? "opacity-100" : "opacity-0 group-hover/handle:opacity-100"
+            }`}
+          />
+        </div>
       </aside>
 
-      <div className="min-w-0 flex-1">
+      <div className="relative z-10 min-w-0 flex-1">
         {/* Desktop top bar */}
         <header className="sticky top-0 z-40 hidden h-12 items-center border-b border-edge bg-black/80 px-6 backdrop-blur-md lg:flex">
           <span className="text-[13px] text-faint">{current?.group ?? "alpha"}</span>
@@ -205,14 +323,37 @@ export function AppShell({ children }: { children: ReactNode }) {
           {ready && portfolio && (
             <div className="ml-auto flex items-center gap-2">
               <RefreshButton refreshing={live.refreshing} onRefresh={refreshLive} />
-              <LiveDot degraded={live.degraded || !live.quotesAt} />
-              <span
-                className={`font-mono text-[11px] tracking-[0.08em] ${
-                  live.degraded || !live.quotesAt ? "text-warn/90" : "text-mute"
-                }`}
+              <Tooltip
+                underline={false}
+                content={
+                  <div className="space-y-0.5">
+                    <div className="font-medium text-mute">
+                      {live.degraded
+                        ? "Live feed unreachable"
+                        : live.quotesAt
+                          ? "Live market data"
+                          : "Connecting to the feed"}
+                    </div>
+                    {live.quotesAt && (
+                      <div>Last quote {relativeTime(live.quotesAt)}</div>
+                    )}
+                    <div className="text-faint">
+                      {live.livePriceCount} of {portfolio.positions.length} priced live
+                    </div>
+                  </div>
+                }
               >
-                {(live.degraded || !live.quotesAt) ? liveLabel.toUpperCase() : "LIVE"}
-              </span>
+                <span className="flex items-center gap-2">
+                  <LiveDot degraded={live.degraded || !live.quotesAt} />
+                  <span
+                    className={`font-mono text-[11px] tracking-[0.08em] ${
+                      live.degraded || !live.quotesAt ? "text-warn/90" : "text-mute"
+                    }`}
+                  >
+                    {(live.degraded || !live.quotesAt) ? liveLabel.toUpperCase() : "LIVE"}
+                  </span>
+                </span>
+              </Tooltip>
             </div>
           )}
         </header>
@@ -251,14 +392,16 @@ export function AppShell({ children }: { children: ReactNode }) {
               its initial→animate, so the new page is mounted and visible at
               once. */}
           <SyncBanner />
-          <m.div
-            key={pathname}
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
-          >
-            {children}
-          </m.div>
+          <FirstViewProvider value={firstView}>
+            <m.div
+              key={pathname}
+              initial={firstView ? { opacity: 0, y: 8 } : false}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+            >
+              {children}
+            </m.div>
+          </FirstViewProvider>
         </main>
       </div>
     </div>

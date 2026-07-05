@@ -2,7 +2,8 @@
 
 import { useId, useMemo, useState } from "react";
 import { useElementWidth } from "@/lib/useElementWidth";
-import { fmtUSD } from "@/lib/format";
+import { fmtPct, fmtUSD } from "@/lib/format";
+import { DeltaArrow } from "@/components/ui/DeltaArrow";
 import type { HistoryPoint, HistoryRange } from "@/lib/research/types";
 
 /**
@@ -45,8 +46,15 @@ export function PriceChart({
       .map((v, i) => `${i === 0 ? "M" : "L"}${x(i).toFixed(1)} ${y(v).toFixed(1)}`)
       .join(" ");
     const area = `${line} L${width.toFixed(1)} ${height} L0 ${height} Z`;
+    // Area closed along the first-close baseline rather than the axis floor —
+    // clipped above/below the baseline it splits the fill green (in the money)
+    // vs rose (under water), the TradingView baseline read.
+    const baselineY = y(first);
+    const areaBase = `${line} L${width.toFixed(1)} ${baselineY.toFixed(1)} L0 ${baselineY.toFixed(1)} Z`;
+    const hiIdx = closes.indexOf(dataHi);
+    const loIdx = closes.indexOf(dataLo);
 
-    return { closes, first, dataLo, dataHi, x, y, line, area };
+    return { closes, first, dataLo, dataHi, x, y, line, area, baselineY, areaBase, hiIdx, loIdx };
   }, [points, width, height]);
 
   if (points.length < 2) {
@@ -105,27 +113,48 @@ export function PriceChart({
               aria-label={ariaLabel}
             >
               <defs>
-                <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
-                  <stop
-                    offset="0%"
-                    stopColor={color}
-                    stopOpacity={0.22}
-                  />
-                  <stop offset="100%" stopColor={color} stopOpacity={0} />
+                <linearGradient id={`${gradId}-up`} x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="var(--color-pos)" stopOpacity={0.24} />
+                  <stop offset="100%" stopColor="var(--color-pos)" stopOpacity={0} />
                 </linearGradient>
+                <linearGradient id={`${gradId}-dn`} x1="0" y1="1" x2="0" y2="0">
+                  <stop offset="0%" stopColor="var(--color-neg)" stopOpacity={0.24} />
+                  <stop offset="100%" stopColor="var(--color-neg)" stopOpacity={0} />
+                </linearGradient>
+                <clipPath id={`${gradId}-above`}>
+                  <rect x={0} y={0} width={width} height={Math.max(0, geom.baselineY)} />
+                </clipPath>
+                <clipPath id={`${gradId}-below`}>
+                  <rect
+                    x={0}
+                    y={geom.baselineY}
+                    width={width}
+                    height={Math.max(0, height - geom.baselineY)}
+                  />
+                </clipPath>
               </defs>
 
               {/* baseline at the period's first close */}
               <line
                 x1={0}
                 x2={width}
-                y1={geom.y(geom.first)}
-                y2={geom.y(geom.first)}
+                y1={geom.baselineY}
+                y2={geom.baselineY}
                 stroke="rgba(255,255,255,0.12)"
                 strokeDasharray="3 4"
               />
 
-              <path d={geom.area} fill={`url(#${gradId})`} />
+              {/* split fill: green above the baseline, rose below */}
+              <path
+                d={geom.areaBase}
+                fill={`url(#${gradId}-up)`}
+                clipPath={`url(#${gradId}-above)`}
+              />
+              <path
+                d={geom.areaBase}
+                fill={`url(#${gradId}-dn)`}
+                clipPath={`url(#${gradId}-below)`}
+              />
               <path
                 d={geom.line}
                 fill="none"
@@ -133,6 +162,20 @@ export function PriceChart({
                 strokeWidth={1.7}
                 strokeLinejoin="round"
               />
+
+              {/* period high / low ticks */}
+              {[
+                { idx: geom.hiIdx, v: geom.dataHi, up: true },
+                { idx: geom.loIdx, v: geom.dataLo, up: false },
+              ].map(({ idx, v, up }) => (
+                <circle
+                  key={up ? "hi" : "lo"}
+                  cx={geom.x(idx)}
+                  cy={geom.y(v)}
+                  r={2.4}
+                  fill="var(--color-faint)"
+                />
+              ))}
 
               {/* crosshair */}
               {hover !== null && (
@@ -156,14 +199,23 @@ export function PriceChart({
                 </>
               )}
 
-              {/* latest marker */}
+              {/* latest marker — a live endpoint that quietly pulses */}
               {hover === null && (
-                <circle
-                  cx={geom.x(points.length - 1)}
-                  cy={geom.y(last)}
-                  r={3.2}
-                  fill={color}
-                />
+                <>
+                  <circle
+                    className="price-pulse"
+                    cx={geom.x(points.length - 1)}
+                    cy={geom.y(last)}
+                    fill={color}
+                    style={{ transformOrigin: `${geom.x(points.length - 1)}px ${geom.y(last)}px` }}
+                  />
+                  <circle
+                    cx={geom.x(points.length - 1)}
+                    cy={geom.y(last)}
+                    r={3.2}
+                    fill={color}
+                  />
+                </>
               )}
             </svg>
 
@@ -175,16 +227,28 @@ export function PriceChart({
               {fmtUSD(geom.dataLo)}
             </span>
 
-            {/* hover tooltip */}
+            {/* hover tooltip — price, the Δ from the period's first close, date */}
             {hoverPoint && (
               <div
-                className="pointer-events-none absolute top-1 z-10 -translate-x-1/2 whitespace-nowrap rounded-lg border border-edge2 bg-void/90 px-2.5 py-1.5 text-center backdrop-blur-sm"
+                className="overlay pointer-events-none absolute top-1 z-10 -translate-x-1/2 whitespace-nowrap px-2.5 py-1.5 text-center"
                 style={{ left: tipLeft }}
               >
                 <div className="font-mono tnum text-[13px] text-ink">
                   {fmtUSD(hoverPoint.c)}
                 </div>
-                <div className="font-mono text-[10px] text-mute">
+                {(() => {
+                  const ret = first > 0 ? hoverPoint.c / first - 1 : 0;
+                  return (
+                    <div
+                      className={`flex items-center justify-center gap-1 font-mono tnum text-[10.5px] ${
+                        ret >= 0 ? "text-pos" : "text-neg"
+                      }`}
+                    >
+                      <DeltaArrow up={ret >= 0} /> {fmtPct(Math.abs(ret), 2)}
+                    </div>
+                  );
+                })()}
+                <div className="mt-0.5 font-mono text-[10px] text-faint">
                   {fmtFullDate(hoverPoint.t)}
                 </div>
               </div>

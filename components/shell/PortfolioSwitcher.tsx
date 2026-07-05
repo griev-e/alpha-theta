@@ -101,7 +101,7 @@ export function PortfolioSwitcher() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -4 }}
             transition={{ duration: 0.14 }}
-            className="absolute left-3 right-3 z-50 mt-1 overflow-hidden rounded-lg border border-edge2 bg-[#0a0a0a] shadow-xl shadow-black/40"
+            className="overlay absolute left-3 right-3 z-50 mt-1 overflow-hidden"
             role="listbox"
           >
             <div className="max-h-64 overflow-y-auto py-1">
