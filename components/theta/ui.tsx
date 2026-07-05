@@ -232,6 +232,7 @@ export function ThetaEmpty({ page }: { page: string }) {
   const { loadSample } = useTheta();
   return (
     <EmptyPanel
+      watermark="θ"
       icon={<Mark kind="theta" size={44} />}
       heading="No data yet"
       body={`${page} needs accounts and transactions. Load the sample ledger to explore, or import your own.`}

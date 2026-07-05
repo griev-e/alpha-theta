@@ -55,15 +55,70 @@
   --font-display: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
   --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, "SF Mono", monospace;
+  /* The one serif in the system — the α/θ signature. Kept as a token so the
+     handful of sanctioned homes (sigil, empty-state watermark, report cover)
+     all draw the same glyph. Scarcity is what makes it a signature: resist
+     using it as a general typeface. */
+  --font-serif: Georgia, "Times New Roman", "Palatino Linotype", serif;
+
+  /* ── Motion tokens ─────────────────────────────────────────────────────
+     One named easing and a small duration ladder, so every animation reaches
+     for a token instead of restating a curve. Entrances play once (see
+     lib/firstView); interactions always spring; nothing ambient loops faster
+     than ~6s. */
+  --ease-signature: cubic-bezier(0.22, 1, 0.36, 1);
+  --dur-fast: 150ms; /* interaction feedback (hover, press) */
+  --dur-base: 220ms; /* route + content entrances */
+  --dur-slow: 350ms; /* larger reveals */
+  --dur-draw: 700ms; /* chart draw-ins (bars rise, lines draw, arcs sweep) */
+
+  /* ── Accent ramps ──────────────────────────────────────────────────────
+     Three steps per hue (dim rail / base ink / bright highlight) so intensity
+     is a system rather than an ad-hoc color-mix at each call site. Consistency
+     of intensity is a large part of what reads as "engineered." */
+  --color-mint-dim: color-mix(in srgb, #5eead4 40%, transparent);
+  --color-mint-bright: #7ff3e2;
+  --color-vio-dim: color-mix(in srgb, #a78bfa 40%, transparent);
+  --color-vio-bright: #c4b5fd;
+  --color-sky-dim: color-mix(in srgb, #7dd3fc 40%, transparent);
+  --color-sky-bright: #a5e4ff;
+  --color-pos-dim: color-mix(in srgb, #34d399 40%, transparent);
+  --color-pos-bright: #6ee7b7;
+  --color-neg-dim: color-mix(in srgb, #fb7185 40%, transparent);
+  --color-neg-bright: #fda4af;
+
+  /* Ambient hero washes — named so the glow blobs (Overview/theta hero, lock
+     screen) stop restating rgba tuples. Felt, not seen; kept low. */
+  --wash-pos: rgba(52, 211, 153, 0.1);
+  --wash-neg: rgba(251, 113, 133, 0.1);
+  --wash-vio: rgba(167, 139, 250, 0.09);
+  --wash-mint: rgba(94, 234, 212, 0.1);
 }
 
 /* ── Type scale reference ──────────────────────────────────────────────
    The sizes actually in use across the app, named so new UI reaches for one
    of these instead of picking an arbitrary px value:
-     2xs 10px · xs 11px · sm 12px · base 13px · md 15px
-     lg 22px (page title) · hero 34–44px (headline stat)
-   Nothing below 10px — smaller reads as a rendering glitch, not a design
+     2xs 10px · xs 11px · sm 12px · base 13px · md 15px (card title)
+     xl 26px (page title) · hero 40–48px (headline stat)
+   The page title (xl) sits above card titles (md) and below the hero numeral,
+   so each page introduces itself with more confidence than the panels beneath
+   it. Nothing below 10px — smaller reads as a rendering glitch, not a design
    choice. */
+
+/* Page-title display size: the confident top-of-page voice. Tight tracking so
+   the larger size stays composed rather than loose. */
+.display-xl {
+  font-family: var(--font-display);
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.05;
+}
+@media (min-width: 640px) {
+  .display-xl {
+    font-size: 28px;
+  }
+}
 
 html {
   background: var(--color-void);
@@ -173,6 +228,38 @@ body {
   border: 1px solid var(--color-edge2);
   border-radius: 12px;
   box-shadow: var(--edge-hi), var(--shadow-overlay);
+}
+
+/* Translucent chrome — sticky top bars, the palette scrim's edge. One recipe so
+   every blurred surface carries the same opacity + blur + hairline instead of
+   each restating bg-black/80 backdrop-blur-md. */
+.glass {
+  background: color-mix(in srgb, var(--color-void) 82%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+/* Tinted semantic panel — the one recipe for status messaging (coverage
+   banners, sync notices, warnings). A faint fill + tint border + matching dot,
+   toned by the semantic hue, instead of each surface hand-rolling warn styling.
+   Set --tint to a base color (pos/neg/warn/sky) via a modifier below. */
+.panel-tinted {
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--tint) 22%, transparent);
+  background: color-mix(in srgb, var(--tint) 5%, var(--color-panel));
+  box-shadow: var(--edge-hi);
+}
+.panel-tinted.warn {
+  --tint: var(--color-warn);
+}
+.panel-tinted.pos {
+  --tint: var(--color-pos);
+}
+.panel-tinted.neg {
+  --tint: var(--color-neg);
+}
+.panel-tinted.info {
+  --tint: var(--color-sky);
 }
 
 /* Optional signature: a hairline that's brighter at the top edge and fades
