@@ -41,6 +41,19 @@ export default function GoalsPage() {
   const totalTarget = goals.reduce((s, g) => s + g.target, 0);
   const totalMonthly = goals.reduce((s, g) => s + g.monthly, 0);
 
+  // Lead with the goal that needs attention: at-risk first, funded last, so the
+  // grid encodes urgency instead of ledger insertion order.
+  const STATUS_RANK: Record<GoalStatus, number> = {
+    "at-risk": 0,
+    behind: 1,
+    "no-contribution": 2,
+    "on-track": 3,
+    funded: 4,
+  };
+  const ranked = goals
+    .map((g, i) => ({ g, f: feas[i] }))
+    .sort((a, b) => STATUS_RANK[a.f.status] - STATUS_RANK[b.f.status]);
+
   return (
     <div>
       <PageHeader
@@ -68,11 +81,11 @@ export default function GoalsPage() {
 
       {goals.length > 0 ? (
         <div className="grid gap-5 sm:grid-cols-2">
-          {goals.map((g, i) => (
+          {ranked.map(({ g, f }, i) => (
             <GoalCard
               key={g.id}
               g={g}
-              f={feas[i]}
+              f={f}
               i={i}
               onContribute={() => setContributing(g)}
               onRemove={() => removeGoal(g.id)}
