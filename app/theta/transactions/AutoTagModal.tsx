@@ -282,13 +282,11 @@ function AutoTagDialog({
 
                     <div className="w-36 shrink-0">
                       <Select
+                        ariaLabel="Category"
                         value={r.category}
-                        onChange={(e) => setRow(r.id, { category: e.target.value as Category, include: true })}
-                      >
-                        {CATEGORIES.map((c) => (
-                          <option key={c} value={c}>{c}</option>
-                        ))}
-                      </Select>
+                        onChange={(v) => setRow(r.id, { category: v, include: true })}
+                        options={CATEGORIES.map((c) => ({ value: c, label: c }))}
+                      />
                     </div>
                   </div>
                 );

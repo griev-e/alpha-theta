@@ -51,6 +51,9 @@ export default function OverviewPage() {
     [portfolio, version]
   );
 
+  // Directional pulse on the headline value when a live reprice moves it.
+  const heroTick = usePriceTick(portfolio?.totalValue ?? 0);
+
   const sorted = useMemo(() => {
     if (!portfolio) return [];
     const arr = [...portfolio.positions];
@@ -167,7 +170,7 @@ export default function OverviewPage() {
       />
 
       {/* Hero strip — headline net value, then capital & risk metrics */}
-      <Card className="relative mb-5 overflow-hidden px-6 py-6 sm:px-8" i={0}>
+      <Card className="panel-rim relative mb-5 overflow-hidden px-6 py-6 sm:px-8" i={0}>
         <div
           aria-hidden
           className="pointer-events-none absolute -right-24 -top-28 h-72 w-72 rounded-full blur-[90px]"
@@ -179,7 +182,19 @@ export default function OverviewPage() {
           {/* Primary: net value with all-time + today returns stacked beneath */}
           <div className="lg:w-[260px] lg:shrink-0">
             <div className="eyebrow">Net value</div>
-            <div className="mt-1.5 font-mono tnum text-[34px] font-medium leading-none text-ink sm:text-[40px]">
+            <div
+              className="mt-1.5 font-mono tnum text-[34px] font-medium leading-none text-ink transition-[text-shadow] duration-700 sm:text-[40px]"
+              style={
+                heroTick
+                  ? {
+                      textShadow:
+                        heroTick === "up"
+                          ? "0 0 22px rgba(52,211,153,0.45)"
+                          : "0 0 22px rgba(251,113,133,0.45)",
+                    }
+                  : undefined
+              }
+            >
               <AnimatedNumber value={portfolio.totalValue} format={(v) => fmtUSD(v)} />
             </div>
             <div className="mt-4 grid w-fit grid-cols-[auto_auto_auto] items-baseline gap-x-3 gap-y-1.5 font-mono tnum text-[13px]">
@@ -452,21 +467,23 @@ function symbolColor(symbol: string): string {
 }
 
 /**
- * True for a brief moment right after `value` changes — used to flash a
- * repriced row's background so a live-data refresh reads as an update rather
- * than a silent, unremarked-on value swap.
+ * Non-null for a brief moment right after `value` changes, carrying the
+ * *direction* of the move — so a live-price refresh flashes green on an up-tick
+ * and rose on a down-tick (a silent swap otherwise, or worse, a green flash on
+ * a falling price). The flash is scoped to the price cell, not the whole row.
  */
-function useFlashOnChange(value: number): boolean {
+function usePriceTick(value: number): "up" | "down" | null {
   const prev = useRef(value);
-  const [flash, setFlash] = useState(false);
+  const [dir, setDir] = useState<"up" | "down" | null>(null);
   useEffect(() => {
     if (prev.current === value) return;
+    const next = value > prev.current ? "up" : "down";
     prev.current = value;
-    setFlash(true);
-    const id = setTimeout(() => setFlash(false), 60);
+    setDir(next);
+    const id = setTimeout(() => setDir(null), 600);
     return () => clearTimeout(id);
   }, [value]);
-  return flash;
+  return dir;
 }
 
 function HoldingRow({
@@ -486,10 +503,10 @@ function HoldingRow({
       ? p.dayChange / (p.equity - p.dayChange)
       : null;
   const neg = p.returnPct < 0;
-  // Flashes the row the instant a live-price refresh repriced it, then lets
-  // the row's own transition-colors ease it back out — a live feed updating
-  // in place instead of numbers silently swapping underneath the reader.
-  const flash = useFlashOnChange(p.price);
+  // Direction of the last live reprice — flashes the price cell green (up) or
+  // rose (down) the instant a refresh moves it, then eases back out: a live
+  // feed updating in place, its direction legible, instead of a silent swap.
+  const tick = usePriceTick(p.price);
 
   return (
     <m.tr
@@ -501,7 +518,6 @@ function HoldingRow({
         opacity: { delay: 0.25 + i * 0.035, duration: 0.35 },
         y: { delay: 0.25 + i * 0.035, duration: 0.35 },
       }}
-      style={flash ? { backgroundColor: "rgba(94,234,212,0.10)" } : undefined}
       className="group relative border-b border-edge/60 transition-colors duration-700 hover:bg-white/[0.03]"
     >
       {/* Asset: brand logo + symbol + name */}
@@ -539,7 +555,19 @@ function HoldingRow({
       </td>
 
       {/* Price + today's move — the glance column */}
-      <td className="px-6 py-3 text-right">
+      <td
+        className="px-6 py-3 text-right transition-colors duration-700"
+        style={
+          tick
+            ? {
+                backgroundColor:
+                  tick === "up"
+                    ? "rgba(52,211,153,0.12)"
+                    : "rgba(251,113,133,0.12)",
+              }
+            : undefined
+        }
+      >
         <div className="font-mono tnum text-[13px] text-ink">
           {fmtUSD(p.price)}
         </div>

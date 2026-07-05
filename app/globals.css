@@ -29,6 +29,25 @@
   /* Elevated dark surface a shade lighter than --color-panel — floating
      tooltips/menus that sit above a panel rather than being one. */
   --color-elevated: #0d0d0d;
+
+  /* ── Elevation ladder ──────────────────────────────────────────────────
+     Four surface steps + a matching shadow scale, so depth is a system rather
+     than an ad-hoc mix of borders. Each step is a shade lighter than the last,
+     implying a light source above; overlays (menus, tooltips, modals, toasts)
+     sit on surface-3 and cast a real shadow. Reach for these instead of new
+     one-off rgba surfaces.
+       0 page void · 1 panel card · 2 nested tile · 3 floating overlay  */
+  --surface-1: #0a0a0a;
+  --surface-2: #0e0e10;
+  --surface-3: #131316;
+  /* A hairline top-edge highlight — the single cue that reads as "lit from
+     above." Applied inset on panels and overlays. */
+  --edge-hi: inset 0 1px 0 rgba(255, 255, 255, 0.045);
+  /* Overlay drop shadow, shared by every floating surface so they all fall at
+     the same implied height. Pairs with --edge-hi. */
+  --shadow-overlay: 0 16px 40px -12px rgba(0, 0, 0, 0.9),
+    0 2px 8px -2px rgba(0, 0, 0, 0.6);
+  --shadow-pop: 0 8px 24px -8px rgba(0, 0, 0, 0.85);
   /* The sidebar "live" indicator dot — its own hue so it isn't tied to the
      data-positive green (a stopped feed is a status, not a return). */
   --color-live: #236533;
@@ -120,17 +139,53 @@ body {
   color: var(--color-faint);
 }
 
-/* Flat card surface */
+/* Card surface — a hairline top highlight lifts it a step off the void so the
+   panel reads as a lit object rather than a bordered rectangle. */
 .panel {
   background: var(--color-panel);
   border: 1px solid var(--color-edge);
   border-radius: 12px;
+  box-shadow: var(--edge-hi);
 }
 .panel-hover {
-  transition: border-color 150ms ease;
+  transition: border-color 150ms ease, box-shadow 150ms ease;
 }
 .panel-hover:hover {
   border-color: var(--color-edge2);
+  box-shadow: var(--edge-hi), var(--shadow-pop);
+}
+
+/* Floating surface — menus, popovers, toasts, the command palette. Sits on the
+   top elevation step and casts the shared overlay shadow so everything that
+   floats falls at one implied height. */
+.overlay {
+  background: var(--surface-3);
+  border: 1px solid var(--color-edge2);
+  border-radius: 12px;
+  box-shadow: var(--edge-hi), var(--shadow-overlay);
+}
+
+/* Optional signature: a hairline that's brighter at the top edge and fades
+   down the card — the Linear/Stripe "lit rim." Drop onto a hero .panel. */
+.panel-rim {
+  position: relative;
+}
+.panel-rim::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.12),
+    rgba(255, 255, 255, 0.02) 30%,
+    transparent 60%
+  );
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
 }
 
 /* Primary / secondary buttons */
@@ -204,7 +259,7 @@ body {
 .tile {
   border-radius: 12px;
   border: 1px solid var(--color-edge);
-  background: rgba(255, 255, 255, 0.015);
+  background: var(--surface-2);
 }
 
 /* Sidebar/nav row — shared by alpha's and theta's SidebarNav so hover/press

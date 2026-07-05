@@ -103,18 +103,20 @@ export function AddTransactionModal({ open, onClose }: { open: boolean; onClose:
         </div>
         <div className="grid grid-cols-2 gap-3">
           <Field label="Category">
-            <Select value={category} onChange={(e) => setCategory(e.target.value as Category)}>
-              {CATEGORIES.map((c) => (
-                <option key={c} value={c}>{c}</option>
-              ))}
-            </Select>
+            <Select
+              ariaLabel="Category"
+              value={category}
+              onChange={(v) => setCategory(v)}
+              options={CATEGORIES.map((c) => ({ value: c, label: c }))}
+            />
           </Field>
           <Field label="Account">
-            <Select value={account} onChange={(e) => setAccount(e.target.value)}>
-              {accounts.map((a) => (
-                <option key={a.id} value={a.id}>{a.name}</option>
-              ))}
-            </Select>
+            <Select
+              ariaLabel="Account"
+              value={account}
+              onChange={(v) => setAccount(v)}
+              options={accounts.map((a) => ({ value: a.id, label: a.name }))}
+            />
           </Field>
         </div>
       </div>
@@ -154,11 +156,12 @@ export function AddBudgetModal({ open, onClose }: { open: boolean; onClose: () =
       ) : (
         <div className="flex flex-col gap-3.5">
           <Field label="Category">
-            <Select value={category} onChange={(e) => setCategory(e.target.value as Category)}>
-              {available.map((c) => (
-                <option key={c} value={c}>{c}</option>
-              ))}
-            </Select>
+            <Select
+              ariaLabel="Category"
+              value={category}
+              onChange={(v) => setCategory(v)}
+              options={available.map((c) => ({ value: c, label: c }))}
+            />
           </Field>
           <Field label="Monthly limit">
             <TextInput
@@ -322,20 +325,22 @@ export function AddRecurringModal({ open, onClose }: { open: boolean; onClose: (
             />
           </Field>
           <Field label="Cadence">
-            <Select value={cadence} onChange={(e) => setCadence(e.target.value as Recurring["cadence"])}>
-              {CADENCES.map((c) => (
-                <option key={c} value={c}>{CADENCE_LABEL[c]}</option>
-              ))}
-            </Select>
+            <Select
+              ariaLabel="Cadence"
+              value={cadence}
+              onChange={(v) => setCadence(v)}
+              options={CADENCES.map((c) => ({ value: c, label: CADENCE_LABEL[c] }))}
+            />
           </Field>
         </div>
         <div className="grid grid-cols-2 gap-3">
           <Field label="Category">
-            <Select value={category} onChange={(e) => setCategory(e.target.value as Category)}>
-              {CATEGORIES.map((c) => (
-                <option key={c} value={c}>{c}</option>
-              ))}
-            </Select>
+            <Select
+              ariaLabel="Category"
+              value={category}
+              onChange={(v) => setCategory(v)}
+              options={CATEGORIES.map((c) => ({ value: c, label: c }))}
+            />
           </Field>
           <Field label="Next charge">
             <TextInput type="date" value={nextDate} onChange={(e) => setNextDate(e.target.value)} />

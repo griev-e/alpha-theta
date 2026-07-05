@@ -90,7 +90,7 @@ export function Modal({
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 10, scale: 0.97 }}
             transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
-            className="panel relative z-10 w-full max-w-md p-5"
+            className="overlay relative z-10 w-full max-w-md p-5"
           >
             <div className="mb-4 flex items-center justify-between">
               <h2 className="font-display text-[15px] font-medium text-ink">{title}</h2>
@@ -157,32 +157,11 @@ export function Switch({
   );
 }
 
-export function Select({
-  children,
-  ...props
-}: React.SelectHTMLAttributes<HTMLSelectElement>) {
-  return (
-    <div className="relative">
-      <select
-        {...props}
-        className="field cursor-pointer appearance-none pr-8"
-      >
-        {children}
-      </select>
-      <svg
-        width="12"
-        height="12"
-        viewBox="0 0 12 8"
-        className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-faint"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.6"
-      >
-        <path d="M1 1l5 5 5-5" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-    </div>
-  );
-}
+// theta's dropdowns use the shared owned listbox (`components/ui/Select`) so
+// they render on the app's own dark elevation rather than the native
+// OS-white option popover. Re-exported here to keep theta's import surface
+// (`@/components/theta/ui`) stable for its modals.
+export { Select, type SelectOption } from "@/components/ui/Select";
 
 /** A small ghost icon button (trash, edit) revealed on row hover. */
 export function IconButton({
