@@ -29,7 +29,7 @@ export function PageHeader({
           {title}
         </h1>
         {description && (
-          <p className="mt-1 max-w-2xl text-[13px] leading-relaxed text-mute">
+          <p className="mt-1 max-w-2xl text-pretty text-[13px] leading-relaxed text-mute">
             {description}
           </p>
         )}

@@ -70,6 +70,16 @@ html {
   color-scheme: dark;
 }
 
+/* The interactive accent (focus ring + text selection) follows the app you're
+   in — mint under alpha, iris under theta — so keyboard focus and highlights
+   feel native to each shell. Set once here, overridden inside .theta-scope. */
+:root {
+  --accent-focus: var(--color-mint);
+}
+.theta-scope {
+  --accent-focus: var(--color-vio);
+}
+
 /* Unlock entrance overlay — driven by a render-blocking script in layout.tsx
    (toggles .alpha-entering / .alpha-revealing on <html>). Idle: invisible and
    inert. On entrance it covers the first painted frame in pure black, then
@@ -102,7 +112,7 @@ body {
 }
 
 ::selection {
-  background: rgba(94, 234, 212, 0.25);
+  background: color-mix(in srgb, var(--accent-focus) 28%, transparent);
 }
 
 * {
@@ -277,7 +287,7 @@ input:focus-visible,
 select:focus-visible,
 textarea:focus-visible,
 [tabindex]:focus-visible {
-  outline: 2px solid color-mix(in srgb, var(--color-mint) 55%, transparent);
+  outline: 2px solid color-mix(in srgb, var(--accent-focus) 55%, transparent);
   outline-offset: 2px;
   border-radius: 6px;
 }

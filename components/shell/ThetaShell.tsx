@@ -103,7 +103,7 @@ export function ThetaShell({ children }: { children: ReactNode }) {
   }, [pathname]);
 
   return (
-    <div className="min-h-screen lg:flex">
+    <div className="theta-scope min-h-screen lg:flex">
       <TopProgress accent="var(--color-vio)" />
       <CommandPalette commands={commands} accent="var(--color-vio)" />
       <PageAura color="rgba(167,139,250,0.05)" />
@@ -138,10 +138,16 @@ export function ThetaShell({ children }: { children: ReactNode }) {
           onMouseDown={sidebar.onMouseDown}
           onDoubleClick={sidebar.onDoubleClick}
           onKeyDown={sidebar.onKeyDown}
-          className={`absolute right-0 top-0 z-10 h-full w-1.5 -translate-x-1/2 cursor-col-resize ${
+          className={`group/handle absolute right-0 top-0 z-10 flex h-full w-1.5 -translate-x-1/2 cursor-col-resize items-center justify-center ${
             sidebar.dragging ? "bg-white/15" : "hover:bg-white/10"
           }`}
-        />
+        >
+          <span
+            className={`h-8 w-[3px] rounded-full bg-white/25 transition-opacity ${
+              sidebar.dragging ? "opacity-100" : "opacity-0 group-hover/handle:opacity-100"
+            }`}
+          />
+        </div>
       </aside>
 
       <div className="relative z-10 min-w-0 flex-1">

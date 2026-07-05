@@ -3,6 +3,7 @@
 import { useId, useMemo, useState } from "react";
 import { useElementWidth } from "@/lib/useElementWidth";
 import { fmtPct, fmtUSD } from "@/lib/format";
+import { DeltaArrow } from "@/components/ui/DeltaArrow";
 import type { HistoryPoint, HistoryRange } from "@/lib/research/types";
 
 /**
@@ -239,11 +240,11 @@ export function PriceChart({
                   const ret = first > 0 ? hoverPoint.c / first - 1 : 0;
                   return (
                     <div
-                      className={`font-mono tnum text-[10.5px] ${
+                      className={`flex items-center justify-center gap-1 font-mono tnum text-[10.5px] ${
                         ret >= 0 ? "text-pos" : "text-neg"
                       }`}
                     >
-                      {ret >= 0 ? "▲" : "▼"} {fmtPct(Math.abs(ret), 2)}
+                      <DeltaArrow up={ret >= 0} /> {fmtPct(Math.abs(ret), 2)}
                     </div>
                   );
                 })()}

@@ -4,12 +4,13 @@ import { SyncBanner } from "@/components/ui/SyncBanner";
 import { m } from "framer-motion";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useMemo, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { TopProgress } from "@/components/ui/TopProgress";
 import { PageAura } from "@/components/ui/PageAura";
 import { CommandPalette, type Command } from "./CommandPalette";
 import { FirstViewProvider, useRouteFirstView } from "@/lib/firstView";
-import { fmtUSDCompact } from "@/lib/format";
+import { fmtUSDCompact, relativeTime } from "@/lib/format";
+import { Tooltip } from "@/components/ui/Tooltip";
 import { usePortfolio, useLiveStatus, usePortfolioActions } from "@/lib/store";
 import { useSidebarWidth } from "@/lib/useSidebarWidth";
 import { ThetaProvider } from "@/lib/theta/store";
@@ -77,6 +78,20 @@ function RefreshButton({
   refreshing: boolean;
   onRefresh: () => void;
 }) {
+  // Flash a checkmark for a beat when a refresh finishes, so a manual refresh
+  // that lands instantly still reads as "done" rather than a no-op.
+  const [justDone, setJustDone] = useState(false);
+  const wasRefreshing = useRef(refreshing);
+  useEffect(() => {
+    if (wasRefreshing.current && !refreshing) {
+      setJustDone(true);
+      const id = setTimeout(() => setJustDone(false), 900);
+      wasRefreshing.current = refreshing;
+      return () => clearTimeout(id);
+    }
+    wasRefreshing.current = refreshing;
+  }, [refreshing]);
+
   return (
     <button
       onClick={onRefresh}
@@ -85,21 +100,36 @@ function RefreshButton({
       aria-label="Refresh live data"
       className="btn-ghost disabled:pointer-events-none"
     >
-      <svg
-        width="13"
-        height="13"
-        viewBox="0 0 20 20"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.7"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        className={refreshing ? "animate-spin" : ""}
-        style={refreshing ? { animationDuration: "0.8s" } : undefined}
-      >
-        <path d="M16.9 8.2 A 7.2 7.2 0 1 0 17.2 11.6" />
-        <path d="M17.2 3.4 V8.2 H12.4" />
-      </svg>
+      {justDone ? (
+        <svg
+          width="13"
+          height="13"
+          viewBox="0 0 20 20"
+          fill="none"
+          stroke="var(--color-pos)"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="M4 10.5 L8.5 15 L16 5" />
+        </svg>
+      ) : (
+        <svg
+          width="13"
+          height="13"
+          viewBox="0 0 20 20"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.7"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className={refreshing ? "animate-spin" : ""}
+          style={refreshing ? { animationDuration: "0.8s" } : undefined}
+        >
+          <path d="M16.9 8.2 A 7.2 7.2 0 1 0 17.2 11.6" />
+          <path d="M17.2 3.4 V8.2 H12.4" />
+        </svg>
+      )}
     </button>
   );
 }
@@ -271,10 +301,16 @@ export function AppShell({ children }: { children: ReactNode }) {
           onMouseDown={sidebar.onMouseDown}
           onDoubleClick={sidebar.onDoubleClick}
           onKeyDown={sidebar.onKeyDown}
-          className={`absolute right-0 top-0 z-10 h-full w-1.5 -translate-x-1/2 cursor-col-resize ${
+          className={`group/handle absolute right-0 top-0 z-10 flex h-full w-1.5 -translate-x-1/2 cursor-col-resize items-center justify-center ${
             sidebar.dragging ? "bg-white/15" : "hover:bg-white/10"
           }`}
-        />
+        >
+          <span
+            className={`h-8 w-[3px] rounded-full bg-white/25 transition-opacity ${
+              sidebar.dragging ? "opacity-100" : "opacity-0 group-hover/handle:opacity-100"
+            }`}
+          />
+        </div>
       </aside>
 
       <div className="relative z-10 min-w-0 flex-1">
@@ -287,14 +323,37 @@ export function AppShell({ children }: { children: ReactNode }) {
           {ready && portfolio && (
             <div className="ml-auto flex items-center gap-2">
               <RefreshButton refreshing={live.refreshing} onRefresh={refreshLive} />
-              <LiveDot degraded={live.degraded || !live.quotesAt} />
-              <span
-                className={`font-mono text-[11px] tracking-[0.08em] ${
-                  live.degraded || !live.quotesAt ? "text-warn/90" : "text-mute"
-                }`}
+              <Tooltip
+                underline={false}
+                content={
+                  <div className="space-y-0.5">
+                    <div className="font-medium text-mute">
+                      {live.degraded
+                        ? "Live feed unreachable"
+                        : live.quotesAt
+                          ? "Live market data"
+                          : "Connecting to the feed"}
+                    </div>
+                    {live.quotesAt && (
+                      <div>Last quote {relativeTime(live.quotesAt)}</div>
+                    )}
+                    <div className="text-faint">
+                      {live.livePriceCount} of {portfolio.positions.length} priced live
+                    </div>
+                  </div>
+                }
               >
-                {(live.degraded || !live.quotesAt) ? liveLabel.toUpperCase() : "LIVE"}
-              </span>
+                <span className="flex items-center gap-2">
+                  <LiveDot degraded={live.degraded || !live.quotesAt} />
+                  <span
+                    className={`font-mono text-[11px] tracking-[0.08em] ${
+                      live.degraded || !live.quotesAt ? "text-warn/90" : "text-mute"
+                    }`}
+                  >
+                    {(live.degraded || !live.quotesAt) ? liveLabel.toUpperCase() : "LIVE"}
+                  </span>
+                </span>
+              </Tooltip>
             </div>
           )}
         </header>

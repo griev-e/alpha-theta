@@ -31,6 +31,7 @@ import {
 } from "@/lib/format";
 import { usePortfolio } from "@/lib/store";
 import { useFirstView } from "@/lib/firstView";
+import { DeltaArrow } from "@/components/ui/DeltaArrow";
 import type { Position } from "@/lib/types";
 import { PageSkeleton } from "@/components/ui/Skeleton";
 
@@ -483,8 +484,8 @@ function HeroDelta({
   const toneClass = pos ? "text-pos" : "text-neg";
   return (
     <>
-      <span className={`text-right ${toneClass}`}>
-        {pos ? "▲" : "▼"} {fmtUSD(Math.abs(amount))}
+      <span className={`flex items-center justify-end gap-1 text-right ${toneClass}`}>
+        <DeltaArrow up={pos} /> {fmtUSD(Math.abs(amount))}
       </span>
       <span className={`text-right ${toneClass}`}>{fmtPct(pct, 2, true)}</span>
       <span className="text-faint">{label}</span>
@@ -617,11 +618,11 @@ function HoldingRow({
         </div>
         {dayPct !== null && p.dayChange !== null ? (
           <div
-            className={`font-mono tnum text-[11px] ${
+            className={`flex items-center justify-end gap-1 font-mono tnum text-[11px] ${
               p.dayChange >= 0 ? "text-pos" : "text-neg"
             }`}
           >
-            {p.dayChange >= 0 ? "▲" : "▼"} {fmtPct(Math.abs(dayPct), 2)} ·{" "}
+            <DeltaArrow up={p.dayChange >= 0} /> {fmtPct(Math.abs(dayPct), 2)} ·{" "}
             {p.dayChange >= 0 ? "+" : "−"}{fmtUSD(Math.abs(p.dayChange))}
           </div>
         ) : (
