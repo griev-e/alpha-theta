@@ -1,6 +1,7 @@
 import YahooFinance from "yahoo-finance2";
 import type {
   AnalystRating,
+  AssetClass,
   InsiderSignal,
   Sector,
 } from "@/lib/types";
@@ -186,6 +187,40 @@ const ETF_SECTOR: Record<string, Sector> = {
   realestate: "Real Estate",
 };
 
+/**
+ * Fund-category patterns for asset-class inference. Yahoo's `fundProfile`
+ * publishes a Morningstar-style `categoryName` ("Intermediate Core Bond",
+ * "Commodities Focused", "Money Market") — far more reliable than scraping the
+ * fund's marketing name. Order matters: money-market is checked before bond so
+ * a "Money Market" fund doesn't trip the government/treasury bond pattern.
+ */
+const CASH_CATEGORY = /money market/i;
+const BOND_CATEGORY =
+  /bond|treasur|fixed income|municipal|\bmuni\b|inflation-protected|\btips\b|mortgage|securitized|government|high yield/i;
+const COMMODITY_CATEGORY =
+  /commodit|precious metal|\bgold\b|\bsilver\b|natural resource/i;
+
+/**
+ * Classify a security into a broad asset class from its Yahoo quote type and
+ * (for funds) its Morningstar category. Crypto is a distinct quote type;
+ * bond / commodity / money-market funds are detected by category. Everything
+ * else — individual stocks and equity funds — is `equity`, the honest default
+ * when there's no signal to the contrary.
+ */
+export function inferAssetClass(
+  quoteType: string | undefined,
+  isFund: boolean,
+  category: string | undefined
+): AssetClass {
+  if (quoteType === "CRYPTOCURRENCY") return "crypto";
+  if (isFund && category) {
+    if (CASH_CATEGORY.test(category)) return "cash";
+    if (BOND_CATEGORY.test(category)) return "bond";
+    if (COMMODITY_CATEGORY.test(category)) return "commodity";
+  }
+  return "equity";
+}
+
 const RATING: Record<string, AnalystRating> = {
   strong_buy: "Strong Buy",
   buy: "Buy",
@@ -313,6 +348,7 @@ export async function fetchYahooPatch(
         "calendarEvents",
         "insiderTransactions",
         "topHoldings",
+        "fundProfile",
       ],
     });
 
@@ -322,6 +358,12 @@ export async function fetchYahooPatch(
     const stats = s.defaultKeyStatistics as Record<string, unknown> | undefined;
     const fin = s.financialData;
     const isFund = price?.quoteType === "ETF" || price?.quoteType === "MUTUALFUND";
+    // Morningstar-style fund category ("Intermediate Core Bond", "Commodities
+    // Focused", "Money Market") drives asset-class inference for funds.
+    const fundCategory = str(
+      (s.fundProfile as Record<string, unknown> | undefined)?.categoryName
+    );
+    const assetClass = inferAssetClass(price?.quoteType, isFund, fundCategory);
 
     const marketCap = num(price?.marketCap);
     const fcf = num(fin?.freeCashflow);
@@ -371,6 +413,7 @@ export async function fetchYahooPatch(
       symbol,
       asOf: new Date().toISOString(),
       name: price?.longName ?? price?.shortName ?? undefined,
+      assetClass,
       sector: isFund
         ? "Diversified"
         : profile?.sector

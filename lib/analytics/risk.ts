@@ -1,11 +1,17 @@
 import { getCMA } from "../live/cma";
-import type { Portfolio, Sector } from "../types";
+import type { AssetClass, Portfolio, Sector } from "../types";
 import { covarianceMatrix, coveredPositions } from "./correlation";
 
 export interface SectorExposure {
   sector: Sector;
   weight: number; // of total portfolio (look-through for funds)
   benchmarkWeight: number;
+}
+
+export interface AssetClassExposure {
+  assetClass: AssetClass;
+  /** Weight of the total portfolio (cash counts as its own class). */
+  weight: number;
 }
 
 export interface RiskContribution {
@@ -25,6 +31,12 @@ export interface RiskReport {
   hhi: number;
   effectiveN: number;
   sectors: SectorExposure[];
+  /**
+   * Portfolio split across broad asset classes (equity / bond / commodity /
+   * crypto / cash). Cash is its own class; no-data holdings aren't classified
+   * and show up as the gap between this sum and 100% (see `coveragePct`).
+   */
+  assetAllocation: AssetClassExposure[];
   beta: number; // total portfolio incl. cash drag
   volatility: number; // annualized, total portfolio
   /**
@@ -94,6 +106,19 @@ export function riskReport(
       weight,
       benchmarkWeight: benchmarkSectors[sector] ?? 0,
     }))
+    .sort((a, b) => b.weight - a.weight);
+
+  // Asset-class split over total-portfolio weights: cash is its own class, each
+  // priced holding contributes its weight to its class. No-data holdings carry
+  // no class and are simply absent — the shortfall to 100% is the coverage gap.
+  const classMap = new Map<AssetClass, number>();
+  if (portfolio.cashWeight > 0) classMap.set("cash", portfolio.cashWeight);
+  for (const p of covered) {
+    const cls = p.fundamentals?.assetClass ?? "equity";
+    classMap.set(cls, (classMap.get(cls) ?? 0) + p.weight);
+  }
+  const assetAllocation: AssetClassExposure[] = [...classMap.entries()]
+    .map(([assetClass, weight]) => ({ assetClass, weight }))
     .sort((a, b) => b.weight - a.weight);
 
   // Beta & volatility on total weights (cash has β = 0, σ = 0). Covariance is
@@ -210,6 +235,7 @@ export function riskReport(
     hhi,
     effectiveN: hhi > 0 ? 1 / hhi : 0,
     sectors,
+    assetAllocation,
     beta,
     volatility,
     equityBeta,

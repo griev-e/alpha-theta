@@ -90,6 +90,35 @@ export function TextInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
   return <input {...props} className={`field ${props.className ?? ""}`} />;
 }
 
+/** A compact accessible on/off switch, tuned for the dark theta surface. */
+export function Switch({
+  checked,
+  onChange,
+  label,
+}: {
+  checked: boolean;
+  onChange: (next: boolean) => void;
+  label: string;
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      aria-label={label}
+      onClick={() => onChange(!checked)}
+      className={`relative inline-flex h-[18px] w-[32px] shrink-0 items-center rounded-full transition-colors ${
+        checked ? "bg-vio/70" : "bg-white/[0.08]"
+      }`}
+    >
+      <span
+        className="absolute h-[13px] w-[13px] rounded-full bg-white shadow transition-transform"
+        style={{ transform: checked ? "translateX(16px)" : "translateX(3px)" }}
+      />
+    </button>
+  );
+}
+
 export function Select({
   children,
   ...props

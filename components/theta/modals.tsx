@@ -9,7 +9,7 @@ import {
   SPEND_CATEGORIES,
 } from "@/lib/theta/data";
 import { useTheta } from "@/lib/theta/store";
-import { ActionButton, Field, Modal, Select, TextInput } from "./ui";
+import { ActionButton, Field, Modal, Select, Switch, TextInput } from "./ui";
 
 const today = () => new Date().toISOString().slice(0, 10);
 
@@ -131,6 +131,7 @@ export function AddBudgetModal({ open, onClose }: { open: boolean; onClose: () =
   }, [ledger]);
   const [category, setCategory] = useState<Category>(available[0] ?? "Other");
   const [limit, setLimit] = useState("");
+  const [rollover, setRollover] = useState(false);
 
   useEffect(() => {
     if (open && available[0] && !available.includes(category)) setCategory(available[0]);
@@ -140,8 +141,9 @@ export function AddBudgetModal({ open, onClose }: { open: boolean; onClose: () =
 
   function submit() {
     if (!valid) return;
-    addBudget(category, Math.abs(Number(limit)));
+    addBudget(category, Math.abs(Number(limit)), rollover || undefined);
     setLimit("");
+    setRollover(false);
     onClose();
   }
 
@@ -167,6 +169,16 @@ export function AddBudgetModal({ open, onClose }: { open: boolean; onClose: () =
               autoFocus
             />
           </Field>
+          <div className="flex items-start justify-between gap-4 rounded-lg border border-edge bg-white/[0.02] px-3.5 py-3">
+            <div className="min-w-0">
+              <div className="text-[13px] text-ink">Roll over unspent</div>
+              <div className="mt-0.5 text-[11.5px] leading-snug text-faint">
+                Carry each month&rsquo;s leftover (or overspend) into the next,
+                like an envelope.
+              </div>
+            </div>
+            <Switch checked={rollover} onChange={setRollover} label="Roll over unspent budget" />
+          </div>
         </div>
       )}
       <Actions onCancel={onClose} onSubmit={submit} submitLabel="Add budget" disabled={!valid} />

@@ -1,6 +1,6 @@
 import { getCMA } from "../live/cma";
 import { getReturns } from "../live/returns";
-import type { Portfolio, Position } from "../types";
+import type { AssetClass, Portfolio, Position } from "../types";
 import { ledoitWolfShrink } from "./shrinkage";
 
 /**
@@ -44,6 +44,20 @@ const FUND_VAR = 0.06;
 /** Minimum idiosyncratic fraction of σ_i² kept on the diagonal (keeps Σ PD). */
 const DIAG_FLOOR = 0.01;
 
+/**
+ * Within-class co-movement for the non-equity asset classes. Bonds move with
+ * bonds, cryptos with cryptos, etc. — a shared factor that binds a class
+ * together *without* pulling it toward the equity book. Cross-class co-movement
+ * flows only through the market factor (β), so a bond fund with β≈0 lands near
+ * zero (even negative) correlation to stocks, which is the honest structural
+ * default. Cash carries ~0 vol and no affinity — it drops out on its own.
+ */
+const CLASS_VAR: Record<Exclude<AssetClass, "equity" | "cash">, number> = {
+  bond: 0.5,
+  commodity: 0.4,
+  crypto: 0.6,
+};
+
 export interface CorrInputs {
   symbol: string;
   beta: number;
@@ -51,6 +65,8 @@ export interface CorrInputs {
   sector: string;
   industry: string;
   isFund: boolean;
+  /** Broad asset class; absent is treated as `equity` (the historical model). */
+  assetClass?: AssetClass;
 }
 
 /**
@@ -73,6 +89,7 @@ export function corrInputs(p: Position): CorrInputs {
     sector: f?.sector ?? "Unknown",
     industry: f?.industry ?? "Unknown",
     isFund: !!f?.fund,
+    assetClass: f?.assetClass ?? "equity",
   };
 }
 
@@ -94,6 +111,18 @@ interface Factor {
  * build on — so two same-industry ETFs still reach 0.30.
  */
 function factorsFor(x: CorrInputs): Factor[] {
+  const cls = x.assetClass ?? "equity";
+  // Non-equity classes don't load the equity sector/industry/fund factors —
+  // those would wrongly bind a bond ETF to the tech names it shares the "Fund /
+  // ETF" industry with. Instead each such name loads a single within-class
+  // factor, so bonds cluster with bonds and crypto with crypto, while
+  // cross-class co-movement is left to the market factor (β) alone. Cash gets
+  // no affinity factor at all (its ~0 vol makes it inert regardless).
+  if (cls !== "equity") {
+    const variance = cls === "cash" ? undefined : CLASS_VAR[cls];
+    return variance ? [{ key: `class:${cls}`, variance }] : [];
+  }
+
   const factors: Factor[] = [];
   const hasSector = x.sector !== "Unknown" && x.sector !== "Diversified";
   const hasIndustry = x.industry !== "Unknown";

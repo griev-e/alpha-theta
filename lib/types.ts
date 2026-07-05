@@ -36,6 +36,28 @@ export type AnalystRating =
 
 export type InsiderSignal = "Buying" | "Neutral" | "Selling";
 
+/**
+ * Broad asset class a holding belongs to. Portfolios aren't only stocks —
+ * bond funds, commodity/gold ETFs, crypto and cash-like instruments behave
+ * nothing like equities, and treating them as stocks corrupts beta, volatility
+ * and correlation. Inferred from the provider (Yahoo `quoteType` + fund
+ * category); defaults to `equity` when there's no signal to say otherwise.
+ */
+export type AssetClass =
+  | "equity"
+  | "bond"
+  | "commodity"
+  | "crypto"
+  | "cash";
+
+export const ASSET_CLASS_LABEL: Record<AssetClass, string> = {
+  equity: "Equity",
+  bond: "Fixed income",
+  commodity: "Commodity",
+  crypto: "Crypto",
+  cash: "Cash & equivalents",
+};
+
 /** Where a single value came from: a live provider, or the bundled/default fallback. */
 export type FieldSource = "live" | "fallback";
 
@@ -63,6 +85,9 @@ export interface FundamentalsProvenance {
 export interface Fundamentals {
   symbol: string;
   name: string;
+  /** Broad asset class. Equities keep the full factor model; bonds / commodities
+   *  / crypto / cash cluster with their own kind rather than the equity book. */
+  assetClass: AssetClass;
   sector: Sector;
   industry: string;
   /** Revenue exposure by region; values sum to 1. */

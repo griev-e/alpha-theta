@@ -18,7 +18,21 @@ import {
 } from "./data";
 import { deriveFlowSeries, deriveNetWorthSeries } from "./history";
 
-export type BudgetStatus = Budget & { spent: number };
+export type BudgetStatus = Budget & {
+  spent: number;
+  /**
+   * Envelope balance carried in from prior months — the accumulated
+   * `limit − spent` over the trailing window since the ledger's first activity.
+   * Positive means you're ahead (unspent rolled forward); negative means past
+   * overspending eats into this month. Always 0 for a non-rollover budget.
+   */
+  carryover: number;
+  /** `limit + carryover`, floored at 0 — what "remaining" is measured against. */
+  effectiveLimit: number;
+};
+
+/** Trailing months that contribute to an envelope budget's carryover balance. */
+const ROLLOVER_WINDOW = 12;
 
 export type ThetaView = {
   totalAssets: number;
@@ -52,6 +66,16 @@ const ym = (iso: string) => iso.slice(0, 7);
 function currentYearMonth(now: Date): { key: string; label: string } {
   const key = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
   return { key, label: MONTHS[now.getMonth()] };
+}
+
+/** `YYYY-MM` keys for the `count` months immediately before `now`, oldest → newest. */
+function priorMonthKeys(now: Date, count: number): string[] {
+  const keys: string[] = [];
+  for (let back = count; back >= 1; back--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - back, 1);
+    keys.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
+  }
+  return keys;
 }
 
 /** Normalize a recurring charge to a per-month figure. */
@@ -107,12 +131,56 @@ export function deriveTheta(ledger: Ledger, now: Date = new Date()): ThetaView {
     .sort((a, b) => b.amount - a.amount);
   const monthSpend = spending.reduce((s, x) => s + x.amount, 0);
 
+  // Per-(prior month, category) spend over the rollover window, plus the set of
+  // months with any activity — both needed to derive envelope carryover. Built
+  // once here so a ledger with many rollover budgets stays a single pass.
+  const priorKeys = priorMonthKeys(now, ROLLOVER_WINDOW);
+  const priorKeySet = new Set(priorKeys);
+  const coveredMonths = new Set<string>();
+  const spendByMonthCat = new Map<string, Map<Category, number>>();
+  for (const t of ledger.transactions) {
+    if (!included(t)) continue;
+    const key = ym(t.date);
+    if (!priorKeySet.has(key)) continue;
+    coveredMonths.add(key);
+    if (t.amount >= 0 || !SPEND_CATEGORIES.includes(t.category)) continue;
+    let cat = spendByMonthCat.get(key);
+    if (!cat) {
+      cat = new Map();
+      spendByMonthCat.set(key, cat);
+    }
+    cat.set(t.category, (cat.get(t.category) ?? 0) + Math.abs(t.amount));
+  }
+  // Accumulate limit − spent across prior months, but only from the ledger's
+  // first covered month onward — so months of empty pre-history don't fabricate
+  // an envelope balance the user never actually saved.
+  const carryoverFor = (category: Category, limit: number): number => {
+    let started = false;
+    let carry = 0;
+    for (const key of priorKeys) {
+      if (!started) {
+        if (!coveredMonths.has(key)) continue;
+        started = true;
+      }
+      carry += limit - (spendByMonthCat.get(key)?.get(category) ?? 0);
+    }
+    return carry;
+  };
+
   // Budgets: limit is stored, spent is derived from this month's transactions.
-  const budgets: BudgetStatus[] = ledger.budgets.map((b) => ({
-    ...b,
-    spent: spendMap.get(b.category) ?? 0,
-  }));
-  const totalBudget = budgets.reduce((s, b) => s + b.limit, 0);
+  // A rollover budget also carries an accumulated envelope balance forward.
+  const budgets: BudgetStatus[] = ledger.budgets.map((b) => {
+    const carryover = b.rollover ? carryoverFor(b.category, b.limit) : 0;
+    return {
+      ...b,
+      spent: spendMap.get(b.category) ?? 0,
+      carryover,
+      effectiveLimit: Math.max(0, b.limit + carryover),
+    };
+  });
+  // "Budgeted" reflects the effective (rolled-over) limits, so remaining and the
+  // overall ring account for envelope balances too.
+  const totalBudget = budgets.reduce((s, b) => s + b.effectiveLimit, 0);
   const totalBudgetSpent = budgets.reduce((s, b) => s + b.spent, 0);
 
   // Series derived from the transaction record over a trailing window, with the

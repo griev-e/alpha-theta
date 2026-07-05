@@ -1,4 +1,4 @@
-import type { AnalystRating, InsiderSignal, Region, Sector } from "@/lib/types";
+import type { AnalystRating, AssetClass, InsiderSignal, Region, Sector } from "@/lib/types";
 
 /** A live quote from the /api/quotes proxy (extended-hours aware). */
 export interface LiveQuote {
@@ -17,6 +17,8 @@ export interface FundamentalsPatch {
   symbol: string;
   asOf: string;
   name?: string;
+  /** Broad asset class inferred from the provider's quote type + fund category. */
+  assetClass?: AssetClass;
   sector?: Sector;
   industry?: string;
   marketCap?: number;

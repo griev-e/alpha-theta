@@ -60,6 +60,7 @@ export function fundamentals(
 ): Fundamentals {
   return {
     name: partial.symbol,
+    assetClass: "equity",
     sector: "Technology",
     industry: "Software",
     regions: { US: 1 },

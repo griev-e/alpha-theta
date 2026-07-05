@@ -4,7 +4,7 @@ import { useState } from "react";
 import { CategoryTag, ProgressBar } from "@/components/theta/bits";
 import { EditableMoney } from "@/components/theta/EditableMoney";
 import { AddBudgetModal } from "@/components/theta/modals";
-import { ActionButton, ThetaEmpty, IconButton, PlusIcon, TrashIcon } from "@/components/theta/ui";
+import { ActionButton, ThetaEmpty, IconButton, PlusIcon, Switch, TrashIcon } from "@/components/theta/ui";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Stat } from "@/components/ui/Stat";
@@ -13,7 +13,7 @@ import { ledgerHasData, useTheta } from "@/lib/theta/store";
 import { fmtPct, fmtUSD } from "@/lib/format";
 
 export default function BudgetsPage() {
-  const { ready, ledger, view, setBudgetLimit, removeBudget } = useTheta();
+  const { ready, ledger, view, setBudgetLimit, removeBudget, setBudgetRollover } = useTheta();
   const [adding, setAdding] = useState(false);
 
   if (!ready) return null;
@@ -60,8 +60,12 @@ export default function BudgetsPage() {
         {budgets.length > 0 ? (
           <div className="flex flex-col gap-5">
             {budgets.map((b, i) => {
-              const over = b.spent > b.limit;
-              const left = b.limit - b.spent;
+              // With rollover on, the envelope's effective limit (base + carried
+              // balance) is what spending is measured against.
+              const effective = b.effectiveLimit;
+              const over = b.spent > effective;
+              const left = effective - b.spent;
+              const showCarry = !!b.rollover && Math.abs(b.carryover) >= 0.01;
               return (
                 <div key={b.category} className="group">
                   <div className="mb-2 flex items-end justify-between">
@@ -76,6 +80,16 @@ export default function BudgetsPage() {
                             onCommit={(v) => setBudgetLimit(b.category, v)}
                             className="text-[13px] text-mute"
                           />
+                          {showCarry && (
+                            <span
+                              className={b.carryover >= 0 ? "text-pos" : "text-neg"}
+                              title="Rolled over from prior months"
+                            >
+                              {" "}
+                              {b.carryover >= 0 ? "+" : "−"}
+                              {fmtUSD(Math.abs(b.carryover), true)}
+                            </span>
+                          )}
                         </span>
                         <div className={`font-mono text-[11px] ${over ? "text-neg" : "text-faint"}`}>
                           {over ? `${fmtUSD(-left, true)} over` : `${fmtUSD(left, true)} left`}
@@ -88,7 +102,15 @@ export default function BudgetsPage() {
                       </span>
                     </div>
                   </div>
-                  <ProgressBar value={b.spent} max={b.limit} color={CATEGORY_COLOR[b.category]} height={8} delay={0.05 + i * 0.05} />
+                  <ProgressBar value={b.spent} max={effective} color={CATEGORY_COLOR[b.category]} height={8} delay={0.05 + i * 0.05} />
+                  <div className="mt-1.5 flex items-center justify-end gap-2">
+                    <span className="text-[10.5px] uppercase tracking-[0.04em] text-faint">Roll over</span>
+                    <Switch
+                      checked={!!b.rollover}
+                      onChange={(next) => setBudgetRollover(b.category, next)}
+                      label={`Roll over unspent ${b.category} budget`}
+                    />
+                  </div>
                 </div>
               );
             })}

@@ -31,6 +31,12 @@ describe("deriveTheta", () => {
     expect(v.spending.some((s) => s.category === "Transfer")).toBe(false);
   });
 
+  it("leaves a non-rollover budget with a zero carryover and base effective limit", () => {
+    const housing = v.budgets.find((b) => b.category === "Housing")!;
+    expect(housing.carryover).toBe(0);
+    expect(housing.effectiveLimit).toBe(housing.limit);
+  });
+
   it("appends the live current point to the stored series", () => {
     const cf = v.cashFlow;
     expect(cf[cf.length - 1].month).toBe("Jun");
@@ -134,5 +140,70 @@ describe("advanceRecurring month-end anchoring", () => {
 
   it("keeps weekly advances exact", () => {
     expect(advanceRecurring("2026-06-25", "weekly")).toBe("2026-07-02");
+  });
+});
+
+describe("deriveTheta budget rollover", () => {
+  // Prior months of Food spend under a $500 rollover budget, plus this month.
+  const NOW_R = new Date("2026-06-15T12:00:00Z");
+  const base: Ledger = {
+    accounts: [],
+    transactions: [
+      // April: spent 300 of 500 → +200
+      { id: "a1", date: "2026-04-10", merchant: "Groceries", category: "Food & Dining", account: "chk", amount: -300 },
+      // May: spent 450 of 500 → +50 (running +250)
+      { id: "m1", date: "2026-05-12", merchant: "Groceries", category: "Food & Dining", account: "chk", amount: -450 },
+      // June (current): 120 spent so far
+      { id: "j1", date: "2026-06-05", merchant: "Groceries", category: "Food & Dining", account: "chk", amount: -120 },
+    ],
+    budgets: [{ category: "Food & Dining", limit: 500, rollover: true }],
+    goals: [],
+    recurring: [],
+    netWorthHistory: [],
+    flowHistory: [],
+  };
+
+  const food = (l: Ledger) =>
+    deriveTheta(l, NOW_R).budgets.find((b) => b.category === "Food & Dining")!;
+
+  it("accumulates unspent balance from the ledger's first month forward", () => {
+    const b = food(base);
+    // April (+200) + May (+50) = +250 carried into June.
+    expect(b.carryover).toBeCloseTo(250, 2);
+    expect(b.effectiveLimit).toBeCloseTo(750, 2);
+    expect(b.spent).toBeCloseTo(120, 2);
+  });
+
+  it("does not fabricate carryover for months before the ledger began", () => {
+    const single: Ledger = {
+      ...base,
+      transactions: [
+        { id: "m1", date: "2026-05-12", merchant: "Groceries", category: "Food & Dining", account: "chk", amount: -450 },
+        { id: "j1", date: "2026-06-05", merchant: "Groceries", category: "Food & Dining", account: "chk", amount: -120 },
+      ],
+    };
+    expect(food(single).carryover).toBeCloseTo(50, 2); // May only: 500 − 450
+  });
+
+  it("carries an overspend forward as a negative balance", () => {
+    const over: Ledger = {
+      ...base,
+      transactions: [
+        { id: "m1", date: "2026-05-12", merchant: "Groceries", category: "Food & Dining", account: "chk", amount: -650 },
+        { id: "j1", date: "2026-06-05", merchant: "Groceries", category: "Food & Dining", account: "chk", amount: -50 },
+      ],
+    };
+    const b = food(over);
+    expect(b.carryover).toBeCloseTo(-150, 2); // 500 − 650
+    expect(b.effectiveLimit).toBeCloseTo(350, 2); // floored: 500 − 150
+  });
+
+  it("stays off (zero carryover) when the budget doesn't opt in", () => {
+    const plain: Ledger = {
+      ...base,
+      budgets: [{ category: "Food & Dining", limit: 500 }],
+    };
+    expect(food(plain).carryover).toBe(0);
+    expect(food(plain).effectiveLimit).toBe(500);
   });
 });
