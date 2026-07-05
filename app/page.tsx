@@ -29,6 +29,7 @@ import {
   symbolColorIndex,
 } from "@/lib/format";
 import { usePortfolio } from "@/lib/store";
+import { useFirstView } from "@/lib/firstView";
 import type { Position } from "@/lib/types";
 import { PageSkeleton } from "@/components/ui/Skeleton";
 
@@ -507,16 +508,20 @@ function HoldingRow({
   // rose (down) the instant a refresh moves it, then eases back out: a live
   // feed updating in place, its direction legible, instead of a silent swap.
   const tick = usePriceTick(p.price);
+  const firstView = useFirstView();
+  // Entrance stagger only on the first visit, and capped so a long book doesn't
+  // hold the last rows back by a second; the layout spring (re-sorting) stays.
+  const stagger = firstView ? 0.25 + Math.min(i, 10) * 0.035 : 0;
 
   return (
     <m.tr
       layout="position"
-      initial={{ opacity: 0, y: 6 }}
+      initial={firstView ? { opacity: 0, y: 6 } : false}
       animate={{ opacity: 1, y: 0 }}
       transition={{
         layout: { type: "spring", stiffness: 520, damping: 42 },
-        opacity: { delay: 0.25 + i * 0.035, duration: 0.35 },
-        y: { delay: 0.25 + i * 0.035, duration: 0.35 },
+        opacity: { delay: stagger, duration: 0.35 },
+        y: { delay: stagger, duration: 0.35 },
       }}
       className="group relative border-b border-edge/60 transition-colors duration-700 hover:bg-white/[0.03]"
     >
@@ -607,7 +612,7 @@ function HoldingRow({
               }}
               initial={{ width: 0 }}
               animate={{ width: `${(p.weight / maxWeight) * 100}%` }}
-              transition={{ delay: 0.4 + i * 0.03, duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+              transition={{ delay: firstView ? 0.4 + Math.min(i, 10) * 0.03 : 0, duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
             />
           </div>
           <span className="font-mono tnum text-[12px] text-mute">
@@ -633,7 +638,7 @@ function HoldingRow({
               animate={{
                 width: `${(Math.abs(p.returnPct) / maxAbsReturn) * 48}%`,
               }}
-              transition={{ delay: 0.35 + i * 0.03, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+              transition={{ delay: firstView ? 0.35 + Math.min(i, 10) * 0.03 : 0, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
             />
           </div>
           <div className="w-[88px] text-right">

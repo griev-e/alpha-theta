@@ -4,7 +4,9 @@ import { SyncBanner } from "@/components/ui/SyncBanner";
 import { m } from "framer-motion";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import type { ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
+import { TopProgress } from "@/components/ui/TopProgress";
+import { FirstViewProvider, useRouteFirstView } from "@/lib/firstView";
 import { useTheta } from "@/lib/theta/store";
 import { useSimplefinAutoSync } from "@/lib/theta/useSimplefinAutoSync";
 import { useSidebarWidth } from "@/lib/useSidebarWidth";
@@ -64,9 +66,17 @@ export function ThetaShell({ children }: { children: ReactNode }) {
   const current = NAV.find((n) => n.href === pathname);
   const showSample = ready && isSample;
   const sidebar = useSidebarWidth("theta.sidebarWidth.v1");
+  const firstView = useRouteFirstView(pathname);
+
+  // Per-route tab title for theta's routes, parallel to AppShell's.
+  useEffect(() => {
+    const item = NAV.find((n) => n.href === pathname);
+    document.title = item ? `${item.label} · theta` : "theta";
+  }, [pathname]);
 
   return (
     <div className="min-h-screen lg:flex">
+      <TopProgress accent="var(--color-vio)" />
       {/* Desktop sidebar */}
       <aside
         className="relative hidden shrink-0 lg:flex sticky top-0 h-screen flex-col border-r border-edge bg-[#050505]"
@@ -131,14 +141,16 @@ export function ThetaShell({ children }: { children: ReactNode }) {
 
         <main className="mx-auto w-full max-w-[1380px] min-w-0 px-4 py-6 sm:px-8 sm:py-8">
           <SyncBanner />
-          <m.div
-            key={pathname}
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
-          >
-            {children}
-          </m.div>
+          <FirstViewProvider value={firstView}>
+            <m.div
+              key={pathname}
+              initial={firstView ? { opacity: 0, y: 8 } : false}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+            >
+              {children}
+            </m.div>
+          </FirstViewProvider>
         </main>
       </div>
     </div>

@@ -2,8 +2,11 @@
 
 import { m } from "framer-motion";
 import type { ReactNode } from "react";
+import { useFirstView } from "@/lib/firstView";
 
-/** Glass panel with a staggered rise-in. Use `i` to order siblings. */
+/** Glass panel with a staggered rise-in. Use `i` to order siblings. The rise-in
+ *  plays only on a route's first visit this session (see {@link useFirstView});
+ *  revisits render instantly so repeat navigation stays snappy. */
 export function Card({
   children,
   className = "",
@@ -15,11 +18,16 @@ export function Card({
   i?: number;
   hover?: boolean;
 }) {
+  const firstView = useFirstView();
   return (
     <m.section
-      initial={{ opacity: 0, y: 16 }}
+      initial={firstView ? { opacity: 0, y: 16 } : false}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.45, delay: i * 0.06, ease: [0.22, 1, 0.36, 1] }}
+      transition={{
+        duration: 0.45,
+        delay: firstView ? i * 0.06 : 0,
+        ease: [0.22, 1, 0.36, 1],
+      }}
       className={`panel ${hover ? "panel-hover" : ""} ${className}`}
     >
       {children}

@@ -4,7 +4,9 @@ import { SyncBanner } from "@/components/ui/SyncBanner";
 import { m } from "framer-motion";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import type { ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
+import { TopProgress } from "@/components/ui/TopProgress";
+import { FirstViewProvider, useRouteFirstView } from "@/lib/firstView";
 import { fmtUSDCompact } from "@/lib/format";
 import { usePortfolio, useLiveStatus, usePortfolioActions } from "@/lib/store";
 import { useSidebarWidth } from "@/lib/useSidebarWidth";
@@ -114,6 +116,22 @@ export function AppShell({ children }: { children: ReactNode }) {
   const live = useLiveStatus();
   const { refreshLive } = usePortfolioActions();
   const sidebar = useSidebarWidth("alpha.sidebarWidth.v1");
+  const firstView = useRouteFirstView(pathname);
+
+  // Per-route document title, driven centrally off the nav list so every alpha
+  // route reads "<Page> · alpha" in the browser tab without a metadata export
+  // in each client page. theta owns its own title (ThetaShell), so bail there.
+  useEffect(() => {
+    if (pathname === "/theta" || pathname.startsWith("/theta/")) return;
+    const item = NAV.find((n) => n.href === pathname);
+    const label =
+      pathname === "/report"
+        ? "Export Report"
+        : pathname === "/lock"
+          ? null
+          : item?.label;
+    document.title = label ? `${label} · alpha` : "alpha";
+  }, [pathname]);
 
   // The entrance reveal from the lock screen is handled outside React, by a
   // render-blocking script + CSS overlay in app/layout.tsx, so it covers the
@@ -151,6 +169,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="min-h-screen lg:flex">
+      <TopProgress accent="var(--color-accent)" loading={live.refreshing} />
         {/* Desktop sidebar */}
       <aside
         className="relative hidden shrink-0 lg:flex sticky top-0 h-screen flex-col border-r border-edge bg-[#050505]"
@@ -251,14 +270,16 @@ export function AppShell({ children }: { children: ReactNode }) {
               its initial→animate, so the new page is mounted and visible at
               once. */}
           <SyncBanner />
-          <m.div
-            key={pathname}
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
-          >
-            {children}
-          </m.div>
+          <FirstViewProvider value={firstView}>
+            <m.div
+              key={pathname}
+              initial={firstView ? { opacity: 0, y: 8 } : false}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+            >
+              {children}
+            </m.div>
+          </FirstViewProvider>
         </main>
       </div>
     </div>

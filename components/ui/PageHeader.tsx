@@ -2,6 +2,7 @@
 
 import { m } from "framer-motion";
 import type { ReactNode } from "react";
+import { useFirstView } from "@/lib/firstView";
 
 export function PageHeader({
   eyebrow,
@@ -14,9 +15,10 @@ export function PageHeader({
   description?: string;
   right?: ReactNode;
 }) {
+  const firstView = useFirstView();
   return (
     <m.div
-      initial={{ opacity: 0, y: 6 }}
+      initial={firstView ? { opacity: 0, y: 6 } : false}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
       className="mb-6 flex flex-wrap items-end justify-between gap-4"
