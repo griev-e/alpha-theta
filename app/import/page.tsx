@@ -8,12 +8,14 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { parsePortfolioCSV, toCSV, type ParseResult } from "@/lib/csv";
 import { fmtUSD } from "@/lib/format";
 import { usePortfolio, usePortfolioActions } from "@/lib/store";
+import { useToast } from "@/components/ui/Toast";
 import { PageSkeleton } from "@/components/ui/Skeleton";
 
 const EXPECTED_HEADER = "name,symbol,shares,price,averageCost,totalReturn,equity";
 
 export default function ImportPage() {
   const router = useRouter();
+  const toast = useToast();
   const { ready, portfolio, hasData, isDemo, portfolios, activeId } = usePortfolio();
   const {
     importHoldings,
@@ -58,6 +60,7 @@ export default function ImportPage() {
 
   const commit = () => {
     if (!parsed || parsed.errors.length > 0 || parsed.holdings.length === 0) return;
+    const count = parsed.holdings.length;
     importHoldings(parsed.holdings, parsed.cash, {
       name: fileName?.replace(/\.csv$/i, "") || "Portfolio",
     });
@@ -65,6 +68,9 @@ export default function ImportPage() {
     setPasted("");
     setFileName(null);
     setConfirmOverride(false);
+    toast(`Portfolio imported · ${count} position${count === 1 ? "" : "s"}`, {
+      tone: "pos",
+    });
     // Land on the Overview once holdings are in.
     router.push("/");
   };
@@ -104,6 +110,7 @@ export default function ImportPage() {
     a.download = `alpha-portfolio-${new Date().toISOString().slice(0, 10)}.csv`;
     a.click();
     URL.revokeObjectURL(url);
+    toast("Portfolio exported as CSV");
   };
 
   if (!ready) return <PageSkeleton />;

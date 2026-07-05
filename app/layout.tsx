@@ -6,6 +6,7 @@ import { AssumptionsProvider } from "@/lib/assumptions/store";
 import { AppShell } from "@/components/shell/AppShell";
 import { AuthProvider } from "@/components/auth/AuthProvider";
 import { MotionProvider } from "@/components/motion/MotionProvider";
+import { ToastProvider } from "@/components/ui/Toast";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
@@ -39,7 +40,9 @@ export default function RootLayout({
           >
             <PortfolioProvider>
               <AssumptionsProvider>
-                <AppShell>{children}</AppShell>
+                <ToastProvider>
+                  <AppShell>{children}</AppShell>
+                </ToastProvider>
               </AssumptionsProvider>
             </PortfolioProvider>
           </AuthProvider>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { m } from "framer-motion";
 import { Donut, PALETTE } from "@/components/charts/Donut";
 import { Treemap } from "@/components/charts/Treemap";
@@ -428,6 +429,35 @@ export default function OverviewPage() {
                 />
               ))}
             </tbody>
+            <tfoot>
+              <tr className="border-t border-edge2 text-[13px]">
+                <td className="px-6 py-3">
+                  <span className="font-mono text-[12px] font-medium text-mute">
+                    Total · {portfolio.positions.length}
+                  </span>
+                </td>
+                <td />
+                <td className="px-6 py-3 text-right font-mono tnum text-[13px] text-ink">
+                  {fmtUSD(portfolio.equityValue)}
+                </td>
+                <td className="px-6 py-3 text-center font-mono tnum text-[12px] text-mute">
+                  {fmtPct(1 - portfolio.cashWeight, 0)}
+                </td>
+                <td className="px-6 py-3">
+                  <div className="flex items-center justify-end">
+                    <div className="w-[88px] text-right">
+                      <div className={`font-mono tnum text-[13px] ${deltaToneClass(portfolio.totalReturnPct)}`}>
+                        {fmtPct(portfolio.totalReturnPct, 2, true)}
+                      </div>
+                      <div className={`font-mono tnum text-[11px] ${deltaToneClass(portfolio.totalReturn)} opacity-75`}>
+                        {portfolio.totalReturn >= 0 ? "+" : "−"}
+                        {fmtUSD(Math.abs(portfolio.totalReturn))}
+                      </div>
+                    </div>
+                  </div>
+                </td>
+              </tr>
+            </tfoot>
           </table>
         </div>
       </Card>
@@ -498,6 +528,8 @@ function HoldingRow({
   maxWeight: number;
   maxAbsReturn: number;
 }) {
+  const router = useRouter();
+  const open = () => router.push(`/research?symbol=${encodeURIComponent(p.symbol)}`);
   const accent = symbolColor(p.symbol);
   const dayPct =
     p.dayChange !== null && p.equity - p.dayChange > 0
@@ -523,7 +555,14 @@ function HoldingRow({
         opacity: { delay: stagger, duration: 0.35 },
         y: { delay: stagger, duration: 0.35 },
       }}
-      className="group relative border-b border-edge/60 transition-colors duration-700 hover:bg-white/[0.03]"
+      onClick={open}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") open();
+      }}
+      role="link"
+      tabIndex={0}
+      aria-label={`Open ${p.symbol} in Research`}
+      className="group relative cursor-pointer border-b border-edge/60 transition-colors duration-700 hover:bg-white/[0.03]"
     >
       {/* Asset: brand logo + symbol + name */}
       <td className="relative px-6 py-3">
