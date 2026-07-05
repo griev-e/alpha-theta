@@ -92,6 +92,48 @@ describe("pairCorrelation", () => {
     const b = { ...base, symbol: "B", beta: 0.8, vol: 0.18, sector: "Energy" };
     expect(pairCorrelation(a, b)).toBeCloseTo(pairCorrelation(b, a), 12);
   });
+
+  it("clusters same-asset-class names and keeps cross-class low", () => {
+    // Two bond funds share a within-class factor and low beta, so they correlate
+    // meaningfully with each other…
+    const bondA: CorrInputs = {
+      symbol: "AGG", beta: 0.1, vol: 0.06,
+      sector: "Diversified", industry: "Fund / ETF", isFund: true, assetClass: "bond",
+    };
+    const bondB: CorrInputs = { ...bondA, symbol: "BND" };
+    const bondPair = pairCorrelation(bondA, bondB);
+    expect(bondPair).toBeGreaterThan(0.3);
+
+    // …but a bond fund vs an equity name only co-moves through the (tiny) market
+    // factor — it must NOT inherit the fund/industry affinity an equity ETF would.
+    const equity: CorrInputs = {
+      symbol: "SPY", beta: 1, vol: 0.18,
+      sector: "Diversified", industry: "Fund / ETF", isFund: true, assetClass: "equity",
+    };
+    const cross = pairCorrelation(bondA, equity);
+    // Cross-class co-movement is the market factor alone (bond β≈0.1), well
+    // below the within-class clustering.
+    expect(cross).toBeLessThan(bondPair);
+    expect(cross).toBeLessThan(0.3);
+  });
+
+  it("does not bind a bond fund and an equity fund via the shared ETF industry", () => {
+    // Both are "Fund / ETF" — under the old equity-only model they'd share the
+    // fund + industry factors. Asset class must sever that.
+    const bond: CorrInputs = {
+      symbol: "TLT", beta: 0.2, vol: 0.14,
+      sector: "Diversified", industry: "Fund / ETF", isFund: true, assetClass: "bond",
+    };
+    const equityFund: CorrInputs = {
+      symbol: "QQQ", beta: 1.1, vol: 0.2,
+      sector: "Diversified", industry: "Fund / ETF", isFund: true, assetClass: "equity",
+    };
+    const bondCrypto = pairCorrelation(bond, {
+      ...bond, symbol: "IEF",
+    });
+    const bondEquity = pairCorrelation(bond, equityFund);
+    expect(bondEquity).toBeLessThan(bondCrypto);
+  });
 });
 
 describe("correlationMatrix", () => {

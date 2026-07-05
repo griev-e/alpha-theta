@@ -97,6 +97,15 @@ export type Transaction = {
 export type Budget = {
   category: Category;
   limit: number;
+  /**
+   * When true this budget behaves like an envelope: each month's unspent
+   * amount (or overspend, as a negative) carries forward, so the effective
+   * limit is `limit + accumulated carryover`. Off by default — a plain budget
+   * resets every month. The carryover itself is *derived* from the transaction
+   * record (see `lib/theta/compute.ts`), never stored, so it always reflects
+   * the real spend history.
+   */
+  rollover?: boolean;
 };
 
 export type Goal = {

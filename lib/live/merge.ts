@@ -1,4 +1,5 @@
 import type {
+  AssetClass,
   DataCoverage,
   FieldSource,
   Fundamentals,
@@ -21,6 +22,7 @@ import type { FundamentalsPatch } from "./types";
 /** Fundamentals fields whose source we track for provenance. */
 const TRACKED: (keyof Fundamentals)[] = [
   "name",
+  "assetClass",
   "sector",
   "industry",
   "regions",
@@ -88,6 +90,7 @@ export function mergeFundamentals(
   return {
     ...bundled,
     name: patch.name ?? bundled.name,
+    assetClass: patch.assetClass ?? bundled.assetClass,
     sector: patch.sector ?? bundled.sector,
     industry: patch.industry ?? bundled.industry,
     regions: patch.regions ?? bundled.regions,
@@ -139,6 +142,22 @@ export function estimatedVolatility(beta: number): number {
 }
 
 /**
+ * Class-aware fallback beta/volatility for a holding the provider gives us no
+ * live beta/vol for. Equities keep the historical behavior (β = 1, vol derived
+ * from β); the other classes get a stylized-but-honest profile so a bond isn't
+ * silently treated as a β-1 stock, and a crypto isn't clipped to equity-like
+ * volatility. Only ever a *fallback* — a real Yahoo beta / realized vol always
+ * wins, and the provenance roll-up still marks these as estimated.
+ */
+export const CLASS_FALLBACK: Record<AssetClass, { beta: number; vol: number }> = {
+  equity: { beta: DEFAULT_BETA, vol: estimatedVolatility(DEFAULT_BETA) },
+  bond: { beta: 0.12, vol: 0.06 },
+  commodity: { beta: 0.35, vol: 0.18 },
+  crypto: { beta: 1.4, vol: 0.75 },
+  cash: { beta: 0.0, vol: 0.008 },
+};
+
+/**
  * Build full fundamentals for a ticker the bundle doesn't know. Exported so
  * callers that only have a quote (no fundamentals patch at all, e.g. the
  * Research page on a provider-coverage gap) can still synthesize a
@@ -147,10 +166,13 @@ export function estimatedVolatility(beta: number): number {
  * data.
  */
 export function fromPatch(patch: FundamentalsPatch): Fundamentals {
-  const beta = patch.beta ?? DEFAULT_BETA;
+  const assetClass = patch.assetClass ?? "equity";
+  const fallback = CLASS_FALLBACK[assetClass];
+  const beta = patch.beta ?? fallback.beta;
   return {
     symbol: patch.symbol,
     name: patch.name ?? patch.symbol,
+    assetClass,
     sector: patch.sector ?? "Unknown",
     industry: patch.industry ?? "Unknown",
     // No keyless source for revenue-by-region, so leave it empty rather than
@@ -158,8 +180,11 @@ export function fromPatch(patch: FundamentalsPatch): Fundamentals {
     regions: patch.regions ?? {},
     marketCap: patch.marketCap ?? 0,
     beta,
-    // Realized vol from price history when available; else approximate from beta.
-    volatility: patch.volatility ?? estimatedVolatility(beta),
+    // Realized vol from price history when available; else the class fallback
+    // (equities approximate from beta, other classes use a stylized profile).
+    volatility:
+      patch.volatility ??
+      (assetClass === "equity" ? estimatedVolatility(beta) : fallback.vol),
     revenueGrowth: patch.revenueGrowth ?? 0.05,
     epsGrowth: patch.epsGrowth ?? 0.08,
     fcfGrowth: patch.fcfGrowth ?? patch.revenueGrowth ?? 0.05,

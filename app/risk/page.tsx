@@ -8,12 +8,22 @@ import { Meter } from "@/components/ui/Meter";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Stat } from "@/components/ui/Stat";
 import { riskReport } from "@/lib/analytics/risk";
+import { ASSET_CLASS_LABEL, type AssetClass } from "@/lib/types";
 import { SPX } from "@/lib/data/benchmarks";
 import { getCMA, liveBenchmarkVolatility, liveBenchmarkProfiles } from "@/lib/live/cma";
 import { DEFAULT_BETA, estimatedVolatility } from "@/lib/live/merge";
 import { useAssumptions } from "@/lib/assumptions/store";
 import { fmtNum, fmtPct } from "@/lib/format";
 import { usePortfolio } from "@/lib/store";
+
+/** Per-asset-class accent for the allocation bars. */
+const ASSET_CLASS_COLOR: Record<AssetClass, string> = {
+  equity: "#5EEAD4",
+  bond: "#7DD3FC",
+  commodity: "#FCD34D",
+  crypto: "#A78BFA",
+  cash: "#94A3B8",
+};
 
 export default function RiskPage() {
   const { ready, portfolio } = usePortfolio();
@@ -42,6 +52,11 @@ export default function RiskPage() {
 
   // Holdings with no live fundamentals are excluded from the factor math.
   const noData = portfolio.positions.filter((p) => !p.fundamentals);
+
+  // Weight the asset-allocation breakdown doesn't cover: no-data (unclassified)
+  // holdings. Cash + classified names sum to (1 − gap).
+  const allocGap =
+    1 - risk.assetAllocation.reduce((s, a) => s + a.weight, 0);
 
 
   return (
@@ -269,8 +284,45 @@ export default function RiskPage() {
       </div>
 
       <div className="grid gap-5 lg:grid-cols-2">
+        {/* Asset-class allocation */}
+        {risk.assetAllocation.length > 1 && (
+          <Card className="px-6 py-5" i={3}>
+            <CardHeader
+              eyebrow="Asset allocation"
+              title="Across asset classes"
+              className="mb-4"
+            />
+            <div className="space-y-3">
+              {risk.assetAllocation.map((a, i) => (
+                <div key={a.assetClass}>
+                  <div className="mb-1 flex items-baseline justify-between">
+                    <span className="text-[12px] text-mute">
+                      {ASSET_CLASS_LABEL[a.assetClass]}
+                    </span>
+                    <span className="font-mono tnum text-[11px] text-ink">
+                      {fmtPct(a.weight, 1)}
+                    </span>
+                  </div>
+                  <Meter
+                    value={a.weight}
+                    max={Math.max(0.5, risk.assetAllocation[0]?.weight ?? 0.5)}
+                    color={ASSET_CLASS_COLOR[a.assetClass]}
+                    delay={0.1 + i * 0.05}
+                  />
+                </div>
+              ))}
+            </div>
+            {allocGap > 0.005 && (
+              <p className="mt-4 text-[11px] leading-relaxed text-faint">
+                {fmtPct(allocGap, 0)} of the book has no live classification and
+                is excluded here — see coverage above.
+              </p>
+            )}
+          </Card>
+        )}
+
         {/* Sector allocation */}
-        <Card className="px-6 py-5" i={3}>
+        <Card className="px-6 py-5" i={4}>
           <CardHeader
             eyebrow="Sector allocation"
             title="Sector tilts vs S&P 500"

@@ -67,6 +67,42 @@ describe("riskReport", () => {
     expect(r.effectiveN).toBeCloseTo(2, 6);
   });
 
+  it("breaks the book down by asset class, with cash as its own class", () => {
+    // Two equal equity holdings + 50% cash → 25% equity each (50% equity), 50% cash.
+    const r = riskReport(twoStock(2000), SPX.sectorWeights);
+    const byClass = Object.fromEntries(
+      r.assetAllocation.map((a) => [a.assetClass, a.weight])
+    );
+    expect(byClass.cash).toBeCloseTo(0.5, 6);
+    expect(byClass.equity).toBeCloseTo(0.5, 6);
+    // Sorted descending, and weights sum to the priced fraction (here 1.0).
+    expect(r.assetAllocation[0].weight).toBeGreaterThanOrEqual(
+      r.assetAllocation[r.assetAllocation.length - 1].weight
+    );
+    const total = r.assetAllocation.reduce((s, a) => s + a.weight, 0);
+    expect(total).toBeCloseTo(1, 6);
+  });
+
+  it("puts a bond fund in its own class, not the equity bucket", () => {
+    const p = makePortfolio(
+      [
+        holding({ symbol: "VTI", shares: 10, price: 100 }),
+        holding({ symbol: "BND", shares: 10, price: 100 }),
+      ],
+      0,
+      {
+        VTI: { assetClass: "equity", sector: "Diversified", industry: "Fund / ETF" },
+        BND: { assetClass: "bond", beta: 0.1, volatility: 0.06, sector: "Diversified", industry: "Fund / ETF" },
+      }
+    );
+    const r = riskReport(p, SPX.sectorWeights);
+    const byClass = Object.fromEntries(
+      r.assetAllocation.map((a) => [a.assetClass, a.weight])
+    );
+    expect(byClass.equity).toBeCloseTo(0.5, 6);
+    expect(byClass.bond).toBeCloseTo(0.5, 6);
+  });
+
   it("weights beta by total value, so cash drags it down", () => {
     const noCash = riskReport(twoStock(0), SPX.sectorWeights);
     expect(noCash.beta).toBeCloseTo(0.925, 3); // 0.5·1.0 + 0.5·0.85

@@ -1,15 +1,23 @@
 "use client";
 
+import { useMemo } from "react";
+import { Sankey } from "@/components/charts/Sankey";
 import { MoneyFlowBars } from "@/components/theta/bits";
 import { ThetaEmpty } from "@/components/theta/ui";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Stat } from "@/components/ui/Stat";
+import { buildCashFlowSankey } from "@/lib/theta/sankey";
 import { ledgerHasData, useTheta } from "@/lib/theta/store";
 import { fmtPct, fmtUSD } from "@/lib/format";
 
 export default function CashFlowPage() {
   const { ready, ledger, view } = useTheta();
+
+  const sankey = useMemo(
+    () => (ledger ? buildCashFlowSankey(ledger) : null),
+    [ledger]
+  );
 
   if (!ready) return null;
   if (!ledger || !view || !ledgerHasData(ledger)) return <ThetaEmpty page="Cash flow" />;
@@ -44,12 +52,33 @@ export default function CashFlowPage() {
         </Card>
       </div>
 
-      <Card className="mb-5 px-5 py-6" i={4}>
+      {sankey && (
+        <Card className="mb-5 px-5 py-6 sm:px-7" i={4}>
+          <CardHeader
+            eyebrow={`${sankey.monthLabel} · where the money goes`}
+            title="Income → spending"
+            className="mb-2"
+          />
+          <Sankey
+            columns={sankey.columns}
+            links={sankey.links}
+            total={sankey.total}
+            height={Math.max(300, sankey.columns[2].length * 46 + 60)}
+          />
+          <p className="mt-3 text-[11.5px] leading-relaxed text-faint">
+            {sankey.monthLabel}&rsquo;s income on the left, flowing into each
+            spending category and what&rsquo;s left over on the right.
+            {sankey.net < 0 && " Spending outran income — the shortfall is drawn from savings."}
+          </p>
+        </Card>
+      )}
+
+      <Card className="mb-5 px-5 py-6" i={5}>
         <CardHeader eyebrow={`Trailing ${months} months`} title="Income vs. spending" className="mb-6" />
         <MoneyFlowBars data={flows} height={220} />
       </Card>
 
-      <Card className="overflow-hidden" i={5}>
+      <Card className="overflow-hidden" i={6}>
         <CardHeader eyebrow="Detail" title="Monthly breakdown" className="px-6 pt-5 mb-1" />
         <div className="overflow-x-auto">
           <table className="w-full min-w-[560px] text-[13px]">

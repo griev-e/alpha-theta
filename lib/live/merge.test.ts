@@ -6,6 +6,7 @@ import type { FundamentalsPatch } from "./types";
 const bundled: Fundamentals = {
   symbol: "AAA",
   name: "Alpha Inc",
+  assetClass: "equity",
   sector: "Technology",
   industry: "Software",
   regions: { US: 1 },

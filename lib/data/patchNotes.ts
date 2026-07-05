@@ -8,6 +8,17 @@ export type PatchNote = {
 // Newest first. Add an entry here whenever a notable change ships.
 export const PATCH_NOTES: PatchNote[] = [
   {
+    version: "1.52",
+    date: "2026-07-05",
+    title: "Multi-asset honesty, budget rollover, a cash-flow Sankey, and portfolio risk in theta",
+    changes: [
+      "alpha now recognizes what each holding actually is. Bond funds, commodity/gold ETFs, crypto, and money-market/cash funds are classified from the provider (Yahoo quote type + fund category) and no longer treated as if they were stocks: the correlation model clusters each class with its own kind — bonds move with bonds, crypto with crypto — and cross-asset co-movement flows only through market beta, so a bond ETF lands near-zero (or negative) correlation to your equities instead of inheriting the tech names it happens to share the \"Fund / ETF\" bucket with. Names the provider gives no beta/vol for now fall back to a class-appropriate profile rather than a β-1 stock. The Risk page carries a new asset-allocation breakdown across equity / fixed income / commodity / crypto / cash.",
+      "theta budgets can now roll over. Flip a budget to envelope mode and each month's unspent (or overspent) amount carries forward — the effective limit is your base limit plus the accumulated balance, derived straight from your transaction history rather than stored, so it always reflects what really happened. A carryover chip shows what rolled in, and \"remaining\" accounts for it.",
+      "theta's Cash Flow page opens with a Sankey diagram: the latest active month's income sources flow through an Income hub out to each spending category and what's left over as Saved — a conserved, animated, hand-built SVG (a shortfall month is drawn as money pulled from savings so the ribbons still balance).",
+      "The alpha↔theta bridge goes deeper. When a theta account mirrors your live alpha portfolio, the Net Worth page now reads that portfolio's real beta and volatility to show how a market drawdown (correction / bear / crash) would hit your net worth in dollars and percent — and reassures you that your liquid runway, measured in months of spending, doesn't move with the market.",
+    ],
+  },
+  {
     version: "1.51",
     date: "2026-07-04",
     title: "An AI strategist on Market Analysis",

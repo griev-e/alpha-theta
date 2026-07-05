@@ -53,8 +53,10 @@ interface ThetaStore {
   applySimplefinSync: (sync: { accounts: Account[]; transactions: Transaction[] }) => void;
 
   setBudgetLimit: (category: Category, limit: number) => void;
-  addBudget: (category: Category, limit: number) => void;
+  addBudget: (category: Category, limit: number, rollover?: boolean) => void;
   removeBudget: (category: Category) => void;
+  /** Toggle envelope rollover (carry unspent/overspent forward) for a budget. */
+  setBudgetRollover: (category: Category, rollover: boolean) => void;
 
   addGoal: (g: Omit<Goal, "id" | "accent"> & { accent?: string }) => void;
   contributeToGoal: (id: string, amount: number) => void;
@@ -311,6 +313,7 @@ export function ThetaProvider({ children }: { children: ReactNode }) {
     (category: Category, limit: number) =>
       mutate((l) => {
         const exists = l.budgets.some((b) => b.category === category);
+        // Preserve an existing budget's rollover flag when only its limit changes.
         const budgets: Budget[] = exists
           ? l.budgets.map((b) => (b.category === category ? { ...b, limit } : b))
           : [...l.budgets, { category, limit }];
@@ -319,9 +322,33 @@ export function ThetaProvider({ children }: { children: ReactNode }) {
     [mutate]
   );
 
-  // addBudget is an upsert too — identical to setBudgetLimit — so it just aliases
-  // it rather than duplicating the branch.
-  const addBudget = setBudgetLimit;
+  // addBudget upserts limit + rollover in one write (used by the Add modal).
+  const addBudget = useCallback(
+    (category: Category, limit: number, rollover?: boolean) =>
+      mutate((l) => {
+        const exists = l.budgets.some((b) => b.category === category);
+        const budgets: Budget[] = exists
+          ? l.budgets.map((b) =>
+              b.category === category ? { ...b, limit, rollover } : b
+            )
+          : [...l.budgets, { category, limit, rollover }];
+        return { ...l, budgets };
+      }),
+    [mutate]
+  );
+
+  const setBudgetRollover = useCallback(
+    (category: Category, rollover: boolean) =>
+      mutate((l) => ({
+        ...l,
+        budgets: l.budgets.map((b) =>
+          b.category === category
+            ? { ...b, rollover: rollover || undefined }
+            : b
+        ),
+      })),
+    [mutate]
+  );
 
   const removeBudget = useCallback(
     (category: Category) =>
@@ -631,6 +658,7 @@ export function ThetaProvider({ children }: { children: ReactNode }) {
       setBudgetLimit,
       addBudget,
       removeBudget,
+      setBudgetRollover,
       addGoal,
       contributeToGoal,
       removeGoal,
@@ -658,7 +686,7 @@ export function ThetaProvider({ children }: { children: ReactNode }) {
     [
       ready, isSample, effectiveLedger, view,
       addTransaction, deleteTransaction, importTransactions, applySimplefinSync,
-      setBudgetLimit, addBudget, removeBudget,
+      setBudgetLimit, addBudget, removeBudget, setBudgetRollover,
       addGoal, contributeToGoal, removeGoal,
       addRecurring, markRecurringPaid, removeRecurring,
       dismissDetectedRecurring, restoreDetectedRecurring, restoreSyncAccounts,

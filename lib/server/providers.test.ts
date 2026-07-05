@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { sectorFromIndustry } from "./finnhub";
 import { sanitizeImplausibleFields } from "./fundamentals";
-import { annualizedVol, roicFrom, yoyGrowth } from "./yahoo";
+import { annualizedVol, inferAssetClass, roicFrom, yoyGrowth } from "./yahoo";
 
 describe("annualizedVol", () => {
   it("returns undefined for short series", () => {
@@ -19,6 +19,37 @@ describe("annualizedVol", () => {
     const v = annualizedVol(closes)!;
     expect(v).toBeGreaterThan(0.1);
     expect(v).toBeLessThan(0.25);
+  });
+});
+
+describe("inferAssetClass", () => {
+  it("classifies a crypto quote type regardless of fund/category", () => {
+    expect(inferAssetClass("CRYPTOCURRENCY", false, undefined)).toBe("crypto");
+  });
+
+  it("classifies bond funds from their Morningstar category", () => {
+    expect(inferAssetClass("ETF", true, "Intermediate Core Bond")).toBe("bond");
+    expect(inferAssetClass("ETF", true, "Long Government")).toBe("bond");
+    expect(inferAssetClass("MUTUALFUND", true, "High Yield Bond")).toBe("bond");
+    expect(inferAssetClass("ETF", true, "Muni National Interm")).toBe("bond");
+  });
+
+  it("classifies commodity funds", () => {
+    expect(inferAssetClass("ETF", true, "Commodities Focused")).toBe("commodity");
+    expect(inferAssetClass("ETF", true, "Equity Precious Metals")).toBe("commodity");
+  });
+
+  it("classifies money-market funds as cash, ahead of the bond pattern", () => {
+    // "Money Market" would also match the bond `government` pattern if checked
+    // in the wrong order — cash must win.
+    expect(inferAssetClass("MUTUALFUND", true, "Money Market")).toBe("cash");
+  });
+
+  it("defaults an individual stock and an equity fund to equity", () => {
+    expect(inferAssetClass("EQUITY", false, undefined)).toBe("equity");
+    expect(inferAssetClass("ETF", true, "Large Blend")).toBe("equity");
+    // A category on a non-fund is ignored — only funds carry a fund category.
+    expect(inferAssetClass("EQUITY", false, "Corporate Bond")).toBe("equity");
   });
 });
 
