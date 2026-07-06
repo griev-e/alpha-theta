@@ -19,6 +19,7 @@ import { ThetaAssumptionsProvider } from "@/lib/theta/assumptionsStore";
 import { AppTitle, Sigil, SignOutButton } from "./brand";
 import { PortfolioSwitcher } from "./PortfolioSwitcher";
 import { MobileNavStrip, SidebarNav, SidebarCollapseButton } from "./SidebarNav";
+import { PATCH_NOTES } from "@/lib/data/patchNotes";
 import { ThetaShell } from "./ThetaShell";
 import {
   IconBenchmark,
@@ -160,6 +161,33 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { refreshLive, loadDemo, selectPortfolio } = usePortfolioActions();
   const sidebar = useSidebarWidth("alpha.sidebarWidth.v1");
   const firstView = useRouteFirstView(pathname);
+
+  // A quiet dot on the Patch Notes row until the newest entry has been seen.
+  const [unseenPatch, setUnseenPatch] = useState(false);
+  useEffect(() => {
+    try {
+      setUnseenPatch(localStorage.getItem("alpha.patchSeen.v1") !== PATCH_NOTES[0]?.version);
+    } catch {
+      /* private mode — just don't badge */
+    }
+  }, []);
+  useEffect(() => {
+    if (pathname !== "/patch-notes") return;
+    try {
+      localStorage.setItem("alpha.patchSeen.v1", PATCH_NOTES[0]?.version ?? "");
+    } catch {
+      /* private mode */
+    }
+    setUnseenPatch(false);
+  }, [pathname]);
+
+  const navItems = useMemo(
+    () =>
+      NAV.map((n) =>
+        n.href === "/patch-notes" ? { ...n, dot: unseenPatch } : n
+      ),
+    [unseenPatch]
+  );
 
   // Commands for the ⌘K palette: every nav route, a few global actions, and one
   // switch row per saved portfolio.
@@ -308,7 +336,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         {!sidebar.collapsed && <PortfolioSwitcher />}
 
         <SidebarNav
-          items={NAV}
+          items={navItems}
           groups={GROUPS}
           accent="var(--color-accent)"
           layoutId="nav-active"

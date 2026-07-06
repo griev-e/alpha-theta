@@ -11,6 +11,8 @@ export interface NavItem {
   label: string;
   icon: ComponentType;
   group: string;
+  /** A small status dot on the row — e.g. an unseen patch note. */
+  dot?: boolean;
 }
 
 function NavRow({
@@ -56,6 +58,15 @@ function NavRow({
         <Icon />
       </span>
       {!collapsed && <span className="relative z-10">{item.label}</span>}
+      {item.dot && (
+        <span
+          aria-hidden
+          className={`z-10 h-1.5 w-1.5 shrink-0 rounded-full ${
+            collapsed ? "absolute right-1.5 top-1.5" : "relative ml-auto"
+          }`}
+          style={{ background: accent }}
+        />
+      )}
     </Link>
   );
 }
