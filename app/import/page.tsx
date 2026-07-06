@@ -12,6 +12,8 @@ import { useToast } from "@/components/ui/Toast";
 import { PageSkeleton } from "@/components/ui/Skeleton";
 
 const EXPECTED_HEADER = "name,symbol,shares,price,averageCost,totalReturn,equity";
+const EXPECTED_COLS = EXPECTED_HEADER.split(",");
+const EXAMPLE_ROW = ["Apple", "AAPL", "10", "291.48", "250.00", "414.80", "2914.80"];
 
 export default function ImportPage() {
   const router = useRouter();
@@ -160,8 +162,8 @@ export default function ImportPage() {
               <div className="text-[14px] font-medium text-ink">
                 Drop your CSV here, or click to browse
               </div>
-              <div className="mt-1.5 font-mono text-[11px] text-faint">
-                {EXPECTED_HEADER}
+              <div className="mt-1.5 text-[11px] text-faint">
+                Any column order · $/%/parentheses all fine
               </div>
               <input
                 ref={fileRef}
@@ -193,6 +195,82 @@ export default function ImportPage() {
                   Parse pasted text
                 </button>
               )}
+            </div>
+
+            {/* A live example of the expected shape — header + one row (§87) */}
+            <div className="mt-4">
+              <div className="eyebrow mb-2">Expected format</div>
+              <div className="overflow-x-auto rounded-lg border border-edge bg-void/40">
+                <table className="w-full min-w-[520px] text-left font-mono text-[11px]">
+                  <thead>
+                    <tr className="border-b border-edge text-faint">
+                      {EXPECTED_COLS.map((c) => (
+                        <th key={c} className="px-2.5 py-1.5 font-medium">
+                          {c}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr className="tnum text-mute">
+                      {EXAMPLE_ROW.map((v, i) => (
+                        <td key={EXPECTED_COLS[i]} className="px-2.5 py-1.5">
+                          {v}
+                        </td>
+                      ))}
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <div className="mt-2 text-[11px] text-faint">
+                A <span className="font-mono text-mute">CASH</span> or{" "}
+                <span className="font-mono text-mute">USD</span> row sets the cash
+                position.
+              </div>
+            </div>
+
+            {/* ...or start from — the ways to begin, composed onto the launch pad */}
+            <div className="mt-5 border-t border-edge pt-4">
+              <div className="eyebrow mb-2.5">…or start from</div>
+              <div className="grid gap-2 sm:grid-cols-3">
+                <button
+                  onClick={() => {
+                    loadDemo();
+                    router.push("/");
+                  }}
+                  className="rounded-lg border border-edge bg-void/40 px-3 py-2.5 text-left transition hover:border-mint/30"
+                >
+                  <span className="block text-[12.5px] font-medium text-ink">
+                    Demo portfolio
+                  </span>
+                  <span className="mt-0.5 block text-[10.5px] text-faint">
+                    13 seeded positions
+                  </span>
+                </button>
+                <a
+                  href="/sample-portfolio.csv"
+                  download
+                  className="rounded-lg border border-edge bg-void/40 px-3 py-2.5 text-left transition hover:border-mint/30"
+                >
+                  <span className="block text-[12.5px] font-medium text-ink">
+                    Sample CSV
+                  </span>
+                  <span className="mt-0.5 block text-[10.5px] text-faint">
+                    the exact format
+                  </span>
+                </a>
+                <button
+                  onClick={() => createPortfolio()}
+                  className="rounded-lg border border-edge bg-void/40 px-3 py-2.5 text-left transition hover:border-mint/30"
+                >
+                  <span className="block text-[12.5px] font-medium text-ink">
+                    Empty portfolio
+                  </span>
+                  <span className="mt-0.5 block text-[10.5px] text-faint">
+                    add holdings by hand
+                  </span>
+                </button>
+              </div>
             </div>
 
             {/* Parse preview */}
