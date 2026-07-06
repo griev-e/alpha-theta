@@ -5,6 +5,7 @@ import { AnimatePresence, m as Motion } from "framer-motion";
 import Link from "next/link";
 import { AiThinking } from "@/components/ui/AiThinking";
 import { Card } from "@/components/ui/Card";
+import { AiDisabledCard, EnvKey } from "@/components/ui/AiDisabledCard";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { TickerLogo } from "@/components/ui/TickerLogo";
@@ -372,13 +373,10 @@ function IdlePanel() {
 function DisabledPanel() {
   return (
     <Shell>
-      <Card className="px-8 py-12 text-center" hover={false}>
-        <h2 className="font-display text-[15px] font-medium text-ink">AI Discover isn&apos;t configured</h2>
-        <p className="mx-auto mt-2 max-w-md text-[13px] leading-relaxed text-mute">
-          Set <code className="rounded bg-white/[0.06] px-1.5 py-0.5 font-mono text-[11px]">ANTHROPIC_API_KEY</code> in
-          the environment to generate ideas. Everything else in the app works without it.
-        </p>
-      </Card>
+      <AiDisabledCard variant="card" title="AI Discover isn't configured">
+        Set <EnvKey /> in the environment to generate ideas. Everything else in
+        the app works without it.
+      </AiDisabledCard>
     </Shell>
   );
 }
@@ -503,7 +501,7 @@ function IdeaCard({ idea, i, price }: { idea: DiscoverIdea; i: number; price?: n
       initial={{ opacity: 0, y: 14 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.08 + i * 0.07, duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
-      className="flex flex-col tile p-4 transition-transform duration-300 hover:-translate-y-0.5 sm:p-5"
+      className="panel-link flex flex-col tile p-4 transition-transform duration-300 hover:-translate-y-0.5 sm:p-5"
       style={{ borderTop: `2px solid ${conv}` }}
     >
       <div className="flex items-start justify-between gap-3">

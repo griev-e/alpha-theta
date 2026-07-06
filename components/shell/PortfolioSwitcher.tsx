@@ -116,10 +116,18 @@ export function PortfolioSwitcher() {
                       selectPortfolio(p.id);
                       setOpen(false);
                     }}
-                    className={`flex w-full items-center gap-2 px-3 py-1.5 text-left text-[12.5px] transition-colors ${
+                    className={`relative flex w-full items-center gap-2 px-3 py-1.5 text-left text-[12.5px] transition-colors ${
                       isActive ? "bg-white/[0.06] text-ink" : "text-mute hover:bg-white/[0.04] hover:text-ink"
                     }`}
                   >
+                    {/* Brand-red spine on the active book — one of alpha's
+                        sanctioned red moments, marking "you are here." */}
+                    {isActive && (
+                      <span
+                        aria-hidden
+                        className="absolute inset-y-1 left-0 w-[2px] rounded-full bg-accent"
+                      />
+                    )}
                     <span className="flex h-3.5 w-3.5 shrink-0 items-center justify-center text-accent">
                       {isActive && (
                         <svg width="12" height="12" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">

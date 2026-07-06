@@ -128,7 +128,9 @@ export function Donut({
       </div>
       <div className="flex max-h-[230px] min-w-0 grow basis-[110px] flex-col gap-1.5 overflow-y-auto pr-1">
         {arcs.map((a) => (
-          <button
+          <m.button
+            layout
+            transition={{ type: "spring", stiffness: 520, damping: 42 }}
             key={a.id}
             title={a.label}
             onMouseEnter={() => setActive(a.id)}
@@ -145,7 +147,7 @@ export function Donut({
             <span className="font-mono tnum text-[12px] text-ink">
               {fmtPct(a.frac, 1)}
             </span>
-          </button>
+          </m.button>
         ))}
       </div>
     </div>

@@ -7,9 +7,11 @@
   --color-edge2: rgba(255, 255, 255, 0.16);
   --color-ink: #ededed;
   --color-mute: #a1a1a1;
-  /* ~5:1 on the near-black background — clears WCAG AA for body text, where
-     the previous #666 sat just under the 4.5:1 line. */
-  --color-faint: #7c7c7c;
+  /* Clears WCAG AA (4.5:1) for small text not just on the near-black bg but on
+     the raised surfaces too — the previous #7c7c7c dipped to ~4.4:1 on
+     surface-3 (#131316), the lightest panel step. #838383 restores the margin
+     everywhere while staying clearly dimmer than --color-mute. */
+  --color-faint: #838383;
   --color-mint: #5eead4;
   /* alpha's signature brand accent (the portal tab + sidebar). Deliberately
      separate from --color-mint, which is the positive/neutral data accent used
@@ -210,6 +212,17 @@ body {
   font-weight: 600;
 }
 
+/* ── The two eyebrow dialects ──────────────────────────────────────────────
+   Metadata is marked in one of two voices; keep them distinct, don't blur them:
+     • `.eyebrow` (below) — sentence-case, sans, gray. The voice for *labels of
+       content*: "Net value", "Allocation map", "Positioning". Titles a human
+       wrote for a human.
+     • mono uppercase + `tracking-[0.18em]` — the voice for *machine / status*:
+       LIVE, SAMPLE DATA, the AiThinking ticker, cost chips. A readout, not a
+       title.
+   The test: is it naming a section of content (→ .eyebrow) or reporting a
+   system state (→ tracked mono caps)? New surfaces pick one, never a third. */
+
 /* Quiet metadata label, Vercel-style: small, gray, sentence case. */
 .eyebrow {
   font-family: var(--font-sans);
@@ -232,6 +245,19 @@ body {
 }
 .panel-hover:hover {
   border-color: var(--color-edge2);
+  box-shadow: var(--edge-hi), var(--shadow-pop);
+}
+
+/* Clickable panels physically rise: on top of the brighter border + pop shadow,
+   the fill steps up to --surface-2 so a card that is a *link* (Discover ideas,
+   theta account cards) reads as liftable, not just outlined. Compose with
+   .panel .panel-hover. */
+.panel-link {
+  transition: border-color 150ms ease, box-shadow 150ms ease, background 150ms ease;
+}
+.panel-link:hover {
+  border-color: var(--color-edge2);
+  background: var(--surface-2);
   box-shadow: var(--edge-hi), var(--shadow-pop);
 }
 
@@ -692,6 +718,13 @@ input[type="range"]::-moz-range-thumb {
   }
   .report-doc h2 {
     margin-top: 20px;
+  }
+  /* Sections fade+rise on scroll (§29) on screen only. A section still below
+     the fold at print time would otherwise print at opacity 0 — force every
+     one fully visible and un-transformed, beating Framer's inline styles. */
+  .report-section {
+    opacity: 1 !important;
+    transform: none !important;
   }
 }
 

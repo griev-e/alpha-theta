@@ -1,11 +1,16 @@
 "use client";
 
-import { useId } from "react";
+import { useId, useState } from "react";
 import { useElementWidth } from "@/lib/useElementWidth";
 
 /**
  * Compact line chart with an optional reference baseline. Renders in real
  * pixel coordinates (ResizeObserver) so the line never warps.
+ *
+ * Pass `labels` (one per value) to make it interactive: a crosshair + a small
+ * chip follow the pointer, reading the label and value at the hovered point.
+ * Omit `labels` and it stays a static, non-interactive spark (the tiny row
+ * sparks elsewhere are unaffected).
  */
 export function Sparkline({
   values,
@@ -13,6 +18,8 @@ export function Sparkline({
   baseline,
   color = "var(--color-mint)",
   belowColor,
+  labels,
+  formatValue,
 }: {
   values: number[];
   height?: number;
@@ -21,8 +28,13 @@ export function Sparkline({
   color?: string;
   /** If set, the line uses this color while the latest value < baseline. */
   belowColor?: string;
+  /** One label per value; presence turns on the hover crosshair + readout. */
+  labels?: string[];
+  /** Formats the hovered value for the readout chip. */
+  formatValue?: (v: number) => string;
 }) {
   const [ref, width] = useElementWidth<HTMLDivElement>();
+  const [hover, setHover] = useState<number | null>(null);
   // Unique per instance so many sparklines can share the page without their
   // gradient defs colliding.
   const gid = useId().replace(/[:]/g, "");
@@ -56,8 +68,23 @@ export function Sparkline({
     .join(" ");
   const area = `${line} L${width} ${height} L0 ${height} Z`;
 
+  const interactive = !!labels && labels.length === values.length;
+  const fmt = formatValue ?? ((v: number) => v.toLocaleString("en-US", { maximumFractionDigits: 0 }));
+  const onMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!interactive || width <= 0) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const ratio = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width));
+    setHover(Math.round(ratio * (values.length - 1)));
+  };
+  const hx = hover !== null ? x(hover) : 0;
+
   return (
-    <div ref={ref} className="w-full">
+    <div
+      ref={ref}
+      className={`relative w-full ${interactive ? "touch-none" : ""}`}
+      onPointerMove={onMove}
+      onPointerLeave={() => setHover(null)}
+    >
       {width > 0 && (
         <svg
           width={width}
@@ -105,7 +132,24 @@ export function Sparkline({
             r={2.8}
             fill={stroke}
           />
+          {/* Hover crosshair + point (interactive mode only). */}
+          {interactive && hover !== null && (
+            <>
+              <line x1={hx} x2={hx} y1={0} y2={height} stroke="rgba(255,255,255,0.22)" strokeWidth={1} />
+              <circle cx={hx} cy={y(values[hover])} r={3.5} fill={stroke} stroke="var(--color-void)" strokeWidth={1.5} />
+            </>
+          )}
         </svg>
+      )}
+      {/* Readout chip — label + value at the hovered point. */}
+      {interactive && hover !== null && width > 0 && (
+        <div
+          className="overlay pointer-events-none absolute top-0 z-10 -translate-x-1/2 whitespace-nowrap px-2 py-1 text-center"
+          style={{ left: Math.min(Math.max(hx, 40), width - 40) }}
+        >
+          <div className="font-mono tnum text-[11px] text-ink">{fmt(values[hover])}</div>
+          <div className="font-mono text-[9.5px] text-faint">{labels![hover]}</div>
+        </div>
       )}
     </div>
   );

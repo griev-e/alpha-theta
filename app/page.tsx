@@ -34,7 +34,7 @@ import { usePortfolio } from "@/lib/store";
 import { useFirstView } from "@/lib/firstView";
 import { DeltaArrow } from "@/components/ui/DeltaArrow";
 import type { Position } from "@/lib/types";
-import { PageSkeleton } from "@/components/ui/Skeleton";
+import { TableSkeleton } from "@/components/ui/Skeleton";
 
 type SortKey = "equity" | "returnPct" | "weight" | "symbol" | "today";
 
@@ -80,7 +80,7 @@ export default function OverviewPage() {
     return arr;
   }, [portfolio, sortKey, asc]);
 
-  if (!ready) return <PageSkeleton />;
+  if (!ready) return <TableSkeleton />;
   if (!portfolio || !risk) return <EmptyState page="The overview" />;
 
   // Bar scales for the holdings table, computed once instead of per row.
@@ -443,6 +443,7 @@ export default function OverviewPage() {
                   maxAbsReturn={maxAbsReturn}
                   active={activeSymbol === p.symbol}
                   onHover={setActiveSymbol}
+                  sortKey={sortKey}
                 />
               ))}
             </tbody>
@@ -541,6 +542,7 @@ function HoldingRow({
   maxAbsReturn,
   active = false,
   onHover,
+  sortKey,
 }: {
   p: Position;
   i: number;
@@ -549,6 +551,9 @@ function HoldingRow({
   /** Lit from the shared Overview hover (treemap/donut/table cross-highlight). */
   active?: boolean;
   onHover?: (symbol: string | null) => void;
+  /** The active sort column — its figures brighten one step so the sort is
+   *  legible without reading the header. */
+  sortKey?: SortKey;
 }) {
   const router = useRouter();
   const open = () => router.push(`/research?symbol=${encodeURIComponent(p.symbol)}`);
@@ -662,7 +667,7 @@ function HoldingRow({
         <div className="font-mono tnum text-[13px] text-ink">
           {fmtUSD(p.equity)}
         </div>
-        <div className="font-mono tnum text-[11px] text-faint">
+        <div className={`font-mono tnum text-[11px] ${sortKey === "equity" ? "text-mute" : "text-faint"}`}>
           {fmtShares(p.shares)} sh · {fmtUSD(p.costBasis)}
         </div>
       </td>
@@ -682,7 +687,7 @@ function HoldingRow({
               transition={{ delay: firstView ? 0.4 + Math.min(i, 10) * 0.03 : 0, duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
             />
           </div>
-          <span className="font-mono tnum text-[12px] text-mute">
+          <span className={`font-mono tnum text-[12px] ${sortKey === "weight" ? "text-ink" : "text-mute"}`}>
             {fmtPct(p.weight, 1)}
           </span>
         </div>

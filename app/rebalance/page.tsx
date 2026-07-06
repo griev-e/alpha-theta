@@ -6,6 +6,7 @@ import { PALETTE } from "@/components/charts/Donut";
 import { Legend } from "@/components/charts/Legend";
 import { AiThinking } from "@/components/ui/AiThinking";
 import { Card, CardHeader } from "@/components/ui/Card";
+import { AiDisabledCard, EnvKey } from "@/components/ui/AiDisabledCard";
 import { Computing } from "@/components/ui/Computing";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -858,16 +859,10 @@ function AllocatorCard({
 
   if (state.kind === "disabled") {
     return (
-      <Card className="mb-5 px-6 py-4" hover={false}>
-        <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[12.5px] text-faint">
-          <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-white/20" />
-          AI allocator is off — set
-          <code className="rounded bg-white/[0.05] px-1.5 py-0.5 font-mono text-[11px]">
-            ANTHROPIC_API_KEY
-          </code>
-          to have Claude suggest where to deploy your dry powder.
-        </div>
-      </Card>
+      <AiDisabledCard className="mb-5">
+        AI allocator is off — set <EnvKey /> to have Claude suggest where to
+        deploy your dry powder.
+      </AiDisabledCard>
     );
   }
 

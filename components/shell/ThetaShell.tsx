@@ -13,6 +13,7 @@ import { FirstViewProvider, useRouteFirstView } from "@/lib/firstView";
 import { useTheta } from "@/lib/theta/store";
 import { useSimplefinAutoSync } from "@/lib/theta/useSimplefinAutoSync";
 import { useSidebarWidth } from "@/lib/useSidebarWidth";
+import { SampleDataTag } from "@/components/ui/SampleDataTag";
 import { AppTitle, Mark, SignOutButton } from "./brand";
 import { IconImport, IconIntelligence } from "./icons";
 import { MobileNavStrip, SidebarNav, SidebarCollapseButton } from "./SidebarNav";
@@ -53,12 +54,7 @@ const GROUPS = ["Overview", "Money", "Planning", "System"];
 /** Honest tag: theta ships with illustrative sample data, no real accounts. */
 function DemoTag({ className = "" }: { className?: string }) {
   return (
-    <span
-      className={`flex items-center gap-1.5 font-mono text-[10.5px] tracking-[0.08em] text-vio/80 ${className}`}
-    >
-      <span className="h-1.5 w-1.5 rounded-full bg-vio/70" />
-      SAMPLE DATA
-    </span>
+    <SampleDataTag accent="var(--color-vio)" label="SAMPLE DATA" className={className} />
   );
 }
 
@@ -175,8 +171,16 @@ export function ThetaShell({ children }: { children: ReactNode }) {
 
       <div className="relative z-10 min-w-0 flex-1">
         {/* Desktop top bar */}
-        <header className="sticky top-0 z-40 hidden h-12 items-center border-b border-edge bg-black/80 px-6 backdrop-blur-md lg:flex">
-          <span className="text-[13px] text-faint">{current?.group ?? "theta"}</span>
+        <header className="sticky top-0 z-40 hidden h-12 items-center glass border-b border-edge px-6 lg:flex">
+          <m.span
+            key={current?.group ?? "theta"}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.15 }}
+            className="text-[13px] text-faint"
+          >
+            {current?.group ?? "theta"}
+          </m.span>
           <span className="absolute left-1/2 -translate-x-1/2 text-[13px] font-medium text-mute">
             {current?.label ?? ""}
           </span>
@@ -184,7 +188,7 @@ export function ThetaShell({ children }: { children: ReactNode }) {
         </header>
 
         {/* Mobile top bar */}
-        <header className="lg:hidden sticky top-0 z-40 border-b border-edge bg-black/85 backdrop-blur-md">
+        <header className="glass lg:hidden sticky top-0 z-40 border-b border-edge">
           <div className="flex items-center justify-between px-4 py-3">
             <Link href="/theta" className="flex items-center gap-2.5">
               <Mark kind="theta" size={22} />

@@ -1,7 +1,8 @@
 "use client";
 
+import { m } from "framer-motion";
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { correlationMatrix } from "@/lib/analytics/correlation";
 import { dividendReport } from "@/lib/analytics/dividends/engine";
 import type {
@@ -53,6 +54,24 @@ function fmtMetric(value: number | null, format: MetricFormat): string {
   if (format === "pct") return fmtPct(value, 1);
   if (format === "multiple") return fmtMultiple(value);
   return value.toFixed(2);
+}
+
+/** A report section that fades + rises once when scrolled into view (§29).
+ *  Print is unaffected: globals.css forces every `.report-section` fully visible
+ *  and un-transformed under `@media print`, beating these inline styles, so a
+ *  section still below the fold prints correctly. */
+function RevealSection({ children }: { children: ReactNode }) {
+  return (
+    <m.section
+      className="report-section"
+      initial={{ opacity: 0, y: 16 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, amount: 0.15 }}
+      transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+    >
+      {children}
+    </m.section>
+  );
 }
 
 /** Signed dollar/percent cell with pos/neg coloring. */
@@ -140,12 +159,37 @@ function useReportOverlays(portfolio: Portfolio | null): Overlays {
 
 /* ── page ───────────────────────────────────────────────────────────────── */
 
+const COMPOSE_STEPS = [
+  "Assembling holdings",
+  "Scoring quality & risk",
+  "Laying out the dossier",
+];
+
 export default function ReportPage() {
   const { ready, portfolio, isDemo } = usePortfolio();
   const { version } = useAssumptions();
   const live = useLiveStatus();
   const overlays = useReportOverlays(portfolio);
   const { spx, ndx } = liveBenchmarkProfiles();
+
+  // A short "composing dossier" sequence before the print dialog (§110): the
+  // export walks a few captions so the click reads as assembling a document
+  // rather than firing a raw browser print.
+  const [composeStep, setComposeStep] = useState<number | null>(null);
+  const exportPdf = useCallback(() => {
+    if (composeStep !== null) return;
+    let step = 0;
+    setComposeStep(0);
+    const iv = window.setInterval(() => {
+      step += 1;
+      if (step < COMPOSE_STEPS.length) setComposeStep(step);
+    }, 320);
+    window.setTimeout(() => {
+      window.clearInterval(iv);
+      window.print();
+      setComposeStep(null);
+    }, COMPOSE_STEPS.length * 320 + 140);
+  }, [composeStep]);
 
   const analytics = useMemo(() => {
     if (!portfolio) return null;
@@ -209,13 +253,38 @@ export default function ReportPage() {
         </div>
         <button
           type="button"
-          onClick={() => window.print()}
+          onClick={exportPdf}
           className="btn-primary ml-auto"
-          disabled={overlays.loading}
+          disabled={overlays.loading || composeStep !== null}
         >
-          Export PDF
+          {composeStep !== null ? "Composing…" : "Export PDF"}
         </button>
       </div>
+
+      {composeStep !== null && (
+        <div className="no-print fixed inset-0 z-[140] flex items-center justify-center bg-black/70 backdrop-blur-sm">
+          <div className="overlay flex min-w-[240px] items-center gap-3 px-5 py-4">
+            <span className="h-2 w-2 shrink-0 rounded-full bg-accent" />
+            <span className="font-mono text-[12.5px] text-ink">
+              {COMPOSE_STEPS[composeStep]}…
+            </span>
+            <span className="ml-auto flex gap-1" aria-hidden>
+              {COMPOSE_STEPS.map((_, i) => (
+                <span
+                  key={i}
+                  className="h-1 w-4 rounded-full transition-colors duration-300"
+                  style={{
+                    background:
+                      i <= composeStep
+                        ? "var(--color-accent)"
+                        : "var(--color-edge2)",
+                  }}
+                />
+              ))}
+            </span>
+          </div>
+        </div>
+      )}
 
       <article className="report-doc">
         {/* Header */}
@@ -236,7 +305,7 @@ export default function ReportPage() {
         </header>
 
         {/* 1 · Summary */}
-        <section className="report-section">
+        <RevealSection>
           <h2>Portfolio Summary</h2>
           <div className="kpis avoid-break">
             <div className="kpi">
@@ -287,10 +356,10 @@ export default function ReportPage() {
               <div className="value">{fmtNum(risk.effectiveN, 1)}</div>
             </div>
           </div>
-        </section>
+        </RevealSection>
 
         {/* 2 · Holdings */}
-        <section className="report-section">
+        <RevealSection>
           <h2>Holdings</h2>
           <table>
             <thead>
@@ -340,10 +409,10 @@ export default function ReportPage() {
               })}
             </tbody>
           </table>
-        </section>
+        </RevealSection>
 
         {/* 3 · Risk */}
-        <section className="report-section">
+        <RevealSection>
           <h2>Risk &amp; Concentration</h2>
           <div className="kpis avoid-break">
             <div className="kpi">
@@ -427,10 +496,10 @@ export default function ReportPage() {
               ))}
             </tbody>
           </table>
-        </section>
+        </RevealSection>
 
         {/* 4 · Quality */}
-        <section className="report-section">
+        <RevealSection>
           <h2>Quality Scorecard</h2>
           <div className="kpis avoid-break">
             <div className="kpi">
@@ -502,10 +571,10 @@ export default function ReportPage() {
               ))}
             </tbody>
           </table>
-        </section>
+        </RevealSection>
 
         {/* 5 · Benchmark & Factors */}
-        <section className="report-section">
+        <RevealSection>
           <h2>Benchmark &amp; Factors</h2>
           <h3>Portfolio vs Indices</h3>
           <table>
@@ -578,10 +647,10 @@ export default function ReportPage() {
               </tr>
             </tbody>
           </table>
-        </section>
+        </RevealSection>
 
         {/* 6 · Holdings fundamentals (Research drill-down) */}
-        <section className="report-section">
+        <RevealSection>
           <h2>Holdings Fundamentals</h2>
           <table>
             <thead>
@@ -626,10 +695,10 @@ export default function ReportPage() {
               })}
             </tbody>
           </table>
-        </section>
+        </RevealSection>
 
         {/* 7 · Correlation */}
-        <section className="report-section">
+        <RevealSection>
           <h2>Correlation &amp; Diversification</h2>
           <div className="kpis avoid-break">
             <div className="kpi">
@@ -683,30 +752,30 @@ export default function ReportPage() {
               </table>
             </>
           )}
-        </section>
+        </RevealSection>
 
         {/* 8 · Dividends */}
-        <section className="report-section">
+        <RevealSection>
           <h2>Dividend Income</h2>
           <DividendBlock
             report={overlays.dividends}
             error={overlays.dividendError}
             loading={overlays.loading}
           />
-        </section>
+        </RevealSection>
 
         {/* 9 · Market regime */}
-        <section className="report-section">
+        <RevealSection>
           <h2>Market Regime</h2>
           <MarketBlock
             report={overlays.market}
             error={overlays.marketError}
             loading={overlays.loading}
           />
-        </section>
+        </RevealSection>
 
         {/* 10 · Earnings calendar (Intelligence) */}
-        <section className="report-section">
+        <RevealSection>
           <h2>Upcoming Earnings</h2>
           {earnings.length === 0 ? (
             <p className="note">No upcoming earnings dates in coverage.</p>
@@ -738,7 +807,7 @@ export default function ReportPage() {
               </tbody>
             </table>
           )}
-        </section>
+        </RevealSection>
 
         <footer
           className="muted"

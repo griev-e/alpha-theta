@@ -15,6 +15,7 @@ const Histogram = dynamic(
   { ssr: false }
 );
 import { Card, CardHeader } from "@/components/ui/Card";
+import { RangeSlider } from "@/components/ui/RangeSlider";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -179,14 +180,13 @@ export default function MonteCarloPage() {
                 <span className="eyebrow">Horizon</span>
                 <span className="font-mono tnum text-[15px] text-ink">{years} years</span>
               </div>
-              <input
-                type="range"
+              <RangeSlider
                 min={1}
                 max={30}
                 step={1}
                 value={years}
-                onChange={(e) => setYears(Number(e.target.value))}
-                className="w-full"
+                onChange={setYears}
+                format={(v) => `${v} years`}
               />
             </div>
             <div>
@@ -196,14 +196,13 @@ export default function MonteCarloPage() {
                   {fmtUSD(contribution, true)}
                 </span>
               </div>
-              <input
-                type="range"
+              <RangeSlider
                 min={0}
                 max={5000}
                 step={50}
                 value={contribution}
-                onChange={(e) => setContribution(Number(e.target.value))}
-                className="w-full"
+                onChange={setContribution}
+                format={(v) => fmtUSD(v, true)}
               />
             </div>
             <div>
@@ -216,14 +215,13 @@ export default function MonteCarloPage() {
                   </span>
                 </span>
               </div>
-              <input
-                type="range"
+              <RangeSlider
                 min={1.5}
                 max={100}
                 step={0.5}
                 value={targetMultiple}
-                onChange={(e) => setTargetMultiple(Number(e.target.value))}
-                className="w-full"
+                onChange={setTargetMultiple}
+                format={(v) => `${v}× today`}
               />
             </div>
           </div>

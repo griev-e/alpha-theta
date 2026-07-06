@@ -6,6 +6,7 @@ import { AiThinking } from "@/components/ui/AiThinking";
 import { AiMeta } from "@/components/ui/AiMeta";
 import { RevealGroup, RevealItem } from "@/components/ui/Reveal";
 import { Card, CardHeader } from "@/components/ui/Card";
+import { AiDisabledCard, EnvKey } from "@/components/ui/AiDisabledCard";
 import { Computing } from "@/components/ui/Computing";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -25,6 +26,28 @@ import { PageSkeleton } from "@/components/ui/Skeleton";
 /** Stable per-symbol accent so colors survive re-sorting. */
 function symbolColor(symbol: string): string {
   return PALETTE[symbolColorIndex(symbol, PALETTE.length)];
+}
+
+/** A numbered brief-section header — the tracked-mono "morning paper" voice
+ *  (01 · Positioning), distinct from the sentence-case content eyebrow. */
+function BriefSection({
+  n,
+  label,
+  className = "mb-2",
+}: {
+  n: string;
+  label: string;
+  className?: string;
+}) {
+  return (
+    <div
+      className={`flex items-center gap-2 font-mono text-[10.5px] uppercase tracking-[0.14em] text-faint ${className}`}
+    >
+      <span className="text-mute">{n}</span>
+      <span className="h-px w-3 bg-edge2" />
+      <span>{label}</span>
+    </div>
+  );
 }
 
 /* ---------------------------------- brief --------------------------------- */
@@ -104,16 +127,9 @@ function BriefCard({ portfolio }: { portfolio: Portfolio }) {
 
   if (state.kind === "disabled") {
     return (
-      <Card className="mb-5 px-6 py-4" i={0} hover={false}>
-        <div className="flex items-center gap-3 text-[12.5px] text-faint">
-          <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-white/20" />
-          AI brief is off — set{" "}
-          <code className="rounded bg-white/[0.05] px-1.5 py-0.5 font-mono text-[11px]">
-            ANTHROPIC_API_KEY
-          </code>{" "}
-          to enable a daily portfolio brief.
-        </div>
-      </Card>
+      <AiDisabledCard i={0} className="mb-5">
+        AI brief is off — set <EnvKey /> to enable a daily portfolio brief.
+      </AiDisabledCard>
     );
   }
 
@@ -169,7 +185,7 @@ function BriefCard({ portfolio }: { portfolio: Portfolio }) {
 
           {state.data.brief.positioning && (
             <RevealItem className="mt-4 border-l-2 border-edge2 pl-4">
-              <div className="eyebrow mb-1.5">positioning</div>
+              <BriefSection n="01" label="Positioning" />
               <p className="max-w-3xl text-[12.5px] leading-relaxed text-mute">
                 {state.data.brief.positioning}
               </p>
@@ -178,7 +194,7 @@ function BriefCard({ portfolio }: { portfolio: Portfolio }) {
 
           {state.data.brief.themes?.length > 0 && (
             <RevealItem className="mt-5">
-              <div className="eyebrow mb-2.5">themes</div>
+              <BriefSection n="02" label="Themes" className="mb-2.5" />
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {state.data.brief.themes.map((t) => (
                   <div
@@ -200,7 +216,7 @@ function BriefCard({ portfolio }: { portfolio: Portfolio }) {
           <RevealItem className="mt-5 grid gap-x-10 gap-y-5 lg:grid-cols-2">
             {state.data.brief.movers.length > 0 && (
               <div>
-                <div className="eyebrow mb-2">movers</div>
+                <BriefSection n="03" label="Movers" />
                 <ul className="space-y-2.5">
                   {state.data.brief.movers.map((m) => (
                     <li key={m.symbol} className="flex items-start gap-2.5">
@@ -224,7 +240,7 @@ function BriefCard({ portfolio }: { portfolio: Portfolio }) {
             <div className="space-y-5">
               {state.data.brief.watchItems.length > 0 && (
                 <div>
-                  <div className="eyebrow mb-2">on watch</div>
+                  <BriefSection n="04" label="On watch" />
                   <ul className="space-y-2">
                     {state.data.brief.watchItems.map((w) => (
                       <li
@@ -239,7 +255,7 @@ function BriefCard({ portfolio }: { portfolio: Portfolio }) {
                 </div>
               )}
               <div>
-                <div className="eyebrow mb-2">risk note</div>
+                <BriefSection n="05" label="Risk note" />
                 <p className="text-[12.5px] leading-snug text-mute">
                   {state.data.brief.risk}
                 </p>

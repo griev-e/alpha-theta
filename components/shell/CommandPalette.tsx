@@ -189,10 +189,10 @@ export function CommandPalette({
             role="dialog"
             aria-modal="true"
             aria-label="Command palette"
-            initial={{ opacity: 0, y: 10, scale: 0.985 }}
+            initial={{ opacity: 0, y: 8, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 8, scale: 0.985 }}
-            transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
+            exit={{ opacity: 0, y: 6, scale: 0.98 }}
+            transition={{ duration: 0.15, ease: [0.22, 1, 0.36, 1] }}
             className="overlay relative z-10 w-full max-w-lg overflow-hidden"
           >
             <div className="flex items-center gap-2.5 border-b border-edge px-4">
@@ -231,8 +231,13 @@ export function CommandPalette({
 
             <div ref={listRef} className="max-h-[52vh] overflow-y-auto p-1.5">
               {rows.length === 0 && (
-                <div className="px-3 py-6 text-center text-[12.5px] text-faint">
-                  No matches
+                <div className="px-3 py-6 text-center">
+                  <div className="text-[12.5px] text-mute">No matches</div>
+                  <div className="mt-1.5 text-[11.5px] leading-relaxed text-faint">
+                    {enableTickerSearch
+                      ? "Try a ticker or company name to jump to its research page."
+                      : "Try a page or action name."}
+                  </div>
                 </div>
               )}
 

@@ -17,11 +17,14 @@ interface ToastItem {
   id: number;
   message: string;
   tone: Tone;
+  href?: string;
 }
 
 interface ToastOptions {
   tone?: Tone;
   duration?: number;
+  /** When set, clicking the toast navigates here (e.g. a "what's new" nudge). */
+  href?: string;
 }
 
 const ToastContext = createContext<(message: string, opts?: ToastOptions) => void>(
@@ -56,7 +59,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       const id = Date.now() + Math.random();
       setToasts((list) => [
         ...list,
-        { id, message, tone: opts?.tone ?? "default" },
+        { id, message, tone: opts?.tone ?? "default", href: opts?.href },
       ]);
       const ttl = opts?.duration ?? 3200;
       setTimeout(() => dismiss(id), ttl);
@@ -79,14 +82,22 @@ export function ToastProvider({ children }: { children: ReactNode }) {
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: 8, scale: 0.96 }}
                   transition={{ type: "spring", stiffness: 480, damping: 34 }}
-                  className="overlay pointer-events-auto flex items-center gap-2.5 px-3.5 py-2.5"
-                  onClick={() => dismiss(t.id)}
+                  className={`overlay pointer-events-auto flex items-center gap-2.5 px-3.5 py-2.5 ${
+                    t.href ? "cursor-pointer" : ""
+                  }`}
+                  onClick={() => {
+                    if (t.href) window.location.assign(t.href);
+                    dismiss(t.id);
+                  }}
                 >
                   <span
                     className="h-1.5 w-1.5 shrink-0 rounded-full"
                     style={{ background: DOT[t.tone] }}
                   />
                   <span className="text-[12.5px] text-ink">{t.message}</span>
+                  {t.href && (
+                    <span aria-hidden className="text-[12px] text-faint">→</span>
+                  )}
                 </m.div>
               ))}
             </AnimatePresence>

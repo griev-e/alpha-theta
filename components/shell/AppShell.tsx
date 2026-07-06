@@ -13,6 +13,8 @@ import { MarketPulse } from "./MarketPulse";
 import { StatusCenter } from "./StatusCenter";
 import { FirstViewProvider, useRouteFirstView } from "@/lib/firstView";
 import { fmtUSDCompact } from "@/lib/format";
+import { SampleDataTag } from "@/components/ui/SampleDataTag";
+import { useToast } from "@/components/ui/Toast";
 import { usePortfolio, useLiveStatus, usePortfolioActions } from "@/lib/store";
 import { useSidebarWidth } from "@/lib/useSidebarWidth";
 import { ThetaProvider } from "@/lib/theta/store";
@@ -163,6 +165,8 @@ export function AppShell({ children }: { children: ReactNode }) {
   const sidebar = useSidebarWidth("alpha.sidebarWidth.v1");
   const firstView = useRouteFirstView(pathname);
 
+  const toast = useToast();
+
   // A quiet dot on the Patch Notes row until the newest entry has been seen.
   const [unseenPatch, setUnseenPatch] = useState(false);
   useEffect(() => {
@@ -172,6 +176,18 @@ export function AppShell({ children }: { children: ReactNode }) {
       /* private mode — just don't badge */
     }
   }, []);
+
+  // A one-time "what's new" nudge when a release has shipped since last visit —
+  // the toast counterpart to the nav dot, links straight to Patch Notes.
+  const patchToastFired = useRef(false);
+  useEffect(() => {
+    if (!unseenPatch || patchToastFired.current || pathname === "/patch-notes") return;
+    patchToastFired.current = true;
+    toast(`New in v${PATCH_NOTES[0]?.version} — see what changed`, {
+      href: "/patch-notes",
+      duration: 6000,
+    });
+  }, [unseenPatch, pathname, toast]);
   useEffect(() => {
     if (pathname !== "/patch-notes") return;
     try {
@@ -189,6 +205,17 @@ export function AppShell({ children }: { children: ReactNode }) {
       ),
     [unseenPatch]
   );
+
+  // Whether the sister app (theta) has a saved ledger, so the palette can offer
+  // contextual theta destinations rather than a bare "Switch to theta".
+  const [thetaHasData, setThetaHasData] = useState(false);
+  useEffect(() => {
+    try {
+      setThetaHasData(!!localStorage.getItem("theta.ledger.v1"));
+    } catch {
+      /* private mode — just offer the plain switch */
+    }
+  }, []);
 
   // Commands for the ⌘K palette: every nav route, a few global actions, and one
   // switch row per saved portfolio.
@@ -222,11 +249,31 @@ export function AppShell({ children }: { children: ReactNode }) {
       },
       {
         id: "act:theta",
-        label: "Switch to theta",
+        label: thetaHasData ? "theta · Dashboard" : "Switch to theta",
         group: "Actions",
-        keywords: "personal finance money",
+        keywords: "personal finance money theta",
         run: () => router.push("/theta"),
       },
+      // Deep-links into the sister app, but only when it actually has data —
+      // the portal as one product, not a dead switch.
+      ...(thetaHasData
+        ? [
+            {
+              id: "act:theta-networth",
+              label: "theta · Net Worth",
+              group: "Actions",
+              keywords: "theta net worth money",
+              run: () => router.push("/theta/networth"),
+            },
+            {
+              id: "act:theta-transactions",
+              label: "theta · Transactions",
+              group: "Actions",
+              keywords: "theta transactions spending money",
+              run: () => router.push("/theta/transactions"),
+            },
+          ]
+        : []),
     ];
     const ports: Command[] = portfolios.map((p) => ({
       id: `port:${p.id}`,
@@ -237,7 +284,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       run: () => selectPortfolio(p.id),
     }));
     return [...nav, ...actions, ...ports];
-  }, [router, refreshLive, loadDemo, selectPortfolio, portfolios, activeId]);
+  }, [router, refreshLive, loadDemo, selectPortfolio, portfolios, activeId, thetaHasData]);
 
   // Per-route document title, driven centrally off the nav list so every alpha
   // route reads "<Page> · alpha" in the browser tab without a metadata export
@@ -305,30 +352,29 @@ export function AppShell({ children }: { children: ReactNode }) {
         <div className="px-3 pb-3 pt-4">
           {sidebar.collapsed ? (
             <div className="flex flex-col items-center gap-3">
-              <Link href="/" aria-label="alpha home">
-                <Sigil size={24} />
+              <Link href="/" aria-label="alpha home" className="group">
+                <Sigil size={24} className="transition-colors group-hover:text-accent" />
               </Link>
               <SidebarCollapseButton collapsed onClick={sidebar.toggleCollapsed} />
             </div>
           ) : (
             <div className="flex items-center gap-2.5 px-1">
-              <Link href="/" className="flex items-center gap-2.5">
+              <Link href="/" className="group flex items-center gap-2.5">
                 {/* A gentle breath on the mark each time the live feed ticks —
-                    the brand acknowledging the heartbeat. */}
+                    the brand acknowledging the heartbeat. Warms to brand red on
+                    hover — one of alpha's sanctioned red moments. */}
                 <m.span
                   key={live.quotesAt ?? "idle"}
                   initial={{ opacity: 0.55 }}
                   animate={{ opacity: 1 }}
                   transition={{ duration: 0.7, ease: "easeOut" }}
                 >
-                  <Sigil size={24} />
+                  <Sigil size={24} className="transition-colors group-hover:text-accent" />
                 </m.span>
                 <AppTitle active="alpha" />
               </Link>
               {isDemo && (
-                <span className="rounded-full border border-warn/30 bg-warn/10 px-2 py-0.5 text-[10px] font-medium text-warn">
-                  Demo
-                </span>
+                <SampleDataTag accent="var(--color-warn)" label="DEMO DATA" />
               )}
               <div className="ml-auto flex items-center gap-0.5">
                 <SignOutButton />
@@ -379,8 +425,18 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       <div className="relative z-10 min-w-0 flex-1">
         {/* Desktop top bar */}
-        <header className="sticky top-0 z-40 hidden h-12 items-center border-b border-edge bg-black/80 px-6 backdrop-blur-md lg:flex">
-          <span className="text-[13px] text-faint">{current?.group ?? "alpha"}</span>
+        <header className="sticky top-0 z-40 hidden h-12 items-center glass border-b border-edge px-6 lg:flex">
+          {/* Group label crossfades on a section change so it reads as one event
+              with the PageAura hue drift, not two separate flickers. */}
+          <m.span
+            key={current?.group ?? "alpha"}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.15 }}
+            className="text-[13px] text-faint"
+          >
+            {current?.group ?? "alpha"}
+          </m.span>
           <span className="absolute left-1/2 -translate-x-1/2 text-[13px] font-medium text-mute">
             {current?.label ?? ""}
           </span>
@@ -397,7 +453,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </header>
 
         {/* Mobile top bar */}
-        <header className="lg:hidden sticky top-0 z-40 border-b border-edge bg-black/85 backdrop-blur-md">
+        <header className="glass lg:hidden sticky top-0 z-40 border-b border-edge">
           <div className="flex items-center justify-between px-4 py-3">
             <Link href="/" className="flex items-center gap-2.5">
               <Sigil size={22} />

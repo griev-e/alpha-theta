@@ -6,6 +6,8 @@ import { PALETTE } from "@/components/charts/Donut";
 import { AxisY } from "@/components/charts/Axis";
 import { AiThinking } from "@/components/ui/AiThinking";
 import { Card, CardHeader } from "@/components/ui/Card";
+import { AiDisabledCard, EnvKey } from "@/components/ui/AiDisabledCard";
+import { RangeSlider } from "@/components/ui/RangeSlider";
 import { Computing } from "@/components/ui/Computing";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -305,14 +307,13 @@ function ConstraintsCard({
               {fmtPct(maxWeight, 0)}
             </span>
           </div>
-          <input
-            type="range"
+          <RangeSlider
             min={0.05}
             max={1}
             step={0.05}
             value={maxWeight}
-            onChange={(e) => setMaxWeight(Number(e.target.value))}
-            className="w-full"
+            onChange={setMaxWeight}
+            format={(v) => fmtPct(v, 0)}
           />
           <p className="mt-1.5 text-[11px] leading-snug text-faint">
             No single holding exceeds this weight of the invested book. Floor is{" "}
@@ -360,15 +361,14 @@ function ConstraintsCard({
                 {fmtPct(minWeight, 1)}
               </span>
             </div>
-            <input
-              type="range"
+            <RangeSlider
               min={0.005}
               max={0.05}
               step={0.005}
               value={minWeight}
               disabled={allowExit}
-              onChange={(e) => setMinWeight(Number(e.target.value))}
-              className="w-full"
+              onChange={setMinWeight}
+              format={(v) => fmtPct(v, 1)}
             />
             <p className="mt-1.5 text-[11px] leading-snug text-faint">
               Smallest weight a holding you already own can be trimmed to before
@@ -1063,16 +1063,10 @@ function ReviewCard({
 
   if (state.kind === "disabled") {
     return (
-      <Card className="mt-5 px-6 py-4" hover={false}>
-        <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[12.5px] text-faint">
-          <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-white/20" />
-          AI optimizer is off — set
-          <code className="rounded bg-white/[0.05] px-1.5 py-0.5 font-mono text-[11px]">
-            ANTHROPIC_API_KEY
-          </code>
-          to have Claude Sonnet 4.6 review the optimization and write the desk note.
-        </div>
-      </Card>
+      <AiDisabledCard className="mt-5">
+        AI optimizer is off — set <EnvKey /> to have Claude Sonnet 4.6 review the
+        optimization and write the desk note.
+      </AiDisabledCard>
     );
   }
 

@@ -143,6 +143,13 @@ export const Treemap = memo(function Treemap({
         role="img"
         aria-label={`Treemap of ${rects.length} holdings, each sized by market value and shaded by return.`}
       >
+        <defs>
+          {/* Soft cast shadow for the hovered cell — a tile lifting under the
+              app's light, matching the panel physics. */}
+          <filter id="tm-lift" x="-30%" y="-30%" width="160%" height="160%">
+            <feDropShadow dx="0" dy="3" stdDeviation="4" floodColor="#000" floodOpacity="0.55" />
+          </filter>
+        </defs>
         {rects.map((r, i) => {
           const { bg, border } = cellColor(r.item.intensity);
           const isActive = active === r.item.id;
@@ -169,6 +176,11 @@ export const Treemap = memo(function Treemap({
                 fill={bg}
                 stroke={isActive ? "rgba(231,236,244,0.55)" : border}
                 strokeWidth={isActive ? 2 : 1.2}
+                style={{
+                  transform: isActive ? "translateY(-1.5px)" : undefined,
+                  transition: "transform 150ms ease",
+                  filter: isActive ? "url(#tm-lift)" : undefined,
+                }}
               />
               {showLabel && (
                 <>

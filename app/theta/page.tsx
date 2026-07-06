@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { m } from "framer-motion";
+import { m, useReducedMotion } from "framer-motion";
 import { Donut } from "@/components/charts/Donut";
 import { Sparkline } from "@/components/charts/Sparkline";
 import { CategoryTag, MoneyFlowBars, ProgressBar, monthElapsedFraction } from "@/components/theta/bits";
@@ -20,6 +20,9 @@ import { PageSkeleton } from "@/components/ui/Skeleton";
 
 export default function ThetaDashboard() {
   const { ready, ledger, view, deleteTransaction, setTransactionCategory } = useTheta();
+  // Ambient hero glow loops on opacity, which MotionConfig's reducedMotion="user"
+  // leaves running (it only disables transforms). Kill it outright under reduce.
+  const reduceMotion = useReducedMotion();
 
   if (!ready) return <PageSkeleton />;
   if (!ledger || !view || !ledgerHasData(ledger)) return <ThetaEmpty page="The dashboard" />;
@@ -36,6 +39,13 @@ export default function ThetaDashboard() {
     .slice(0, 8);
   const assetCount = ledger.accounts.filter((a) => a.balance > 0).length;
   const liabCount = ledger.accounts.filter((a) => a.balance < 0).length;
+
+  // Liquid cash = checking + savings; runway is how long it covers this month's
+  // spend. Null (∞) when there's no spend to burn it down.
+  const liquidCash = ledger.accounts
+    .filter((a) => a.kind === "checking" || a.kind === "savings")
+    .reduce((s, a) => s + Math.max(0, a.balance), 0);
+  const runwayMonths = view.monthExpenses > 0 ? liquidCash / view.monthExpenses : null;
 
   const nwSeries = view.netWorthSeries ?? [];
   const nwValues = nwSeries.map((s) => s.value);
@@ -65,15 +75,15 @@ export default function ThetaDashboard() {
           aria-hidden
           className="pointer-events-none absolute -right-20 -top-28 h-72 w-72 rounded-full blur-[90px]"
           style={{ background: nwUp ? "var(--wash-mint)" : "var(--wash-neg)" }}
-          animate={{ opacity: [0.55, 1, 0.55], scale: [0.94, 1.06, 0.94] }}
-          transition={{ duration: 6.5, repeat: Infinity, ease: "easeInOut" }}
+          animate={reduceMotion ? undefined : { opacity: [0.55, 1, 0.55], scale: [0.94, 1.06, 0.94] }}
+          transition={reduceMotion ? undefined : { duration: 6.5, repeat: Infinity, ease: "easeInOut" }}
         />
         <m.div
           aria-hidden
           className="pointer-events-none absolute -left-24 top-6 h-60 w-60 rounded-full blur-[90px]"
           style={{ background: "var(--wash-vio)" }}
-          animate={{ opacity: [0.4, 0.85, 0.4], scale: [1.06, 0.94, 1.06] }}
-          transition={{ duration: 7.5, repeat: Infinity, ease: "easeInOut" }}
+          animate={reduceMotion ? undefined : { opacity: [0.4, 0.85, 0.4], scale: [1.06, 0.94, 1.06] }}
+          transition={reduceMotion ? undefined : { duration: 7.5, repeat: Infinity, ease: "easeInOut" }}
         />
 
         <div className="relative flex flex-col gap-6 lg:flex-row lg:items-stretch lg:gap-8">
@@ -108,12 +118,27 @@ export default function ThetaDashboard() {
                 values={nwValues}
                 height={96}
                 color={nwUp ? "var(--color-mint)" : "var(--color-neg)"}
+                labels={nwSeries.map((s) => s.month)}
+                formatValue={(v) => fmtUSDCompact(v)}
               />
             </div>
           )}
         </div>
 
-        <div className="relative mt-6 grid grid-cols-2 gap-x-6 gap-y-5 border-t border-edge pt-5 sm:grid-cols-4">
+        <div className="relative mt-6 grid grid-cols-2 gap-x-6 gap-y-5 border-t border-edge pt-5 sm:grid-cols-3 lg:grid-cols-5">
+          {/* Runway — the single most emotionally important personal-finance
+              number: how many months your liquid cash covers current spending.
+              Leads the row rather than staying buried in Cash Flow. */}
+          <Stat
+            label="Runway"
+            value={runwayMonths ?? 0}
+            format={(v) => (runwayMonths === null ? "∞" : `${v.toFixed(1)} mo`)}
+            sub="cash ÷ monthly spend"
+            toneClass={
+              runwayMonths !== null && runwayMonths < 3 ? "text-warn" : undefined
+            }
+            tip="How many months your liquid cash (checking + savings) would cover your current monthly spending. Under three months is a thin cushion; six or more is comfortable."
+          />
           <Stat label="Assets" value={view.totalAssets} format={fmtUSDCompact} sub={`across ${assetCount} accounts`} />
           <Stat label="Liabilities" value={view.totalLiabilities} format={fmtUSDCompact} sub={`${liabCount} balances owed`} />
           <Stat

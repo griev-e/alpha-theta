@@ -25,6 +25,7 @@ import { AiThinking } from "@/components/ui/AiThinking";
 import { AiMeta } from "@/components/ui/AiMeta";
 import { RevealGroup, RevealItem } from "@/components/ui/Reveal";
 import { Card, CardHeader } from "@/components/ui/Card";
+import { AiDisabledCard, EnvKey } from "@/components/ui/AiDisabledCard";
 import { Computing } from "@/components/ui/Computing";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Tooltip } from "@/components/ui/Tooltip";
@@ -306,16 +307,10 @@ function MarketBriefCard({ report }: { report: RegimeReport }) {
 
   if (state.kind === "disabled") {
     return (
-      <Card className="mb-5 px-6 py-4" i={0.5} hover={false}>
-        <div className="flex items-center gap-3 text-[12.5px] text-faint">
-          <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-white/20" />
-          AI market read is off — set{" "}
-          <code className="rounded bg-white/[0.05] px-1.5 py-0.5 font-mono text-[11px]">
-            ANTHROPIC_API_KEY
-          </code>{" "}
-          to enable a Claude-written synthesis of the regime.
-        </div>
-      </Card>
+      <AiDisabledCard i={0.5} className="mb-5">
+        AI market read is off — set <EnvKey /> to enable a Claude-written
+        synthesis of the regime.
+      </AiDisabledCard>
     );
   }
 
