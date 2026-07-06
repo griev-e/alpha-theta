@@ -115,6 +115,7 @@ export default function RiskPage() {
             min={0}
             max={2.5}
             marker={{ value: 1, label: "S&P 500 β=1.0" }}
+            band={{ from: 0.9, to: 1.1, label: "Typical diversified equity book: β 0.9–1.1" }}
             label="portfolio beta"
             format={(v) => fmtNum(v, 2)}
             tip="Beta measures how much the portfolio moves relative to the broad market (the S&P 500, which is defined as β = 1.0). A beta of 1.25 means it tends to rise and fall about 25% more than the market; below 1.0 means it's less reactive. It captures market-driven risk, not company-specific risk."
@@ -124,6 +125,7 @@ export default function RiskPage() {
             min={0}
             max={0.6}
             marker={{ value: spxVol, label: `S&P 500 ${fmtPct(spxVol, 1)}` }}
+            band={{ from: 0.12, to: 0.2, label: "Typical equity book: 12–20% annualized vol" }}
             label="volatility (ann.)"
             format={(v) => fmtPct(v, 1)}
             color="var(--color-sky)"
@@ -137,6 +139,7 @@ export default function RiskPage() {
               value: (SPX.beta * CMA.equityRiskPremium) / spxVol,
               label: "S&P 500",
             }}
+            band={{ from: 0.4, to: 0.8, label: "Solid range for an equity book: ~0.4–0.8" }}
             label="est. sharpe"
             format={(v) => fmtNum(v, 2)}
             color="var(--color-vio)"
