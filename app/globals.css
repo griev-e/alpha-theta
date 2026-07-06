@@ -93,7 +93,16 @@
   --dur-fast: 150ms; /* interaction feedback (hover, press) */
   --dur-base: 220ms; /* route + content entrances */
   --dur-slow: 350ms; /* larger reveals */
-  --dur-draw: 700ms; /* chart draw-ins (bars rise, lines draw, arcs sweep) */
+  --dur-draw: 700ms; /* chart draw-ins — see the mark grammar below */
+  /* ── Chart entry grammar ────────────────────────────────────────────────
+     Each mark type enters one way, everywhere, so charts feel like one system:
+       lines   draw    — pathLength 0→1        (FanChart median, PriceChart)
+       bars    rise    — height 0→h from base  (Histogram, theta MoneyFlowBars)
+       arcs    sweep   — strokeDashoffset       (Donut)
+       cells   scale   — scale ~0.92→1 from own center + transformOrigin
+                         (Treemap, Scatter points, Radar polygon)
+     Stagger by index (~12–35ms) so a set assembles rather than snapping; the
+     signature ease [0.22,1,0.36,1] on all of them. Entrances play once. */
 
   /* ── Accent ramps ──────────────────────────────────────────────────────
      Three steps per hue (dim rail / base ink / bright highlight) so intensity
