@@ -34,6 +34,7 @@ import {
 import { usePortfolio, useLiveStatus } from "@/lib/store";
 import { SessionRibbon } from "@/components/overview/SessionRibbon";
 import { useFirstView } from "@/lib/firstView";
+import { useOverture } from "@/lib/firstImport";
 import { DeltaArrow } from "@/components/ui/DeltaArrow";
 import type { Position } from "@/lib/types";
 import { TableSkeleton } from "@/components/ui/Skeleton";
@@ -41,9 +42,12 @@ import { TableSkeleton } from "@/components/ui/Skeleton";
 type SortKey = "equity" | "returnPct" | "weight" | "symbol" | "today";
 
 export default function OverviewPage() {
-  const { ready, portfolio } = usePortfolio();
+  const { ready, portfolio, hasData, isDemo } = usePortfolio();
   const liveStatus = useLiveStatus();
   const { version } = useAssumptions();
+  // §119 — the first-import moment: a once-ever overture on the session real
+  // data first lands (not the demo). Latched here so the hero counts from 0.
+  const overture = useOverture(ready && hasData && !isDemo && !!portfolio);
   const [sortKey, setSortKey] = useState<SortKey>("equity");
   const [asc, setAsc] = useState(false);
   const [mixView, setMixView] = useState<"holding" | "sector">("holding");
@@ -210,7 +214,13 @@ export default function OverviewPage() {
                   : undefined
               }
             >
-              <AnimatedNumber value={portfolio.totalValue} format={(v) => fmtUSD(v)} dim />
+              <AnimatedNumber
+                value={portfolio.totalValue}
+                format={(v) => fmtUSD(v)}
+                dim
+                from={overture ? 0 : undefined}
+                spring={overture ? { stiffness: 42, damping: 24 } : undefined}
+              />
             </div>
             <div className="mt-4 grid w-fit grid-cols-[auto_auto_auto] items-baseline gap-x-3 gap-y-1.5 font-mono tnum text-[13px]">
               <HeroDelta
