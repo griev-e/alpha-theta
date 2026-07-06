@@ -40,6 +40,26 @@ Four PRs have landed against this catalogue, merged to `main`:
   "Clustered / Book order" toggle on the Correlation page, clustered by
   default. Pure math, no new dependency. `lib/analytics/correlation.ts`
   (`seriationOrder`, `seriate`), `app/correlation/page.tsx`.
+- **#133 — Quick-win sweep (two parts, ~38 items).** A broad pass across the
+  low-effort tier. Part 1 (foundation/charts/pages/interactions): the eyebrow
+  dialect rule, figures-dictionary note, `motion.md` doctrine, `.glass` sticky
+  headers, palette open/empty-state polish, route group-label crossfade,
+  data-aware cross-app palette, treemap hover-lift, histogram loss region,
+  Sparkline hover readout, heatmap tooltip logos, Donut legend spring, alpha-red
+  accents (sigil hover, switcher spine), Intelligence numbered sections, Patch
+  Notes timeline, dashboard runway, sort affordance, what's-new toast. Part 2
+  (shared primitives + polish): `AiDisabledCard`/`EnvKey`, `DegradedNotice`, and
+  `SampleDataTag` converge the AI-off / degraded / sample-data surfaces each page
+  had re-spelled; `.panel-link` on Discover cards; a `TableSkeleton` variant for
+  table-first pages; a `RangeSlider` value-bubble primitive (Monte Carlo,
+  Scenarios, Optimizer); report scroll-reveals (print-safe) + a "composing
+  dossier" export sequence; theta Settings preset provenance mirroring the
+  Benchmark page; and accessibility audits — reduced-motion gating of the theta
+  hero glow, text-balance/pretty on shared headings, one stat-stack rhythm, and
+  a `--color-faint` bump to clear WCAG AA on raised surfaces. Several audited
+  items (gridlines, chart focus rings, benchmark scatter points, `tnum` coverage,
+  the no-data hatch) were verified already-compliant or honestly not-applicable
+  rather than re-built.
 
 Several other catalogue items turned out to already exist from the earlier
 `premium-roadmap.md` push (risk contribution list, rebalance diff bars, the
