@@ -33,6 +33,10 @@ import {
 } from "@/lib/format";
 import { usePortfolio, useLiveStatus } from "@/lib/store";
 import { SessionRibbon } from "@/components/overview/SessionRibbon";
+import {
+  FirstRunChecklist,
+  useChecklistDismissed,
+} from "@/components/overview/FirstRunChecklist";
 import { useFirstView } from "@/lib/firstView";
 import { useOverture } from "@/lib/firstImport";
 import { DeltaArrow } from "@/components/ui/DeltaArrow";
@@ -48,6 +52,7 @@ export default function OverviewPage() {
   // §119 — the first-import moment: a once-ever overture on the session real
   // data first lands (not the demo). Latched here so the hero counts from 0.
   const overture = useOverture(ready && hasData && !isDemo && !!portfolio);
+  const [checklistDismissed, dismissChecklist] = useChecklistDismissed();
   const [sortKey, setSortKey] = useState<SortKey>("equity");
   const [asc, setAsc] = useState(false);
   const [mixView, setMixView] = useState<"holding" | "sector">("holding");
@@ -88,7 +93,12 @@ export default function OverviewPage() {
   }, [portfolio, sortKey, asc]);
 
   if (!ready) return <TableSkeleton />;
-  if (!portfolio || !risk) return <EmptyState page="The overview" />;
+  if (!portfolio || !risk)
+    return checklistDismissed ? (
+      <EmptyState page="The overview" />
+    ) : (
+      <FirstRunChecklist onDismiss={dismissChecklist} />
+    );
 
   // Bar scales for the holdings table, computed once instead of per row.
   const maxWeight = Math.max(
