@@ -13,6 +13,7 @@ export function Gauge({
   min,
   max,
   marker,
+  band,
   label,
   format,
   color = "var(--color-mint)",
@@ -23,6 +24,8 @@ export function Gauge({
   min: number;
   max: number;
   marker?: { value: number; label: string };
+  /** A faint reference range drawn behind the arc (e.g. a "typical" band). */
+  band?: { from: number; to: number; label?: string };
   label: string;
   format: (v: number) => string;
   color?: string;
@@ -42,11 +45,11 @@ export function Gauge({
     const a = (angleDeg * Math.PI) / 180;
     return { x: cx + radius * Math.cos(a), y: cy + radius * Math.sin(a) };
   };
-  const arcPath = (fromDeg: number, toDeg: number) => {
-    const s = polar(fromDeg);
-    const e = polar(toDeg);
+  const arcPath = (fromDeg: number, toDeg: number, radius = r) => {
+    const s = polar(fromDeg, radius);
+    const e = polar(toDeg, radius);
     const large = toDeg - fromDeg > 180 ? 1 : 0;
-    return `M ${s.x} ${s.y} A ${r} ${r} 0 ${large} 1 ${e.x} ${e.y}`;
+    return `M ${s.x} ${s.y} A ${radius} ${radius} 0 ${large} 1 ${e.x} ${e.y}`;
   };
 
   const markerFrac = marker
@@ -54,6 +57,17 @@ export function Gauge({
     : null;
   const markerAngle =
     markerFrac !== null ? startAngle + markerFrac * sweep : null;
+
+  // Optional reference band: a faint arc segment behind the value arc marking a
+  // "typical" range, clamped into the gauge's own domain.
+  const clampFrac = (v: number) => Math.max(0, Math.min(1, (v - min) / (max - min)));
+  const bandArc =
+    band && band.to > band.from
+      ? {
+          from: startAngle + clampFrac(band.from) * sweep,
+          to: startAngle + clampFrac(band.to) * sweep,
+        }
+      : null;
 
   const body = (
     <div className="flex flex-col items-center" style={{ width: size }}>
@@ -73,6 +87,17 @@ export function Gauge({
           fill="none"
           strokeLinecap="round"
         />
+        {bandArc && (
+          <path
+            d={arcPath(bandArc.from, bandArc.to, r - 8.5)}
+            stroke={`color-mix(in srgb, ${color} 40%, transparent)`}
+            strokeWidth={2.5}
+            fill="none"
+            strokeLinecap="round"
+          >
+            {band?.label && <title>{band.label}</title>}
+          </path>
+        )}
         <m.path
           d={arcPath(startAngle, endAngle)}
           stroke={color}

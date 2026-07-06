@@ -50,6 +50,32 @@ export function fmtUSDCompact(v: number): string {
   return `${sign}$${abs.toFixed(0)}`;
 }
 
+/**
+ * Split a formatted currency string into a loud middle and the quiet furniture
+ * around it — the leading symbol/sign (`$`, `−$`, `+$`) and the trailing cents
+ * (`.56`) — so `<Money>` can dim the furniture and let the significant digits
+ * carry. Deliberately operates on the *formatted* string, so it works for any
+ * currency formatter here (full or compact). Compact magnitudes keep their
+ * decimals loud: only a two-digit fraction anchored to the end of the string is
+ * treated as cents, so `$1.24M` dims just the `$`, never the significant `.24`.
+ */
+export function splitMoney(formatted: string): {
+  lead: string;
+  main: string;
+  tail: string;
+} {
+  if (!formatted || formatted === "—") return { lead: "", main: formatted, tail: "" };
+  const lead = formatted.match(/^[^\d]*/)?.[0] ?? "";
+  let rest = formatted.slice(lead.length);
+  let tail = "";
+  const cents = rest.match(/\.\d{2}$/);
+  if (cents) {
+    tail = cents[0];
+    rest = rest.slice(0, -tail.length);
+  }
+  return { lead, main: rest, tail };
+}
+
 export function fmtPct(v: number, digits = 1, signed = false): string {
   if (!Number.isFinite(v)) return "—";
   const s = (v * 100).toFixed(digits);

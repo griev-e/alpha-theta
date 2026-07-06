@@ -39,7 +39,7 @@ import {
 import { usePortfolio } from "@/lib/store";
 import { useWatchlist } from "@/lib/watchlist";
 import type { AnalystRating, Fundamentals, Position } from "@/lib/types";
-import { PageSkeleton } from "@/components/ui/Skeleton";
+import { TerminalSkeleton } from "@/components/ui/Skeleton";
 
 const RANGES: { id: HistoryRange; label: string }[] = [
   { id: "1m", label: "1M" },
@@ -123,7 +123,7 @@ export default function ResearchPage() {
     return () => window.removeEventListener("keydown", onKey);
   }, [railSymbols, symbol]);
 
-  if (!ready) return <PageSkeleton />;
+  if (!ready) return <TerminalSkeleton />;
 
   const picks = portfolio?.positions.map((p) => p.symbol) ?? [];
 

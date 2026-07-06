@@ -45,10 +45,13 @@ export function CommandPalette({
   commands,
   accent,
   enableTickerSearch = false,
+  chordHints = [],
 }: {
   commands: Command[];
   accent: string;
   enableTickerSearch?: boolean;
+  /** A few `g`-chord shortcuts (§39) surfaced in the no-match state (§109). */
+  chordHints?: { keys: string[]; label: string }[];
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -58,6 +61,34 @@ export function CommandPalette({
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const reqId = useRef(0);
+
+  // Recently run commands (§46): the last 5, surfaced first when the query is
+  // empty so the palette remembers what you reach for. Keyed per app so
+  // alpha's and theta's histories don't cross.
+  const recentsKey = `cmd.recents.${enableTickerSearch ? "alpha" : "theta"}.v1`;
+  const [recentIds, setRecentIds] = useState<string[]>(() => {
+    try {
+      const raw = localStorage.getItem(recentsKey);
+      return raw ? (JSON.parse(raw) as string[]) : [];
+    } catch {
+      // private mode / SSR — no history (recents only render once opened)
+      return [];
+    }
+  });
+  const pushRecent = useCallback(
+    (id: string) => {
+      setRecentIds((prev) => {
+        const next = [id, ...prev.filter((x) => x !== id)].slice(0, 5);
+        try {
+          localStorage.setItem(recentsKey, JSON.stringify(next));
+        } catch {
+          /* ignore */
+        }
+        return next;
+      });
+    },
+    [recentsKey],
+  );
 
   // Global open shortcut.
   useEffect(() => {
@@ -110,16 +141,29 @@ export function CommandPalette({
     );
   }, [commands, query]);
 
+  // With no query, lead with the recent commands under their own heading; while
+  // searching, recents step aside. Each entry carries the group it renders under
+  // so a recent command can also appear in its home group below (distinct rows).
+  const displayCommands = useMemo<{ cmd: Command; group: string }[]>(() => {
+    const base = filteredCommands.map((cmd) => ({ cmd, group: cmd.group }));
+    if (query.trim()) return base;
+    const recents = recentIds
+      .map((id) => commands.find((c) => c.id === id))
+      .filter((c): c is Command => !!c)
+      .map((cmd) => ({ cmd, group: "Recent" }));
+    return [...recents, ...base];
+  }, [filteredCommands, query, recentIds, commands]);
+
   // Flat, ordered row list for keyboard traversal: commands first, then any
   // live ticker matches.
   const rows: Row[] = useMemo(() => {
-    const cmdRows: Row[] = filteredCommands.map((cmd) => ({
+    const cmdRows: Row[] = displayCommands.map(({ cmd }) => ({
       kind: "command",
       cmd,
     }));
     const tickerRows: Row[] = hits.map((hit) => ({ kind: "ticker", hit }));
     return [...cmdRows, ...tickerRows];
-  }, [filteredCommands, hits]);
+  }, [displayCommands, hits]);
 
   useEffect(() => {
     setActive((a) => Math.min(a, Math.max(0, rows.length - 1)));
@@ -131,10 +175,12 @@ export function CommandPalette({
     (row: Row | undefined) => {
       if (!row) return;
       close();
-      if (row.kind === "command") row.cmd.run();
-      else router.push(`/research?symbol=${encodeURIComponent(row.hit.symbol)}`);
+      if (row.kind === "command") {
+        pushRecent(row.cmd.id);
+        row.cmd.run();
+      } else router.push(`/research?symbol=${encodeURIComponent(row.hit.symbol)}`);
     },
-    [close, router],
+    [close, router, pushRecent],
   );
 
   const onKeyDown = (e: React.KeyboardEvent) => {
@@ -163,11 +209,11 @@ export function CommandPalette({
   // Group headings for rendering while preserving the flat index for keyboarding.
   let idx = -1;
   const groups = new Map<string, { row: Row; i: number }[]>();
-  filteredCommands.forEach((cmd) => {
+  displayCommands.forEach(({ cmd, group }) => {
     idx += 1;
-    const arr = groups.get(cmd.group) ?? [];
+    const arr = groups.get(group) ?? [];
     arr.push({ row: { kind: "command", cmd }, i: idx });
-    groups.set(cmd.group, arr);
+    groups.set(group, arr);
   });
   const tickerStart = idx + 1;
 
@@ -238,6 +284,25 @@ export function CommandPalette({
                       ? "Try a ticker or company name to jump to its research page."
                       : "Try a page or action name."}
                   </div>
+                  {chordHints.length > 0 && (
+                    <div className="mt-4 flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
+                      {chordHints.map((h) => (
+                        <span
+                          key={h.label}
+                          className="flex items-center gap-1.5 text-[11px] text-faint"
+                        >
+                          <span className="flex items-center gap-1">
+                            {h.keys.map((k, i) => (
+                              <kbd key={i} className="kbd">
+                                {k}
+                              </kbd>
+                            ))}
+                          </span>
+                          {h.label}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
 

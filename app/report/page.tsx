@@ -165,8 +165,22 @@ const COMPOSE_STEPS = [
   "Laying out the dossier",
 ];
 
+/** The dossier's sections, in order — drives the cover's table of contents. */
+const SECTIONS = [
+  "Portfolio Summary",
+  "Holdings",
+  "Risk & Concentration",
+  "Quality Scorecard",
+  "Benchmark & Factors",
+  "Holdings Fundamentals",
+  "Correlation & Diversification",
+  "Dividend Income",
+  "Market Regime",
+  "Upcoming Earnings",
+];
+
 export default function ReportPage() {
-  const { ready, portfolio, isDemo } = usePortfolio();
+  const { ready, portfolio, isDemo, portfolios, activeId } = usePortfolio();
   const { version } = useAssumptions();
   const live = useLiveStatus();
   const overlays = useReportOverlays(portfolio);
@@ -229,6 +243,8 @@ export default function ReportPage() {
   const { risk, quality, factors, corr } = analytics;
   const positions = [...portfolio.positions].sort((a, b) => b.equity - a.equity);
   const generatedAt = new Date();
+  const activeName =
+    portfolios.find((p) => p.id === activeId)?.name ?? "Portfolio";
 
   const earnings = portfolio.positions
     .map((p) => ({ p, d: daysUntil(p.fundamentals?.earningsDate ?? null) }))
@@ -287,16 +303,47 @@ export default function ReportPage() {
       )}
 
       <article className="report-doc">
-        {/* Header */}
-        <header className="avoid-break">
-          <h1>alpha — Portfolio Report</h1>
-          <p className="muted">
-            Generated {generatedAt.toLocaleString("en-US")} · Holdings as of{" "}
-            {new Date(portfolio.asOf).toLocaleDateString("en-US")}
-            {isDemo ? " · Demo portfolio" : ""}
+        {/* Cover — serif α watermark, portfolio name, date range, colophon */}
+        <header className="report-cover avoid-break">
+          <span className="report-cover-mark" aria-hidden>
+            α
+          </span>
+          <div className="report-cover-eyebrow">alpha · portfolio analytics</div>
+          <h1 className="report-cover-title">{activeName}</h1>
+          <p className="report-cover-sub">
+            Portfolio Report{isDemo ? " · Demo portfolio" : ""}
           </p>
-          <p className="muted">{dataStatus}</p>
-          <p className="muted" style={{ marginTop: 8, fontSize: 11 }}>
+          <dl className="report-cover-meta">
+            <div>
+              <dt>Holdings as of</dt>
+              <dd>{new Date(portfolio.asOf).toLocaleDateString("en-US")}</dd>
+            </div>
+            <div>
+              <dt>Generated</dt>
+              <dd>{generatedAt.toLocaleString("en-US")}</dd>
+            </div>
+            <div>
+              <dt>Data</dt>
+              <dd>{dataStatus}</dd>
+            </div>
+          </dl>
+
+          {/* Mini table of contents */}
+          <nav className="report-toc" aria-label="Contents">
+            <div className="report-toc-head">Contents</div>
+            <ol>
+              {SECTIONS.map((title, i) => (
+                <li key={title}>
+                  <span className="report-toc-num">
+                    {String(i + 1).padStart(2, "0")}
+                  </span>
+                  <span className="report-toc-title">{title}</span>
+                </li>
+              ))}
+            </ol>
+          </nav>
+
+          <p className="report-colophon">
             All analytics are model-based estimates, not investment advice. AI
             commentary (daily brief, allocator), Scenarios, Monte Carlo, and
             patch notes are intentionally excluded — this document is the raw

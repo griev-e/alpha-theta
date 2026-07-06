@@ -102,3 +102,107 @@ export function TableSkeleton({
     </div>
   );
 }
+
+/** Just the page header ghost — shared by the shape variants below. */
+function HeaderGhost() {
+  return (
+    <div className="mb-6">
+      <SkeletonBlock className="h-3 w-20" />
+      <SkeletonBlock className="mt-2 h-6 w-44" />
+    </div>
+  );
+}
+
+/**
+ * A grid of equal chart cards, for analytics pages whose body is several
+ * same-sized visualizations (Risk, Quality, Correlation, Benchmark).
+ */
+export function ChartGridSkeleton({ cards = 4 }: { cards?: number }) {
+  return (
+    <div aria-hidden="true">
+      <HeaderGhost />
+      <div className="grid gap-5 sm:grid-cols-2">
+        {Array.from({ length: cards }).map((_, i) => (
+          <div key={i} className="panel px-5 py-5">
+            <SkeletonBlock className="h-3 w-28" />
+            <SkeletonBlock className="mt-4 h-48 w-full" />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * A wide hero object beside a narrow controls rail, for the simulation pages
+ * (Monte Carlo, Projection, Optimizer) whose chart owns the page with its
+ * assumptions in a sidebar.
+ */
+export function SplitSkeleton() {
+  return (
+    <div aria-hidden="true">
+      <HeaderGhost />
+      <div className="grid gap-5 xl:grid-cols-[1fr_320px]">
+        <div className="panel px-6 py-5">
+          <SkeletonBlock className="h-4 w-72" />
+          <SkeletonBlock className="mt-5 h-[340px] w-full" />
+        </div>
+        <div className="panel h-fit px-5 py-5">
+          <SkeletonBlock className="h-3 w-24" />
+          <div className="mt-5 space-y-6">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i}>
+                <SkeletonBlock className="h-2.5 w-20" />
+                <SkeletonBlock className="mt-2.5 h-1.5 w-full rounded-full" />
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * A left search/list rail beside a main detail panel, for the Research terminal.
+ */
+export function TerminalSkeleton() {
+  return (
+    <div aria-hidden="true">
+      <HeaderGhost />
+      <div className="grid gap-5 lg:grid-cols-[280px_1fr]">
+        <div className="panel px-4 py-4">
+          <SkeletonBlock className="h-8 w-full rounded-lg" />
+          <div className="mt-4 space-y-2.5">
+            {Array.from({ length: 7 }).map((_, i) => (
+              <div
+                key={i}
+                className="flex items-center gap-2.5"
+                style={{ opacity: Math.max(0.3, 1 - i * 0.09) }}
+              >
+                <SkeletonBlock className="h-6 w-6 shrink-0 rounded-full" />
+                <SkeletonBlock className="h-3 w-24" />
+                <SkeletonBlock className="ml-auto h-3 w-10" />
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="space-y-5">
+          <div className="panel px-6 py-5">
+            <SkeletonBlock className="h-3 w-24" />
+            <SkeletonBlock className="mt-3 h-9 w-48" />
+            <SkeletonBlock className="mt-5 h-52 w-full" />
+          </div>
+          <div className="grid gap-5 sm:grid-cols-2">
+            {Array.from({ length: 2 }).map((_, i) => (
+              <div key={i} className="panel px-5 py-5">
+                <SkeletonBlock className="h-3 w-28" />
+                <SkeletonBlock className="mt-4 h-28 w-full" />
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

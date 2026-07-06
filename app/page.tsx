@@ -17,6 +17,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Segmented } from "@/components/ui/Segmented";
+import { Money } from "@/components/ui/Money";
 import { Stat } from "@/components/ui/Stat";
 import { TickerLogo } from "@/components/ui/TickerLogo";
 import { riskReport } from "@/lib/analytics/risk";
@@ -30,8 +31,14 @@ import {
   fmtUSDCompact,
   symbolColorIndex,
 } from "@/lib/format";
-import { usePortfolio } from "@/lib/store";
+import { usePortfolio, useLiveStatus } from "@/lib/store";
+import { SessionRibbon } from "@/components/overview/SessionRibbon";
+import {
+  FirstRunChecklist,
+  useChecklistDismissed,
+} from "@/components/overview/FirstRunChecklist";
 import { useFirstView } from "@/lib/firstView";
+import { useOverture } from "@/lib/firstImport";
 import { DeltaArrow } from "@/components/ui/DeltaArrow";
 import type { Position } from "@/lib/types";
 import { TableSkeleton } from "@/components/ui/Skeleton";
@@ -39,8 +46,13 @@ import { TableSkeleton } from "@/components/ui/Skeleton";
 type SortKey = "equity" | "returnPct" | "weight" | "symbol" | "today";
 
 export default function OverviewPage() {
-  const { ready, portfolio } = usePortfolio();
+  const { ready, portfolio, hasData, isDemo } = usePortfolio();
+  const liveStatus = useLiveStatus();
   const { version } = useAssumptions();
+  // §119 — the first-import moment: a once-ever overture on the session real
+  // data first lands (not the demo). Latched here so the hero counts from 0.
+  const overture = useOverture(ready && hasData && !isDemo && !!portfolio);
+  const [checklistDismissed, dismissChecklist] = useChecklistDismissed();
   const [sortKey, setSortKey] = useState<SortKey>("equity");
   const [asc, setAsc] = useState(false);
   const [mixView, setMixView] = useState<"holding" | "sector">("holding");
@@ -81,7 +93,12 @@ export default function OverviewPage() {
   }, [portfolio, sortKey, asc]);
 
   if (!ready) return <TableSkeleton />;
-  if (!portfolio || !risk) return <EmptyState page="The overview" />;
+  if (!portfolio || !risk)
+    return checklistDismissed ? (
+      <EmptyState page="The overview" />
+    ) : (
+      <FirstRunChecklist onDismiss={dismissChecklist} />
+    );
 
   // Bar scales for the holdings table, computed once instead of per row.
   const maxWeight = Math.max(
@@ -207,7 +224,13 @@ export default function OverviewPage() {
                   : undefined
               }
             >
-              <AnimatedNumber value={portfolio.totalValue} format={(v) => fmtUSD(v)} />
+              <AnimatedNumber
+                value={portfolio.totalValue}
+                format={(v) => fmtUSD(v)}
+                dim
+                from={overture ? 0 : undefined}
+                spring={overture ? { stiffness: 42, damping: 24 } : undefined}
+              />
             </div>
             <div className="mt-4 grid w-fit grid-cols-[auto_auto_auto] items-baseline gap-x-3 gap-y-1.5 font-mono tnum text-[13px]">
               <HeroDelta
@@ -232,12 +255,14 @@ export default function OverviewPage() {
               value={portfolio.equityValue}
               format={fmtUSDCompact}
               sub={`${fmtPct(1 - portfolio.cashWeight, 1)} deployed`}
+              dim
             />
             <Stat
               label="Cash"
               value={portfolio.cash}
               format={fmtUSDCompact}
               sub={`${fmtPct(portfolio.cashWeight, 1)} dry powder`}
+              dim
             />
             <Stat
               label="Portfolio beta"
@@ -255,6 +280,13 @@ export default function OverviewPage() {
           </div>
         </div>
       </Card>
+
+      <SessionRibbon
+        positions={portfolio.positions}
+        degraded={liveStatus.degraded}
+        livePriceCount={liveStatus.livePriceCount}
+        quotesAt={liveStatus.quotesAt}
+      />
 
       <div className="mb-5 grid gap-5 xl:grid-cols-[1.6fr_1fr]">
         <Card className="px-5 py-5" i={1}>
@@ -520,18 +552,25 @@ function symbolColor(symbol: string): string {
  * *direction* of the move — so a live-price refresh flashes green on an up-tick
  * and rose on a down-tick (a silent swap otherwise, or worse, a green flash on
  * a falling price). The flash is scoped to the price cell, not the whole row.
+ *
+ * `index` staggers the flash by ~30ms per row (capped at 15), so a 60s reprice
+ * ripples down the tape as a wave instead of every cell blinking at once (§26).
  */
-function usePriceTick(value: number): "up" | "down" | null {
+function usePriceTick(value: number, index = 0): "up" | "down" | null {
   const prev = useRef(value);
   const [dir, setDir] = useState<"up" | "down" | null>(null);
   useEffect(() => {
     if (prev.current === value) return;
     const next = value > prev.current ? "up" : "down";
     prev.current = value;
-    setDir(next);
-    const id = setTimeout(() => setDir(null), 600);
-    return () => clearTimeout(id);
-  }, [value]);
+    const delay = Math.min(index, 15) * 30;
+    const start = setTimeout(() => setDir(next), delay);
+    const end = setTimeout(() => setDir(null), delay + 600);
+    return () => {
+      clearTimeout(start);
+      clearTimeout(end);
+    };
+  }, [value, index]);
   return dir;
 }
 
@@ -566,7 +605,7 @@ function HoldingRow({
   // Direction of the last live reprice — flashes the price cell green (up) or
   // rose (down) the instant a refresh moves it, then eases back out: a live
   // feed updating in place, its direction legible, instead of a silent swap.
-  const tick = usePriceTick(p.price);
+  const tick = usePriceTick(p.price, i);
   const firstView = useFirstView();
   // Entrance stagger only on the first visit, and capped so a long book doesn't
   // hold the last rows back by a second; the layout spring (re-sorting) stays.
@@ -646,7 +685,7 @@ function HoldingRow({
         }
       >
         <div className="font-mono tnum text-[13px] text-ink">
-          {fmtUSD(p.price)}
+          <Money value={p.price} />
         </div>
         {dayPct !== null && p.dayChange !== null ? (
           <div
@@ -665,7 +704,7 @@ function HoldingRow({
       {/* Equity with shares · basis folded underneath */}
       <td className="px-6 py-3 text-right">
         <div className="font-mono tnum text-[13px] text-ink">
-          {fmtUSD(p.equity)}
+          <Money value={p.equity} />
         </div>
         <div className={`font-mono tnum text-[11px] ${sortKey === "equity" ? "text-mute" : "text-faint"}`}>
           {fmtShares(p.shares)} sh · {fmtUSD(p.costBasis)}

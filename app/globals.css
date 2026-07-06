@@ -197,6 +197,12 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
+/* The furniture in a dollar figure — the currency symbol/sign and the trailing
+   cents — recedes so the significant digits carry. See <Money>. */
+.money-dim {
+  opacity: 0.55;
+}
+
 /* AI-generated prose reads differently from chrome: a touch larger, looser
    leading, and a comfortable measure — so a Claude brief feels like something
    written, not another UI label. */
@@ -693,9 +699,129 @@ input[type="range"]::-moz-range-thumb {
   font-size: 11px;
 }
 
+/* Report cover block (§12): serif α watermark, portfolio name, date range,
+   a mini table of contents, and the colophon — the dossier's title page. */
+.report-doc .report-cover {
+  position: relative;
+  overflow: hidden;
+  margin-bottom: 4px;
+  padding-bottom: 26px;
+  border-bottom: 2px solid #18181b;
+}
+.report-cover-mark {
+  position: absolute;
+  right: -8px;
+  top: -66px;
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 260px;
+  line-height: 1;
+  color: rgba(9, 9, 11, 0.05);
+  pointer-events: none;
+  user-select: none;
+}
+.report-cover-eyebrow {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: #71717a;
+}
+.report-doc .report-cover-title {
+  font-size: 34px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin: 6px 0 2px;
+  color: #09090b;
+}
+.report-doc .report-cover-sub {
+  font-size: 13px;
+  color: #52525b;
+  margin: 0;
+}
+.report-cover-meta {
+  display: grid;
+  grid-template-columns: repeat(3, auto);
+  justify-content: start;
+  gap: 30px;
+  margin: 20px 0 0;
+}
+.report-cover-meta dt {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #a1a1aa;
+}
+.report-cover-meta dd {
+  font-size: 11px;
+  color: #3f3f46;
+  margin: 3px 0 0;
+  font-variant-numeric: tabular-nums;
+}
+.report-toc {
+  position: relative;
+  margin: 24px 0 0;
+  max-width: 440px;
+  border: 1px solid #e4e4e7;
+  border-radius: 6px;
+  padding: 14px 18px;
+  background: #fafafa;
+}
+.report-toc-head {
+  font-size: 9.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: #71717a;
+  margin-bottom: 8px;
+}
+.report-toc ol {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  columns: 2;
+  column-gap: 28px;
+}
+.report-toc li {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  padding: 2.5px 0;
+  break-inside: avoid;
+}
+.report-toc-num {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  color: #a1a1aa;
+  font-variant-numeric: tabular-nums;
+}
+.report-toc-title {
+  font-size: 11px;
+  color: #27272a;
+}
+.report-doc .report-colophon {
+  margin-top: 20px;
+  max-width: 640px;
+  font-size: 10.5px;
+  color: #71717a;
+}
+
 @media print {
   @page {
     margin: 14mm;
+    /* Running page numbers via margin boxes (§12). Engines that don't support
+       @page margin boxes ignore this gracefully — no fallback needed. */
+    @bottom-right {
+      content: counter(page) " / " counter(pages);
+      font-size: 8pt;
+      color: #a1a1aa;
+    }
+  }
+  /* The cover is its own page; the dossier proper starts on page 2. */
+  .report-doc .report-cover {
+    break-after: page;
+  }
+  .report-cover-mark {
+    color: rgba(9, 9, 11, 0.06);
   }
   html,
   body {

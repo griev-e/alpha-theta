@@ -61,6 +61,27 @@ Four PRs have landed against this catalogue, merged to `main`:
   the no-data hatch) were verified already-compliant or honestly not-applicable
   rather than re-built.
 
+- **#134 — Medium-tier sweep (in progress).** Working the 1–3-day tier. Shipped
+  so far: the `<Money>` dimmed-symbol numeral hierarchy (§4, with `splitMoney`);
+  the theta cash-flow forecast chart leading with the low-point story (§97) which
+  also annotates the running-balance low (§50); theta Projection reworked to
+  alpha's Monte Carlo composition — sentence-first hero, fan as hero, Settings
+  provenance rail (§98); Gauge reference bands (§64); the Overview session ribbon
+  — clock-derived session state paired with the live/imported truth, plus
+  best/worst movers (§75); the first-import overture (§119); the first-run
+  checklist on the empty Overview (§108); the report cover page + table of
+  contents + `@page` page numbers (§12); the net value in the top bar on scroll
+  (§44); the tick wave (§26); the Import launch pad (§87); single-key nav chords
+  `g`+letter with a keyboard-map section and palette empty-state hints (§39/§109);
+  the portfolio switcher's last-known values + provenance (§35); per-shape
+  skeletons — chart-grid / split / terminal (§103); command-palette recents (§46);
+  Figma-style scrub-to-edit on theta's assumption fields (§113); and a
+  new-subscription dot on theta's Recurring nav row (§37, its client-computable
+  half; the Intelligence fresh-brief dot needs a server signal). Still open on
+  this branch: §20, §25, §41 (α/θ in-shell — deferred pending a design call on the
+  Sigil redundancy), §43, §62, §104, §115 (needs a portal-based tooltip), §124,
+  and the table-system group (§65–67, 70, 72) which is Ambitious-tier.
+
 Several other catalogue items turned out to already exist from the earlier
 `premium-roadmap.md` push (risk contribution list, rebalance diff bars, the
 dividends payment calendar, optimizer objective cards, the market layer

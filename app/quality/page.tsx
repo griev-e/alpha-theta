@@ -20,7 +20,7 @@ import {
 import { fmtMultiple, fmtPct } from "@/lib/format";
 import { usePortfolio } from "@/lib/store";
 import { useAssumptions } from "@/lib/assumptions/store";
-import { PageSkeleton } from "@/components/ui/Skeleton";
+import { ChartGridSkeleton } from "@/components/ui/Skeleton";
 
 const GRADE_COLOR: Record<string, string> = {
   "A+": "text-mint",
@@ -71,7 +71,7 @@ export default function QualityPage() {
     [portfolio, version]
   );
 
-  if (!ready) return <PageSkeleton />;
+  if (!ready) return <ChartGridSkeleton />;
   if (!portfolio || !report) return <EmptyState page="The quality scorecard" />;
 
   const verdict =

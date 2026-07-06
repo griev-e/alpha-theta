@@ -14,7 +14,7 @@ import { liveBenchmarkProfiles } from "@/lib/live/cma";
 import { useAssumptions } from "@/lib/assumptions/store";
 import { fmtNum } from "@/lib/format";
 import { usePortfolio } from "@/lib/store";
-import { PageSkeleton } from "@/components/ui/Skeleton";
+import { ChartGridSkeleton } from "@/components/ui/Skeleton";
 
 export default function CorrelationPage() {
   const { ready, portfolio } = usePortfolio();
@@ -35,7 +35,7 @@ export default function CorrelationPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [portfolio, version]);
 
-  if (!ready) return <PageSkeleton />;
+  if (!ready) return <ChartGridSkeleton />;
   if (!portfolio || !data) return <EmptyState page="The correlation matrix" />;
 
   const { corr, risk } = data;
