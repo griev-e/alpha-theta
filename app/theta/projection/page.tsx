@@ -13,7 +13,7 @@ import { ASSUMPTION_PRESETS, isInvested } from "@/lib/theta/assumptions";
 import { runProjection } from "@/lib/theta/project";
 import { fmtPct, fmtUSD, fmtUSDCompact } from "@/lib/format";
 import { useDebouncedValue } from "@/lib/useDebouncedValue";
-import { PageSkeleton } from "@/components/ui/Skeleton";
+import { SplitSkeleton } from "@/components/ui/Skeleton";
 
 export default function ProjectionPage() {
   const { ready, ledger, view } = useTheta();
@@ -46,7 +46,7 @@ export default function ProjectionPage() {
     [inputs, dYears, assumptions, target, salt]
   );
 
-  if (!ready) return <PageSkeleton />;
+  if (!ready) return <SplitSkeleton />;
   if (!ledger || !ledgerHasData(ledger)) return <ThetaEmpty page="Projection" />;
 
   const startNW = inputs.investedValue + inputs.cashValue - inputs.liabilities;
