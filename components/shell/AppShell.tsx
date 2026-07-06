@@ -167,6 +167,16 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   const toast = useToast();
 
+  // Past the hero, the top bar's center label gains the live net value (§44):
+  // the anchor number stays in view once you've scrolled the hero away.
+  const [scrolledPastHero, setScrolledPastHero] = useState(false);
+  useEffect(() => {
+    const onScroll = () => setScrolledPastHero(window.scrollY > 180);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
   // A quiet dot on the Patch Notes row until the newest entry has been seen.
   const [unseenPatch, setUnseenPatch] = useState(false);
   useEffect(() => {
@@ -437,8 +447,18 @@ export function AppShell({ children }: { children: ReactNode }) {
           >
             {current?.group ?? "alpha"}
           </m.span>
-          <span className="absolute left-1/2 -translate-x-1/2 text-[13px] font-medium text-mute">
-            {current?.label ?? ""}
+          <span className="absolute left-1/2 -translate-x-1/2 text-[13px]">
+            <span className="font-medium text-mute">{current?.label ?? ""}</span>
+            {ready && portfolio && (
+              <m.span
+                animate={{ opacity: scrolledPastHero ? 1 : 0 }}
+                transition={{ duration: 0.2 }}
+                aria-hidden={!scrolledPastHero}
+                className="absolute left-full top-0 ml-2.5 whitespace-nowrap border-l border-edge pl-2.5 font-mono tnum text-ink"
+              >
+                {fmtUSDCompact(portfolio.totalValue)}
+              </m.span>
+            )}
           </span>
           {ready && portfolio && (
             <div className="ml-auto flex items-center gap-2">
