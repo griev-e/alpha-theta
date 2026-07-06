@@ -4,7 +4,22 @@ import { useId, useMemo, useState } from "react";
 import { useElementWidth } from "@/lib/useElementWidth";
 import { fmtPct, fmtUSD } from "@/lib/format";
 import { DeltaArrow } from "@/components/ui/DeltaArrow";
+import { ChartFlag } from "@/components/charts/ChartFlag";
 import type { HistoryPoint, HistoryRange } from "@/lib/research/types";
+
+/** A dated event annotated onto the price chart (an ex-dividend, an earnings). */
+export interface PriceEvent {
+  /** ISO date; only events inside the visible window are drawn. */
+  date: string;
+  kind: "dividend" | "earnings";
+  /** Full description shown on hover. */
+  label: string;
+}
+
+const EVENT_STYLE: Record<PriceEvent["kind"], { glyph: string; color: string }> = {
+  dividend: { glyph: "D", color: "var(--color-mint)" },
+  earnings: { glyph: "E", color: "var(--color-sky)" },
+};
 
 /**
  * Interactive price-history chart — hand-built SVG (no chart library). Area +
@@ -17,11 +32,14 @@ export function PriceChart({
   range,
   height = 260,
   currency = "USD",
+  events,
 }: {
   points: HistoryPoint[];
   range: HistoryRange;
   height?: number;
   currency?: string;
+  /** Dated annotations (ex-dividends, …) drawn as ChartFlags along the axis. */
+  events?: PriceEvent[];
 }) {
   const [ref, width] = useElementWidth<HTMLDivElement>();
   const [hover, setHover] = useState<number | null>(null);
@@ -56,6 +74,34 @@ export function PriceChart({
 
     return { closes, first, dataLo, dataHi, x, y, line, area, baselineY, areaBase, hiIdx, loIdx };
   }, [points, width, height]);
+
+  // Map each in-window event to a pixel x by nearest trading day. Dense windows
+  // (quarterly ex-dates over 5y) are thinned so the axis never crowds.
+  const eventMarks = useMemo(() => {
+    if (!geom || !events?.length || points.length < 2) return [];
+    const t0 = new Date(points[0].t).getTime();
+    const t1 = new Date(points[points.length - 1].t).getTime();
+    const inWindow = events.filter((e) => {
+      const t = new Date(e.date).getTime();
+      return Number.isFinite(t) && t >= t0 && t <= t1;
+    });
+    const step = Math.max(1, Math.ceil(inWindow.length / 8));
+    const shown = inWindow.filter((_, i) => i % step === 0);
+    const xOf = geom.x;
+    return shown.map((e) => {
+      const t = new Date(e.date).getTime();
+      let best = 0;
+      let bestDiff = Infinity;
+      for (let i = 0; i < points.length; i++) {
+        const d = Math.abs(new Date(points[i].t).getTime() - t);
+        if (d < bestDiff) {
+          bestDiff = d;
+          best = i;
+        }
+      }
+      return { x: xOf(best), label: e.label, ...EVENT_STYLE[e.kind], key: `${e.kind}-${e.date}` };
+    });
+  }, [events, points, geom]);
 
   if (points.length < 2) {
     return (
@@ -162,6 +208,20 @@ export function PriceChart({
                 strokeWidth={1.7}
                 strokeLinejoin="round"
               />
+
+              {/* dated event flags (ex-dividends, …) along the axis */}
+              {eventMarks.map((mk) => (
+                <ChartFlag
+                  key={mk.key}
+                  orientation="x"
+                  at={mk.x}
+                  start={0}
+                  end={height}
+                  glyph={mk.glyph}
+                  color={mk.color}
+                  label={mk.label}
+                />
+              ))}
 
               {/* period high / low ticks */}
               {[

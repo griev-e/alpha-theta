@@ -4,6 +4,7 @@ import { m } from "framer-motion";
 import { useMemo, useState } from "react";
 import { fmtUSDCompact } from "@/lib/format";
 import { useElementWidth } from "@/lib/useElementWidth";
+import { AxisX } from "@/components/charts/Axis";
 import type { MonteCarloResult } from "@/lib/analytics/montecarlo";
 
 /**
@@ -106,19 +107,10 @@ export function FanChart({
             stroke="color-mix(in srgb, var(--color-track) 7%, transparent)"
           />
         ))}
-        {yearTicks.map((yr) => (
-          <text
-            key={yr}
-            x={x(yr * 12)}
-            y={H - 10}
-            textAnchor="middle"
-            fill="var(--color-faint)"
-            className="font-mono"
-            style={{ fontSize: 11 }}
-          >
-            {yr}y
-          </text>
-        ))}
+        <AxisX
+          ticks={yearTicks.map((yr) => ({ pos: x(yr * 12), label: `${yr}y` }))}
+          y={H - 10}
+        />
 
         {/* ghost sample paths */}
         {samplePaths.map((path, i) => (

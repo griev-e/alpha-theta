@@ -14,24 +14,37 @@ export interface DonutSlice {
   delta?: number;
 }
 
-/** Animated donut with center readout that follows hover. */
+/** Animated donut with center readout that follows hover. Optionally accepts a
+ *  controlled `activeId` / `onActiveChange` so a slice can highlight in sync
+ *  with a sibling chart or table (the Overview hover-sync). Uncontrolled — no
+ *  `onActiveChange` — it keeps its own internal hover, unchanged. */
 export function Donut({
   slices,
   size = 230,
   thickness = 26,
   centerLabel,
   centerValue,
+  activeId,
+  onActiveChange,
 }: {
   slices: DonutSlice[];
   size?: number;
   thickness?: number;
   centerLabel: string;
   centerValue: string;
+  activeId?: string | null;
+  onActiveChange?: (id: string | null) => void;
 }) {
   const total = slices.reduce((s, d) => s + d.value, 0);
   const r = (size - thickness) / 2 - 4;
   const c = 2 * Math.PI * r;
-  const [hover, setHover] = useState<DonutSlice | null>(null);
+  const [internalId, setInternalId] = useState<string | null>(null);
+  const controlled = onActiveChange !== undefined;
+  const activeSlice = controlled ? activeId ?? null : internalId;
+  const setActive = (id: string | null) => {
+    if (!controlled) setInternalId(id);
+    onActiveChange?.(id);
+  };
 
   let offset = 0;
   const arcs = slices
@@ -42,6 +55,8 @@ export function Donut({
       offset += frac;
       return arc;
     });
+
+  const hover = activeSlice ? arcs.find((a) => a.id === activeSlice) ?? null : null;
 
   return (
     <div className="flex items-center gap-6 flex-wrap justify-center">
@@ -74,8 +89,8 @@ export function Donut({
                 opacity: { duration: 0.2 },
                 strokeWidth: { duration: 0.2 },
               }}
-              onMouseEnter={() => setHover(a)}
-              onMouseLeave={() => setHover(null)}
+              onMouseEnter={() => setActive(a.id)}
+              onMouseLeave={() => setActive(null)}
               style={{ cursor: "default" }}
             />
           ))}
@@ -116,8 +131,8 @@ export function Donut({
           <button
             key={a.id}
             title={a.label}
-            onMouseEnter={() => setHover(a)}
-            onMouseLeave={() => setHover(null)}
+            onMouseEnter={() => setActive(a.id)}
+            onMouseLeave={() => setActive(null)}
             className={`flex items-center gap-2 rounded-md px-2 py-1 text-left transition-colors ${
               hover?.id === a.id ? "bg-white/[0.04]" : ""
             }`}

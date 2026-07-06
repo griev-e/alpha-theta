@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { m as Motion } from "framer-motion";
 import { PALETTE } from "@/components/charts/Donut";
+import { AxisY } from "@/components/charts/Axis";
 import { AiThinking } from "@/components/ui/AiThinking";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { Computing } from "@/components/ui/Computing";
@@ -550,27 +551,12 @@ function FrontierChart({
             </linearGradient>
           </defs>
 
-          {gridY.map((v, i) => (
-            <g key={i}>
-              <line
-                x1={PAD.l}
-                x2={W - PAD.r}
-                y1={y(v)}
-                y2={y(v)}
-                stroke="color-mix(in srgb, var(--color-track) 8%, transparent)"
-              />
-              <text
-                x={PAD.l - 8}
-                y={y(v) + 3}
-                textAnchor="end"
-                fill="var(--color-faint)"
-                className="font-mono"
-                style={{ fontSize: 9.5 }}
-              >
-                {fmtPct(v, 0)}
-              </text>
-            </g>
-          ))}
+          <AxisY
+            ticks={gridY.map((v) => ({ pos: y(v), label: fmtPct(v, 0) }))}
+            gridFrom={PAD.l}
+            gridTo={W - PAD.r}
+            fontSize={9.5}
+          />
 
           {/* frontier area + line */}
           {linePath && (

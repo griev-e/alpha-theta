@@ -30,6 +30,7 @@ import {
   relativeTime,
 } from "@/lib/format";
 import type { HistoryRange } from "@/lib/research/types";
+import type { PriceEvent } from "@/components/charts/PriceChart";
 import {
   useResearchTarget,
   usePriceHistory,
@@ -400,6 +401,39 @@ function ResearchView({
       ? history.points[history.points.length - 1].c / history.points[0].c - 1
       : null;
 
+  // Ex-dividend dates for the chart's annotation layer. Fetched best-effort and
+  // degrades to no markers if the provider is unreachable (the graceful-
+  // degradation contract) — the chart still renders without them.
+  const [divEvents, setDivEvents] = useState<{ date: string; amount: number }[] | null>(
+    null
+  );
+  const [showDivs, setShowDivs] = useState(true);
+  useEffect(() => {
+    let cancelled = false;
+    setDivEvents(null);
+    fetch(`/api/dividends?symbols=${encodeURIComponent(symbol)}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => {
+        if (!cancelled) setDivEvents(j?.profiles?.[symbol]?.events ?? []);
+      })
+      .catch(() => {
+        if (!cancelled) setDivEvents([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [symbol]);
+
+  const priceEvents = useMemo<PriceEvent[]>(() => {
+    if (!showDivs || !divEvents) return [];
+    return divEvents.map((e) => ({
+      date: e.date,
+      kind: "dividend",
+      label: `Ex-dividend · ${fmtDate(e.date)} · ${fmtUSD(e.amount)}/sh`,
+    }));
+  }, [showDivs, divEvents]);
+  const hasDivs = (divEvents?.length ?? 0) > 0;
+
   if (target.loading && !f) {
     return (
       <div className="mt-10 text-center font-mono text-[12px] text-mute">
@@ -474,12 +508,31 @@ function ResearchView({
           </div>
         </div>
 
-        <div className="mt-5 flex items-center justify-between">
-          <Segmented
-            value={range}
-            onChange={onRange}
-            options={RANGES.map((r) => ({ value: r.id, label: r.label }))}
-          />
+        <div className="mt-5 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <Segmented
+              value={range}
+              onChange={onRange}
+              options={RANGES.map((r) => ({ value: r.id, label: r.label }))}
+            />
+            {hasDivs && (
+              <button
+                onClick={() => setShowDivs((v) => !v)}
+                aria-pressed={showDivs}
+                title="Toggle ex-dividend markers"
+                className={`flex items-center gap-1.5 rounded-md border px-2 py-1 font-mono text-[10.5px] uppercase tracking-wider transition-colors ${
+                  showDivs
+                    ? "border-mint/35 bg-mint/[0.08] text-mint"
+                    : "border-edge text-faint hover:text-mute"
+                }`}
+              >
+                <span className="flex h-3.5 w-3.5 items-center justify-center rounded-full border border-current text-[8px] font-semibold">
+                  D
+                </span>
+                Ex-div
+              </button>
+            )}
+          </div>
           {periodReturn !== null && (
             <span
               className={`font-mono tnum text-[12px] ${deltaToneClass(periodReturn)}`}
@@ -495,6 +548,7 @@ function ResearchView({
               points={history.points}
               range={range}
               currency={history.currency}
+              events={priceEvents}
             />
           ) : (
             <div className="flex h-[260px] items-center justify-center font-mono text-[12px] text-faint">
