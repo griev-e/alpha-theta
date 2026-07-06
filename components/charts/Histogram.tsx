@@ -56,6 +56,18 @@ export function Histogram({
           bins[0]?.x0 ?? 0
         )} to ${fmtUSDCompact(bins[bins.length - 1]?.x1 ?? 0)}.`}
       >
+        {/* Shaded shortfall region — everything below the target, tinted rose,
+            so "fell short" reads as an area, not only as bar coloring. */}
+        {targetFrac !== null && targetFrac > 0 && (
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-y-0 left-0 z-0 rounded-l-[3px]"
+            style={{
+              width: `${targetFrac * 100}%`,
+              background: "color-mix(in srgb, var(--color-neg) 4%, transparent)",
+            }}
+          />
+        )}
         {targetFrac !== null && (
           <div
             aria-hidden

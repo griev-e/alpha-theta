@@ -108,6 +108,8 @@ export default function ThetaDashboard() {
                 values={nwValues}
                 height={96}
                 color={nwUp ? "var(--color-mint)" : "var(--color-neg)"}
+                labels={nwSeries.map((s) => s.month)}
+                formatValue={(v) => fmtUSDCompact(v)}
               />
             </div>
           )}

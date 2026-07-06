@@ -2,6 +2,7 @@
 
 import { m } from "framer-motion";
 import { memo, useState } from "react";
+import { TickerLogo } from "@/components/ui/TickerLogo";
 
 /**
  * Correlation heatmap. Cells fade in along the diagonal; hovering highlights
@@ -103,14 +104,16 @@ export const Heatmap = memo(function Heatmap({
           key={hoverInfo ? `${hoverInfo.a}-${hoverInfo.b}` : "none"}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          className="h-5 font-mono text-[12px] text-mute"
+          className="flex h-5 items-center gap-1.5 font-mono text-[12px] text-mute"
         >
           {hoverInfo && (
             <>
+              <TickerLogo symbol={hoverInfo.a} accent="var(--color-mint)" size={16} />
               <span className="text-ink">{hoverInfo.a}</span>
-              {" × "}
+              <span className="text-faint">×</span>
+              <TickerLogo symbol={hoverInfo.b} accent="var(--color-mint)" size={16} />
               <span className="text-ink">{hoverInfo.b}</span>
-              {"  ρ = "}
+              <span className="text-faint">ρ</span>
               <span className="text-mint">{hoverInfo.rho.toFixed(2)}</span>
             </>
           )}
