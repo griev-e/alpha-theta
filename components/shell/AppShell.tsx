@@ -8,6 +8,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { TopProgress } from "@/components/ui/TopProgress";
 import { PageAura } from "@/components/ui/PageAura";
 import { CommandPalette, type Command } from "./CommandPalette";
+import { KeyboardMap } from "./KeyboardMap";
 import { MarketPulse } from "./MarketPulse";
 import { FirstViewProvider, useRouteFirstView } from "@/lib/firstView";
 import { fmtUSDCompact, relativeTime } from "@/lib/format";
@@ -291,6 +292,18 @@ export function AppShell({ children }: { children: ReactNode }) {
     <div className="min-h-screen lg:flex">
       <TopProgress accent="var(--color-accent)" loading={live.refreshing} />
       <CommandPalette commands={commands} accent="var(--color-accent)" enableTickerSearch />
+      <KeyboardMap
+        accent="var(--color-accent)"
+        extra={[
+          {
+            title: "Research",
+            items: [
+              { keys: ["J"], label: "Next security in the rail" },
+              { keys: ["K"], label: "Previous security in the rail" },
+            ],
+          },
+        ]}
+      />
       <PageAura color={AURA[current?.group ?? ""] ?? "rgba(255,255,255,0.02)"} />
         {/* Desktop sidebar */}
       <aside

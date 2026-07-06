@@ -8,6 +8,7 @@ import { useEffect, useMemo, type ReactNode } from "react";
 import { TopProgress } from "@/components/ui/TopProgress";
 import { PageAura } from "@/components/ui/PageAura";
 import { CommandPalette, type Command } from "./CommandPalette";
+import { KeyboardMap } from "./KeyboardMap";
 import { FirstViewProvider, useRouteFirstView } from "@/lib/firstView";
 import { useTheta } from "@/lib/theta/store";
 import { useSimplefinAutoSync } from "@/lib/theta/useSimplefinAutoSync";
@@ -106,6 +107,7 @@ export function ThetaShell({ children }: { children: ReactNode }) {
     <div className="theta-scope min-h-screen lg:flex">
       <TopProgress accent="var(--color-vio)" />
       <CommandPalette commands={commands} accent="var(--color-vio)" />
+      <KeyboardMap accent="var(--color-vio)" />
       <PageAura color="rgba(167,139,250,0.05)" />
       {/* Desktop sidebar */}
       <aside
