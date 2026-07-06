@@ -75,10 +75,12 @@ Four PRs have landed against this catalogue, merged to `main`:
   `g`+letter with a keyboard-map section and palette empty-state hints (§39/§109);
   the portfolio switcher's last-known values + provenance (§35); per-shape
   skeletons — chart-grid / split / terminal (§103); command-palette recents (§46);
-  and Figma-style scrub-to-edit on theta's assumption fields (§113). Still open on
-  this branch: §20, §25, §37, §41 (α/θ in-shell — deferred pending a design call
-  on the Sigil redundancy), §43, §62, §104, §115 (needs a portal-based tooltip),
-  §124, and the table-system group (§65–67, 70, 72) which is Ambitious-tier.
+  Figma-style scrub-to-edit on theta's assumption fields (§113); and a
+  new-subscription dot on theta's Recurring nav row (§37, its client-computable
+  half; the Intelligence fresh-brief dot needs a server signal). Still open on
+  this branch: §20, §25, §41 (α/θ in-shell — deferred pending a design call on the
+  Sigil redundancy), §43, §62, §104, §115 (needs a portal-based tooltip), §124,
+  and the table-system group (§65–67, 70, 72) which is Ambitious-tier.
 
 Several other catalogue items turned out to already exist from the earlier
 `premium-roadmap.md` push (risk contribution list, rebalance diff bars, the
