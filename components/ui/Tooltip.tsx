@@ -26,6 +26,7 @@ export function Tooltip({
   className = "",
   maxWidth = 260,
   underline = true,
+  openDelay = 0,
 }: {
   children: ReactNode;
   content: ReactNode;
@@ -33,14 +34,24 @@ export function Tooltip({
   maxWidth?: number;
   /** Faint dotted underline marking the trigger as explainable. */
   underline?: boolean;
+  /** Hover-intent delay before opening, in ms — a "peek" reveals on a rest,
+   *  not a brush-past. Keyboard focus still opens instantly. */
+  openDelay?: number;
 }) {
   const triggerRef = useRef<HTMLSpanElement>(null);
   const boxRef = useRef<HTMLDivElement>(null);
+  const openTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [open, setOpen] = useState(false);
   const [coords, setCoords] = useState<Coords | null>(null);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => setMounted(true), []);
+  useEffect(
+    () => () => {
+      if (openTimer.current) clearTimeout(openTimer.current);
+    },
+    [],
+  );
 
   const place = useCallback(() => {
     const trigger = triggerRef.current;
@@ -81,13 +92,21 @@ export function Tooltip({
     place();
     setOpen(true);
   };
-  const hide = () => setOpen(false);
+  const hide = () => {
+    if (openTimer.current) clearTimeout(openTimer.current);
+    setOpen(false);
+  };
+  const onEnter = () => {
+    if (openDelay <= 0) return show();
+    if (openTimer.current) clearTimeout(openTimer.current);
+    openTimer.current = setTimeout(show, openDelay);
+  };
 
   return (
     <>
       <span
         ref={triggerRef}
-        onMouseEnter={show}
+        onMouseEnter={onEnter}
         onMouseLeave={hide}
         onFocus={show}
         onBlur={hide}
