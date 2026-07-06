@@ -45,10 +45,13 @@ export function CommandPalette({
   commands,
   accent,
   enableTickerSearch = false,
+  chordHints = [],
 }: {
   commands: Command[];
   accent: string;
   enableTickerSearch?: boolean;
+  /** A few `g`-chord shortcuts (§39) surfaced in the no-match state (§109). */
+  chordHints?: { keys: string[]; label: string }[];
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -238,6 +241,25 @@ export function CommandPalette({
                       ? "Try a ticker or company name to jump to its research page."
                       : "Try a page or action name."}
                   </div>
+                  {chordHints.length > 0 && (
+                    <div className="mt-4 flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
+                      {chordHints.map((h) => (
+                        <span
+                          key={h.label}
+                          className="flex items-center gap-1.5 text-[11px] text-faint"
+                        >
+                          <span className="flex items-center gap-1">
+                            {h.keys.map((k, i) => (
+                              <kbd key={i} className="kbd">
+                                {k}
+                              </kbd>
+                            ))}
+                          </span>
+                          {h.label}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
 

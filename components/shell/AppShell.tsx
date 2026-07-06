@@ -9,6 +9,7 @@ import { TopProgress } from "@/components/ui/TopProgress";
 import { PageAura } from "@/components/ui/PageAura";
 import { CommandPalette, type Command } from "./CommandPalette";
 import { KeyboardMap } from "./KeyboardMap";
+import { NAV_CHORDS } from "./navChords";
 import { MarketPulse } from "./MarketPulse";
 import { StatusCenter } from "./StatusCenter";
 import { FirstViewProvider, useRouteFirstView } from "@/lib/firstView";
@@ -177,6 +178,46 @@ export function AppShell({ children }: { children: ReactNode }) {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
+  // Single-key nav chords (§39): `g` then a letter jumps to a route, Linear-
+  // style. Ignored inside inputs, with modifiers, or on the bare shells.
+  const chordPending = useRef(false);
+  const chordTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      if (pathname === "/lock" || pathname === "/report" || pathname.startsWith("/theta"))
+        return;
+      const t = e.target as HTMLElement | null;
+      if (
+        t &&
+        (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)
+      )
+        return;
+      if (!chordPending.current) {
+        if (e.key === "g") {
+          chordPending.current = true;
+          if (chordTimer.current) clearTimeout(chordTimer.current);
+          chordTimer.current = setTimeout(() => {
+            chordPending.current = false;
+          }, 1300);
+        }
+        return;
+      }
+      chordPending.current = false;
+      if (chordTimer.current) clearTimeout(chordTimer.current);
+      const match = NAV_CHORDS.find((c) => c.key === e.key.toLowerCase());
+      if (match) {
+        e.preventDefault();
+        router.push(match.href);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      if (chordTimer.current) clearTimeout(chordTimer.current);
+    };
+  }, [pathname, router]);
+
   // A quiet dot on the Patch Notes row until the newest entry has been seen.
   const [unseenPatch, setUnseenPatch] = useState(false);
   useEffect(() => {
@@ -340,7 +381,15 @@ export function AppShell({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-screen lg:flex">
       <TopProgress accent="var(--color-accent)" loading={live.refreshing} />
-      <CommandPalette commands={commands} accent="var(--color-accent)" enableTickerSearch />
+      <CommandPalette
+        commands={commands}
+        accent="var(--color-accent)"
+        enableTickerSearch
+        chordHints={NAV_CHORDS.slice(0, 4).map((c) => ({
+          keys: ["G", c.key.toUpperCase()],
+          label: c.label,
+        }))}
+      />
       <KeyboardMap
         accent="var(--color-accent)"
         extra={[
@@ -350,6 +399,13 @@ export function AppShell({ children }: { children: ReactNode }) {
               { keys: ["J"], label: "Next security in the rail" },
               { keys: ["K"], label: "Previous security in the rail" },
             ],
+          },
+          {
+            title: "Go to (press g, then…)",
+            items: NAV_CHORDS.map((c) => ({
+              keys: ["G", c.key.toUpperCase()],
+              label: c.label,
+            })),
           },
         ]}
       />
