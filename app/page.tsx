@@ -31,7 +31,8 @@ import {
   fmtUSDCompact,
   symbolColorIndex,
 } from "@/lib/format";
-import { usePortfolio } from "@/lib/store";
+import { usePortfolio, useLiveStatus } from "@/lib/store";
+import { SessionRibbon } from "@/components/overview/SessionRibbon";
 import { useFirstView } from "@/lib/firstView";
 import { DeltaArrow } from "@/components/ui/DeltaArrow";
 import type { Position } from "@/lib/types";
@@ -41,6 +42,7 @@ type SortKey = "equity" | "returnPct" | "weight" | "symbol" | "today";
 
 export default function OverviewPage() {
   const { ready, portfolio } = usePortfolio();
+  const liveStatus = useLiveStatus();
   const { version } = useAssumptions();
   const [sortKey, setSortKey] = useState<SortKey>("equity");
   const [asc, setAsc] = useState(false);
@@ -258,6 +260,13 @@ export default function OverviewPage() {
           </div>
         </div>
       </Card>
+
+      <SessionRibbon
+        positions={portfolio.positions}
+        degraded={liveStatus.degraded}
+        livePriceCount={liveStatus.livePriceCount}
+        quotesAt={liveStatus.quotesAt}
+      />
 
       <div className="mb-5 grid gap-5 xl:grid-cols-[1.6fr_1fr]">
         <Card className="px-5 py-5" i={1}>
