@@ -280,7 +280,16 @@ export function AppShell({ children }: { children: ReactNode }) {
           ) : (
             <div className="flex items-center gap-2.5 px-1">
               <Link href="/" className="flex items-center gap-2.5">
-                <Sigil size={24} />
+                {/* A gentle breath on the mark each time the live feed ticks —
+                    the brand acknowledging the heartbeat. */}
+                <m.span
+                  key={live.quotesAt ?? "idle"}
+                  initial={{ opacity: 0.55 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.7, ease: "easeOut" }}
+                >
+                  <Sigil size={24} />
+                </m.span>
                 <AppTitle active="alpha" />
               </Link>
               {isDemo && (
