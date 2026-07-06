@@ -6,6 +6,7 @@ import { AiThinking } from "@/components/ui/AiThinking";
 import { AiMeta } from "@/components/ui/AiMeta";
 import { RevealGroup, RevealItem } from "@/components/ui/Reveal";
 import { Card, CardHeader } from "@/components/ui/Card";
+import { AiDisabledCard, EnvKey } from "@/components/ui/AiDisabledCard";
 import { Computing } from "@/components/ui/Computing";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -126,16 +127,9 @@ function BriefCard({ portfolio }: { portfolio: Portfolio }) {
 
   if (state.kind === "disabled") {
     return (
-      <Card className="mb-5 px-6 py-4" i={0} hover={false}>
-        <div className="flex items-center gap-3 text-[12.5px] text-faint">
-          <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-white/20" />
-          AI brief is off — set{" "}
-          <code className="rounded bg-white/[0.05] px-1.5 py-0.5 font-mono text-[11px]">
-            ANTHROPIC_API_KEY
-          </code>{" "}
-          to enable a daily portfolio brief.
-        </div>
-      </Card>
+      <AiDisabledCard i={0} className="mb-5">
+        AI brief is off — set <EnvKey /> to enable a daily portfolio brief.
+      </AiDisabledCard>
     );
   }
 

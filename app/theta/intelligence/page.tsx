@@ -5,6 +5,7 @@ import { useCallback, useRef, useState } from "react";
 import { ThetaEmpty } from "@/components/theta/ui";
 import { AiThinking } from "@/components/ui/AiThinking";
 import { Card, CardHeader } from "@/components/ui/Card";
+import { AiDisabledCard, EnvKey } from "@/components/ui/AiDisabledCard";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Stat } from "@/components/ui/Stat";
 import type { ThetaBrief, ThetaSnapshot } from "@/lib/theta/intelligence";
@@ -130,14 +131,10 @@ export default function ThetaIntelligencePage() {
       )}
 
       {state.kind === "offline" && (
-        <Card className="px-6 py-8 text-center" i={4}>
-          <h2 className="font-display text-[15px] font-medium text-ink">AI brief is offline</h2>
-          <p className="mx-auto mt-2 max-w-md text-[13px] leading-relaxed text-mute">
-            Set <span className="font-mono text-[12px] text-faint">ANTHROPIC_API_KEY</span> to enable
-            Claude-written monthly money briefs. Everything else in theta works without it — your
-            numbers above are computed locally.
-          </p>
-        </Card>
+        <AiDisabledCard variant="card" title="AI brief is offline" i={4}>
+          Set <EnvKey /> to enable Claude-written monthly money briefs. Everything
+          else in theta works without it — your numbers above are computed locally.
+        </AiDisabledCard>
       )}
 
       {state.kind === "error" && (

@@ -5,6 +5,7 @@ import { useCallback, useMemo, useState } from "react";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { AiThinking } from "@/components/ui/AiThinking";
 import { Card, CardHeader } from "@/components/ui/Card";
+import { EnvKey } from "@/components/ui/AiDisabledCard";
 import { Ring } from "@/components/ui/Ring";
 import { ThetaEmpty } from "@/components/theta/ui";
 import { ledgerHasData, useTheta } from "@/lib/theta/store";
@@ -212,8 +213,8 @@ function ReviewSection({
       )}
       {state.kind === "offline" && (
         <p className="text-[13px] leading-relaxed text-mute">
-          Set <span className="font-mono text-[12px] text-faint">ANTHROPIC_API_KEY</span> to enable the AI
-          review. The scorecard above works without it.
+          Set <EnvKey /> to enable the AI review. The scorecard above works
+          without it.
         </p>
       )}
       {state.kind === "error" && (

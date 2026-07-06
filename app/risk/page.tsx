@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import { Card, CardHeader } from "@/components/ui/Card";
+import { DegradedNotice } from "@/components/ui/DegradedNotice";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Gauge } from "@/components/ui/Gauge";
 import { Meter } from "@/components/ui/Meter";
@@ -190,36 +191,26 @@ export default function RiskPage() {
           list, not the percentage, so the banner never claims an exclusion that
           didn't happen. */}
       {noData.length > 0 && (
-        <div className="panel-tinted warn mb-5 px-6 py-4">
-          <div className="flex items-start gap-3">
-            <span className="mt-[5px] inline-block h-[7px] w-[7px] shrink-0 rounded-full border border-warn/70" />
-            <div>
-              <div className="font-mono text-[12px] text-warn">
-                Risk analytics cover {fmtPct(risk.coveragePct, 0)} of the book by
-                weight
-              </div>
-              <div className="mt-1 text-[12.5px] leading-relaxed text-mute">
-                {noData.length} holding{noData.length === 1 ? "" : "s"} with no
-                live fundamentals{" "}
-                <span className="font-mono text-faint">
-                  ({noData.map((p) => p.symbol).join(", ")})
-                </span>{" "}
-                {noData.length === 1 ? "is" : "are"} excluded from the beta,
-                volatility, correlation and factor math — never silently
-                folded in. Allocation, weights and P&amp;L still include them.
-              </div>
-              <div className="mt-1.5 text-[11.5px] leading-relaxed text-faint">
-                If you did want a placeholder for these, the model&apos;s
-                neutral estimate (no information to differentiate names) would
-                be β{" "}
-                {DEFAULT_BETA.toFixed(1)} and{" "}
-                {fmtPct(estimatedVolatility(DEFAULT_BETA), 0)} volatility —
-                shown for reference only; it is not used in any calculation
-                above.
-              </div>
-            </div>
-          </div>
-        </div>
+        <DegradedNotice
+          className="mb-5"
+          title={`Risk analytics cover ${fmtPct(risk.coveragePct, 0)} of the book by weight`}
+        >
+          {noData.length} holding{noData.length === 1 ? "" : "s"} with no live
+          fundamentals{" "}
+          <span className="font-mono text-faint">
+            ({noData.map((p) => p.symbol).join(", ")})
+          </span>{" "}
+          {noData.length === 1 ? "is" : "are"} excluded from the beta,
+          volatility, correlation and factor math — never silently folded in.
+          Allocation, weights and P&amp;L still include them.
+          <span className="mt-1.5 block text-[11.5px] leading-relaxed text-faint">
+            If you did want a placeholder for these, the model&apos;s neutral
+            estimate (no information to differentiate names) would be β{" "}
+            {DEFAULT_BETA.toFixed(1)} and{" "}
+            {fmtPct(estimatedVolatility(DEFAULT_BETA), 0)} volatility — shown for
+            reference only; it is not used in any calculation above.
+          </span>
+        </DegradedNotice>
       )}
 
       <div className="mb-5 grid gap-5 lg:grid-cols-2">

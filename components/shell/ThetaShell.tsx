@@ -13,6 +13,7 @@ import { FirstViewProvider, useRouteFirstView } from "@/lib/firstView";
 import { useTheta } from "@/lib/theta/store";
 import { useSimplefinAutoSync } from "@/lib/theta/useSimplefinAutoSync";
 import { useSidebarWidth } from "@/lib/useSidebarWidth";
+import { SampleDataTag } from "@/components/ui/SampleDataTag";
 import { AppTitle, Mark, SignOutButton } from "./brand";
 import { IconImport, IconIntelligence } from "./icons";
 import { MobileNavStrip, SidebarNav, SidebarCollapseButton } from "./SidebarNav";
@@ -53,12 +54,7 @@ const GROUPS = ["Overview", "Money", "Planning", "System"];
 /** Honest tag: theta ships with illustrative sample data, no real accounts. */
 function DemoTag({ className = "" }: { className?: string }) {
   return (
-    <span
-      className={`flex items-center gap-1.5 font-mono text-[10.5px] tracking-[0.08em] text-vio/80 ${className}`}
-    >
-      <span className="h-1.5 w-1.5 rounded-full bg-vio/70" />
-      SAMPLE DATA
-    </span>
+    <SampleDataTag accent="var(--color-vio)" label="SAMPLE DATA" className={className} />
   );
 }
 

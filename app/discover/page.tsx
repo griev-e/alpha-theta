@@ -5,6 +5,7 @@ import { AnimatePresence, m as Motion } from "framer-motion";
 import Link from "next/link";
 import { AiThinking } from "@/components/ui/AiThinking";
 import { Card } from "@/components/ui/Card";
+import { AiDisabledCard, EnvKey } from "@/components/ui/AiDisabledCard";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { TickerLogo } from "@/components/ui/TickerLogo";
@@ -372,13 +373,10 @@ function IdlePanel() {
 function DisabledPanel() {
   return (
     <Shell>
-      <Card className="px-8 py-12 text-center" hover={false}>
-        <h2 className="font-display text-[15px] font-medium text-ink">AI Discover isn&apos;t configured</h2>
-        <p className="mx-auto mt-2 max-w-md text-[13px] leading-relaxed text-mute">
-          Set <code className="rounded bg-white/[0.06] px-1.5 py-0.5 font-mono text-[11px]">ANTHROPIC_API_KEY</code> in
-          the environment to generate ideas. Everything else in the app works without it.
-        </p>
-      </Card>
+      <AiDisabledCard variant="card" title="AI Discover isn't configured">
+        Set <EnvKey /> in the environment to generate ideas. Everything else in
+        the app works without it.
+      </AiDisabledCard>
     </Shell>
   );
 }

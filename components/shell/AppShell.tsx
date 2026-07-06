@@ -13,6 +13,7 @@ import { MarketPulse } from "./MarketPulse";
 import { StatusCenter } from "./StatusCenter";
 import { FirstViewProvider, useRouteFirstView } from "@/lib/firstView";
 import { fmtUSDCompact } from "@/lib/format";
+import { SampleDataTag } from "@/components/ui/SampleDataTag";
 import { useToast } from "@/components/ui/Toast";
 import { usePortfolio, useLiveStatus, usePortfolioActions } from "@/lib/store";
 import { useSidebarWidth } from "@/lib/useSidebarWidth";
@@ -373,9 +374,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 <AppTitle active="alpha" />
               </Link>
               {isDemo && (
-                <span className="rounded-full border border-warn/30 bg-warn/10 px-2 py-0.5 text-[10px] font-medium text-warn">
-                  Demo
-                </span>
+                <SampleDataTag accent="var(--color-warn)" label="DEMO DATA" />
               )}
               <div className="ml-auto flex items-center gap-0.5">
                 <SignOutButton />
