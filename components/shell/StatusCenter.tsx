@@ -3,31 +3,8 @@
 import { AnimatePresence, m } from "framer-motion";
 import { useEffect, useRef, useState } from "react";
 import { relativeTime } from "@/lib/format";
+import { StatusDot } from "@/components/ui/StatusDot";
 import type { LiveStatus } from "@/lib/store";
-
-/** A status-hue dot: live = green, stale/degraded = amber, idle = faint. */
-function StatusDot({ tone }: { tone: "live" | "stale" | "idle" }) {
-  const color =
-    tone === "live"
-      ? "var(--color-live)"
-      : tone === "stale"
-        ? "var(--color-warn)"
-        : "var(--color-faint)";
-  return (
-    <span className="relative flex h-2 w-2">
-      {tone === "live" && (
-        <span
-          className="absolute inline-flex h-full w-full animate-ping rounded-full"
-          style={{ backgroundColor: "color-mix(in srgb, var(--color-live) 38%, transparent)" }}
-        />
-      )}
-      <span
-        className="relative inline-flex h-2 w-2 rounded-full"
-        style={{ backgroundColor: color }}
-      />
-    </span>
-  );
-}
 
 /**
  * The status center — the LIVE indicator promoted from a tooltip to a click

@@ -9,6 +9,12 @@ import { Tooltip } from "./Tooltip";
  * presented as if it were live. There is no bundled snapshot; "estimated" means
  * a neutral default filled a gap the live providers left. Backed by
  * `Position.dataSource` / `Fundamentals.provenance`.
+ *
+ * This is the *data-quality* sibling of the status-hue family (see the "Status
+ * hue family" block in globals.css and `StatusDot`): it shares the same grammar
+ * — green means good, neutral means a gap, amber is withheld — but tunes the
+ * dots brighter (data-pos green, not the muted feed-status green) because they
+ * sit inline with figures rather than in the chrome.
  */
 
 const META: Record<
