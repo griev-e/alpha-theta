@@ -2,7 +2,7 @@
 
 import { m } from "framer-motion";
 import Link from "next/link";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useTheta } from "@/lib/theta/store";
 import { CATEGORIZE_RULES } from "@/lib/theta/categorize";
 import { useThetaAssumptions, type ThetaFieldKey } from "@/lib/theta/assumptionsStore";
@@ -243,25 +243,97 @@ function AssumptionsCard() {
   );
 }
 
-/** A percent input storing a fraction (7% ⇄ 0.07). Commits on blur / Enter. */
+/**
+ * A percent field storing a fraction (7% ⇄ 0.07). Figma-style scrub-to-edit
+ * (§113): drag horizontally to scrub the value, arrow keys nudge ±0.1, and a
+ * double-click drops into a text box that commits on blur / Enter. The parent
+ * remounts this on external value changes (preset apply), so no sync effect.
+ */
 function PercentField({ value, onCommit }: { value: number; onCommit: (v: number) => void }) {
+  const [editing, setEditing] = useState(false);
   const [text, setText] = useState((value * 100).toFixed(1));
-  const commit = () => {
+  const [dragPct, setDragPct] = useState<number | null>(null);
+  const drag = useRef<{ x: number; startPct: number } | null>(null);
+
+  const shownPct = dragPct ?? value * 100;
+
+  const commitText = () => {
     const n = Number(text.replace(/[^0-9.]/g, ""));
-    if (Number.isFinite(n)) onCommit(n / 100);
+    if (Number.isFinite(n)) onCommit(Math.max(0, n) / 100);
+    setEditing(false);
   };
+
+  if (editing) {
+    return (
+      <div className="flex shrink-0 items-center gap-1">
+        <input
+          autoFocus
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onBlur={commitText}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+            if (e.key === "Escape") setEditing(false);
+          }}
+          inputMode="decimal"
+          className="field h-8 w-16 text-right font-mono tnum text-[13px]"
+        />
+        <span className="text-[12px] text-faint">%</span>
+      </div>
+    );
+  }
+
+  const round1 = (p: number) => Math.max(0, Math.round(p * 10) / 10);
+
   return (
     <div className="flex shrink-0 items-center gap-1">
-      <input
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        onBlur={commit}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+      <span
+        role="slider"
+        aria-label="percent"
+        aria-valuenow={Number(shownPct.toFixed(1))}
+        tabIndex={0}
+        title="Drag to scrub · double-click to type"
+        onDoubleClick={() => {
+          setText((value * 100).toFixed(1));
+          setEditing(true);
         }}
-        inputMode="decimal"
-        className="field h-8 w-16 text-right font-mono tnum text-[13px]"
-      />
+        onPointerDown={(e) => {
+          e.preventDefault();
+          e.currentTarget.setPointerCapture(e.pointerId);
+          drag.current = { x: e.clientX, startPct: value * 100 };
+        }}
+        onPointerMove={(e) => {
+          if (!drag.current) return;
+          // ~0.05 percentage-point per pixel — a gentle, controllable scrub.
+          setDragPct(round1(drag.current.startPct + (e.clientX - drag.current.x) * 0.05));
+        }}
+        onPointerUp={(e) => {
+          if (!drag.current) return;
+          e.currentTarget.releasePointerCapture?.(e.pointerId);
+          if (dragPct !== null) onCommit(dragPct / 100);
+          drag.current = null;
+          setDragPct(null);
+        }}
+        onPointerCancel={() => {
+          drag.current = null;
+          setDragPct(null);
+        }}
+        onKeyDown={(e) => {
+          if (e.key === "ArrowUp" || e.key === "ArrowRight") {
+            e.preventDefault();
+            onCommit(round1(value * 100 + 0.1) / 100);
+          } else if (e.key === "ArrowDown" || e.key === "ArrowLeft") {
+            e.preventDefault();
+            onCommit(round1(value * 100 - 0.1) / 100);
+          } else if (e.key === "Enter") {
+            setText((value * 100).toFixed(1));
+            setEditing(true);
+          }
+        }}
+        className="field flex h-8 w-16 cursor-ew-resize select-none items-center justify-end font-mono tnum text-[13px] tabular-nums outline-none focus:border-vio/50"
+      >
+        {shownPct.toFixed(1)}
+      </span>
       <span className="text-[12px] text-faint">%</span>
     </div>
   );
