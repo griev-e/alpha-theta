@@ -36,7 +36,8 @@ export default function CorrelationPage() {
   }, [portfolio, version]);
 
   if (!ready) return <ChartGridSkeleton />;
-  if (!portfolio || !data) return <EmptyState page="The correlation matrix" />;
+  if (!portfolio || !data)
+    return <EmptyState page="The correlation matrix" preview="heatmap" />;
 
   const { corr, risk } = data;
   const shown = order === "clustered" ? seriate(corr) : corr;
