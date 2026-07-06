@@ -27,6 +27,28 @@ function symbolColor(symbol: string): string {
   return PALETTE[symbolColorIndex(symbol, PALETTE.length)];
 }
 
+/** A numbered brief-section header — the tracked-mono "morning paper" voice
+ *  (01 · Positioning), distinct from the sentence-case content eyebrow. */
+function BriefSection({
+  n,
+  label,
+  className = "mb-2",
+}: {
+  n: string;
+  label: string;
+  className?: string;
+}) {
+  return (
+    <div
+      className={`flex items-center gap-2 font-mono text-[10.5px] uppercase tracking-[0.14em] text-faint ${className}`}
+    >
+      <span className="text-mute">{n}</span>
+      <span className="h-px w-3 bg-edge2" />
+      <span>{label}</span>
+    </div>
+  );
+}
+
 /* ---------------------------------- brief --------------------------------- */
 
 function buildBriefRequest(portfolio: Portfolio): BriefRequest {
@@ -169,7 +191,7 @@ function BriefCard({ portfolio }: { portfolio: Portfolio }) {
 
           {state.data.brief.positioning && (
             <RevealItem className="mt-4 border-l-2 border-edge2 pl-4">
-              <div className="eyebrow mb-1.5">positioning</div>
+              <BriefSection n="01" label="Positioning" />
               <p className="max-w-3xl text-[12.5px] leading-relaxed text-mute">
                 {state.data.brief.positioning}
               </p>
@@ -178,7 +200,7 @@ function BriefCard({ portfolio }: { portfolio: Portfolio }) {
 
           {state.data.brief.themes?.length > 0 && (
             <RevealItem className="mt-5">
-              <div className="eyebrow mb-2.5">themes</div>
+              <BriefSection n="02" label="Themes" className="mb-2.5" />
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {state.data.brief.themes.map((t) => (
                   <div
@@ -200,7 +222,7 @@ function BriefCard({ portfolio }: { portfolio: Portfolio }) {
           <RevealItem className="mt-5 grid gap-x-10 gap-y-5 lg:grid-cols-2">
             {state.data.brief.movers.length > 0 && (
               <div>
-                <div className="eyebrow mb-2">movers</div>
+                <BriefSection n="03" label="Movers" />
                 <ul className="space-y-2.5">
                   {state.data.brief.movers.map((m) => (
                     <li key={m.symbol} className="flex items-start gap-2.5">
@@ -224,7 +246,7 @@ function BriefCard({ portfolio }: { portfolio: Portfolio }) {
             <div className="space-y-5">
               {state.data.brief.watchItems.length > 0 && (
                 <div>
-                  <div className="eyebrow mb-2">on watch</div>
+                  <BriefSection n="04" label="On watch" />
                   <ul className="space-y-2">
                     {state.data.brief.watchItems.map((w) => (
                       <li
@@ -239,7 +261,7 @@ function BriefCard({ portfolio }: { portfolio: Portfolio }) {
                 </div>
               )}
               <div>
-                <div className="eyebrow mb-2">risk note</div>
+                <BriefSection n="05" label="Risk note" />
                 <p className="text-[12.5px] leading-snug text-mute">
                   {state.data.brief.risk}
                 </p>

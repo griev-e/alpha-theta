@@ -305,23 +305,24 @@ export function AppShell({ children }: { children: ReactNode }) {
         <div className="px-3 pb-3 pt-4">
           {sidebar.collapsed ? (
             <div className="flex flex-col items-center gap-3">
-              <Link href="/" aria-label="alpha home">
-                <Sigil size={24} />
+              <Link href="/" aria-label="alpha home" className="group">
+                <Sigil size={24} className="transition-colors group-hover:text-accent" />
               </Link>
               <SidebarCollapseButton collapsed onClick={sidebar.toggleCollapsed} />
             </div>
           ) : (
             <div className="flex items-center gap-2.5 px-1">
-              <Link href="/" className="flex items-center gap-2.5">
+              <Link href="/" className="group flex items-center gap-2.5">
                 {/* A gentle breath on the mark each time the live feed ticks —
-                    the brand acknowledging the heartbeat. */}
+                    the brand acknowledging the heartbeat. Warms to brand red on
+                    hover — one of alpha's sanctioned red moments. */}
                 <m.span
                   key={live.quotesAt ?? "idle"}
                   initial={{ opacity: 0.55 }}
                   animate={{ opacity: 1 }}
                   transition={{ duration: 0.7, ease: "easeOut" }}
                 >
-                  <Sigil size={24} />
+                  <Sigil size={24} className="transition-colors group-hover:text-accent" />
                 </m.span>
                 <AppTitle active="alpha" />
               </Link>

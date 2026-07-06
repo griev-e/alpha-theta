@@ -37,6 +37,13 @@ export default function ThetaDashboard() {
   const assetCount = ledger.accounts.filter((a) => a.balance > 0).length;
   const liabCount = ledger.accounts.filter((a) => a.balance < 0).length;
 
+  // Liquid cash = checking + savings; runway is how long it covers this month's
+  // spend. Null (∞) when there's no spend to burn it down.
+  const liquidCash = ledger.accounts
+    .filter((a) => a.kind === "checking" || a.kind === "savings")
+    .reduce((s, a) => s + Math.max(0, a.balance), 0);
+  const runwayMonths = view.monthExpenses > 0 ? liquidCash / view.monthExpenses : null;
+
   const nwSeries = view.netWorthSeries ?? [];
   const nwValues = nwSeries.map((s) => s.value);
 
@@ -115,7 +122,20 @@ export default function ThetaDashboard() {
           )}
         </div>
 
-        <div className="relative mt-6 grid grid-cols-2 gap-x-6 gap-y-5 border-t border-edge pt-5 sm:grid-cols-4">
+        <div className="relative mt-6 grid grid-cols-2 gap-x-6 gap-y-5 border-t border-edge pt-5 sm:grid-cols-3 lg:grid-cols-5">
+          {/* Runway — the single most emotionally important personal-finance
+              number: how many months your liquid cash covers current spending.
+              Leads the row rather than staying buried in Cash Flow. */}
+          <Stat
+            label="Runway"
+            value={runwayMonths ?? 0}
+            format={(v) => (runwayMonths === null ? "∞" : `${v.toFixed(1)} mo`)}
+            sub="cash ÷ monthly spend"
+            toneClass={
+              runwayMonths !== null && runwayMonths < 3 ? "text-warn" : undefined
+            }
+            tip="How many months your liquid cash (checking + savings) would cover your current monthly spending. Under three months is a thin cushion; six or more is comfortable."
+          />
           <Stat label="Assets" value={view.totalAssets} format={fmtUSDCompact} sub={`across ${assetCount} accounts`} />
           <Stat label="Liabilities" value={view.totalLiabilities} format={fmtUSDCompact} sub={`${liabCount} balances owed`} />
           <Stat

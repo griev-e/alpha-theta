@@ -48,21 +48,31 @@ export const APP_META: Record<
   },
 };
 
-/** The cursive serif glyph that anchors each app. */
-export function Mark({ kind, size = 26 }: { kind: AppKind; size?: number }) {
+/** The cursive serif glyph that anchors each app. Fills with `currentColor`
+ *  (default white) so a caller can tint it on hover — e.g. the shell sigil
+ *  warming to brand red. */
+export function Mark({
+  kind,
+  size = 26,
+  className = "",
+}: {
+  kind: AppKind;
+  size?: number;
+  className?: string;
+}) {
   // α sits a touch high; θ is a round lowercase form sized a hair smaller to
   // balance against α at the same box. Because both glyphs are vertically
   // centered (dominant-baseline central), the smaller θ would otherwise carry a
   // higher baseline than α — so it's nudged further down to sit on α's line.
   const isAlpha = kind === "alpha";
   return (
-    <svg width={size} height={size} viewBox="0 0 32 32" aria-hidden>
+    <svg width={size} height={size} viewBox="0 0 32 32" aria-hidden className={`text-white ${className}`}>
       <text
         x="16"
         y={isAlpha ? 12.8 : 15}
         textAnchor="middle"
         dominantBaseline="central"
-        fill="white"
+        fill="currentColor"
         fontFamily="Georgia, 'Times New Roman', serif"
         fontStyle="italic"
         fontSize={isAlpha ? 30 : 26}
@@ -74,8 +84,8 @@ export function Mark({ kind, size = 26 }: { kind: AppKind; size?: number }) {
 }
 
 /** Back-compat alias: the original app sigil is alpha's mark. */
-export function Sigil({ size = 26 }: { size?: number }) {
-  return <Mark kind="alpha" size={size} />;
+export function Sigil({ size = 26, className = "" }: { size?: number; className?: string }) {
+  return <Mark kind="alpha" size={size} className={className} />;
 }
 
 /**
