@@ -717,6 +717,13 @@ input[type="range"]::-moz-range-thumb {
   .report-doc h2 {
     margin-top: 20px;
   }
+  /* Sections fade+rise on scroll (§29) on screen only. A section still below
+     the fold at print time would otherwise print at opacity 0 — force every
+     one fully visible and un-transformed, beating Framer's inline styles. */
+  .report-section {
+    opacity: 1 !important;
+    transform: none !important;
+  }
 }
 
 /* Text inputs */

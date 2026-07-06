@@ -165,34 +165,68 @@ const FIELDS: { key: ThetaFieldKey; label: string; hint: string }[] = [
 ];
 
 function AssumptionsCard() {
-  const { assumptions, preset, setField, applyPreset } = useThetaAssumptions();
+  const { assumptions, preset, setField, applyPreset, reset } = useThetaAssumptions();
+  const activePreset = ASSUMPTION_PRESETS.find((p) => p.id === preset);
 
   return (
     <Card className="mt-5 px-5 py-5" i={4}>
-      <CardHeader
-        eyebrow="Planning"
-        title="Assumptions"
-        className="mb-4"
-        right={
-          <div className="flex gap-1.5">
-            {ASSUMPTION_PRESETS.map((p) => (
-              <button
-                key={p.id}
-                onClick={() => applyPreset(p.id)}
-                title={p.blurb}
-                className={`h-7 rounded-md border px-2.5 text-[11.5px] font-medium transition-colors ${
-                  preset === p.id ? "border-white/30 bg-white/[0.06] text-ink" : "border-edge2 text-mute hover:text-ink"
-                }`}
-              >
-                {p.label}
-              </button>
-            ))}
-          </div>
-        }
-      />
-      <p className="mb-4 text-[12px] leading-relaxed text-faint">
-        The forward inputs behind the projection, goal-feasibility and debt engines — editable views, not
-        facts. {preset ? `Currently the "${ASSUMPTION_PRESETS.find((p) => p.id === preset)?.label}" preset.` : "Customized."}
+      <CardHeader eyebrow="Planning" title="Assumptions" className="mb-3" />
+
+      {/* Preset selector — each anchored to its basis, with a Custom marker when
+          the values have been hand-edited away from every preset and a reset
+          ghost back to base (mirrors the Benchmark page's provenance, §100). */}
+      <div className="flex flex-wrap items-center gap-2">
+        {ASSUMPTION_PRESETS.map((p) => {
+          const active = preset === p.id;
+          return (
+            <m.button
+              key={p.id}
+              type="button"
+              onClick={() => applyPreset(p.id)}
+              whileTap={{ scale: 0.96 }}
+              title={p.blurb}
+              className={`relative rounded-lg border px-3 py-1.5 text-[12px] transition-colors ${
+                active
+                  ? "border-vio/40 text-vio"
+                  : "border-edge bg-panel text-mute hover:border-edge2 hover:text-ink"
+              }`}
+            >
+              {active && (
+                <m.span
+                  layoutId="theta-preset-active"
+                  className="absolute inset-0 -z-0 rounded-lg bg-vio/[0.08]"
+                  transition={{ type: "spring", stiffness: 400, damping: 32 }}
+                />
+              )}
+              <span className="relative z-10">{p.label}</span>
+            </m.button>
+          );
+        })}
+        <m.span
+          animate={{ opacity: preset === null ? 1 : 0.55 }}
+          className={`rounded-lg border px-3 py-1.5 text-[12px] ${
+            preset === null
+              ? "border-warn/35 bg-warn/[0.07] text-warn"
+              : "border-transparent text-faint"
+          }`}
+        >
+          Custom
+        </m.span>
+        <button
+          type="button"
+          onClick={reset}
+          className="ml-auto font-mono text-[11px] text-faint underline decoration-dotted underline-offset-2 transition-colors hover:text-mute"
+        >
+          Reset to base
+        </button>
+      </div>
+
+      <p className="mb-4 mt-3 text-[12px] leading-relaxed text-faint">
+        The forward inputs behind the projection, goal-feasibility and debt
+        engines — editable views, not facts.{" "}
+        {activePreset
+          ? `Currently "${activePreset.label}" — ${activePreset.blurb}`
+          : "Hand-edited from a preset."}
       </p>
       <div className="grid gap-x-6 gap-y-1 sm:grid-cols-2">
         {FIELDS.map((f) => (
