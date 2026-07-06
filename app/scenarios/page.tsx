@@ -37,6 +37,22 @@ export default function ScenariosPage() {
     [portfolio]
   );
 
+  // Pre-run every preset so the stress-test grid can lead with severity: each
+  // button shows what it does to the book, ordered worst-first, with a left
+  // spine scaled to the damage — the page answers "which shock hurts most?"
+  // before a single click. First-order sensitivities, so this is cheap.
+  const rankedPresets = useMemo(() => {
+    if (!portfolio) return [];
+    const scored = presets.map((p) => ({
+      preset: p,
+      impact: runScenario(portfolio, p.shock, p.label).portfolioImpactPct,
+    }));
+    const worst = Math.max(...scored.map((s) => Math.abs(s.impact)), 0.0001);
+    return scored
+      .sort((a, b) => a.impact - b.impact)
+      .map((s) => ({ ...s, severity: Math.abs(s.impact) / worst }));
+  }, [portfolio, presets]);
+
   const shock: ScenarioShock | null = useMemo(() => {
     if (!portfolio) return null;
     const preset = presets.find((p) => p.id === activePreset);
@@ -86,31 +102,62 @@ export default function ScenariosPage() {
         {/* Controls */}
         <div className="space-y-5">
           <Card className="px-5 py-5" i={0}>
-            <CardHeader eyebrow="Presets" title="One-tap stress tests" className="mb-4" />
+            <CardHeader
+              eyebrow="Presets"
+              title="One-tap stress tests"
+              right={
+                <span className="font-mono text-[10px] text-faint">worst first</span>
+              }
+              className="mb-4"
+            />
             <div className="grid grid-cols-2 gap-2">
-              {presets.map((p) => (
-                <button
-                  key={p.id}
-                  onClick={() => setActivePreset(activePreset === p.id ? null : p.id)}
-                  title={p.detail}
-                  className={`rounded-xl border px-3 py-2.5 text-left transition-all ${
-                    activePreset === p.id
-                      ? "border-mint/40 bg-mint/[0.07]"
-                      : "border-edge bg-void/40 hover:border-edge2"
-                  }`}
-                >
-                  <div
-                    className={`font-mono text-[12.5px] font-medium ${
-                      activePreset === p.id ? "text-mint" : "text-ink"
+              {rankedPresets.map(({ preset: p, impact, severity }) => {
+                const neg = impact < 0;
+                return (
+                  <m.button
+                    key={p.id}
+                    layout
+                    transition={{ type: "spring", stiffness: 420, damping: 34 }}
+                    onClick={() => setActivePreset(activePreset === p.id ? null : p.id)}
+                    title={p.detail}
+                    className={`relative overflow-hidden rounded-xl border py-2.5 pl-4 pr-3 text-left transition-all ${
+                      activePreset === p.id
+                        ? "border-mint/40 bg-mint/[0.07]"
+                        : "border-edge bg-void/40 hover:border-edge2"
                     }`}
                   >
-                    {p.label}
-                  </div>
-                  <div className="mt-0.5 line-clamp-2 text-[10px] leading-snug text-faint">
-                    {p.detail}
-                  </div>
-                </button>
-              ))}
+                    {/* severity spine — length and opacity scale to the damage */}
+                    <span
+                      aria-hidden
+                      className="absolute left-0 top-1/2 w-[3px] -translate-y-1/2 rounded-full"
+                      style={{
+                        height: `${28 + severity * 60}%`,
+                        background: neg ? "var(--color-neg)" : "var(--color-pos)",
+                        opacity: 0.35 + severity * 0.55,
+                      }}
+                    />
+                    <div className="flex items-baseline justify-between gap-2">
+                      <div
+                        className={`font-mono text-[12.5px] font-medium ${
+                          activePreset === p.id ? "text-mint" : "text-ink"
+                        }`}
+                      >
+                        {p.label}
+                      </div>
+                      <span
+                        className={`shrink-0 font-mono tnum text-[11px] ${
+                          neg ? "text-neg" : "text-pos"
+                        }`}
+                      >
+                        {fmtPct(impact, 1, true)}
+                      </span>
+                    </div>
+                    <div className="mt-0.5 line-clamp-2 text-[10px] leading-snug text-faint">
+                      {p.detail}
+                    </div>
+                  </m.button>
+                );
+              })}
             </div>
           </Card>
 

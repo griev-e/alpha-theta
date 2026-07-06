@@ -31,6 +31,8 @@ export interface DetectedRecurring {
   nextDate: string;
   /** Estimated annual cost at the current amount + cadence. */
   annualCost: number;
+  /** The matched charge amounts in chronological order — powers the row spark. */
+  amounts: number[];
   /** Set when the amount has trended up over the observed charges. */
   priceCreep?: { from: number; to: number; pctChange: number };
 }
@@ -119,6 +121,7 @@ export function detectRecurring(
       lastDate: last.date,
       nextDate: addDaysISO(last.date, CADENCE_DAYS[cadence]),
       annualCost: amount * PER_YEAR[cadence],
+      amounts,
       priceCreep: creep,
     });
   }
