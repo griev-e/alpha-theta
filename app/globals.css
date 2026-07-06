@@ -835,6 +835,23 @@ input[type="range"]::-moz-range-thumb {
   color: #71717a;
 }
 
+/* §43 — sticky section headers while a section scrolls. The report renders
+   bare (no app top bar) on a light sheet, so this adapts the app's dark .glass
+   sticky-header idea to the document: each h2 pins to the top with a white
+   backing and a hairline shadow as content scrolls under it. Screen only —
+   the @media print block below never sees position:sticky, so pagination and
+   the running page numbers are unaffected. */
+@media screen {
+  .report-doc h2 {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    background: #ffffff;
+    padding-top: 12px;
+    box-shadow: 0 6px 12px -10px rgba(9, 9, 11, 0.5);
+  }
+}
+
 @media print {
   @page {
     margin: 14mm;
