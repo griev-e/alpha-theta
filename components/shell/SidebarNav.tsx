@@ -19,21 +19,25 @@ function NavRow({
   accent,
   layoutId,
   onNavigate,
+  collapsed = false,
 }: {
   item: NavItem;
   active: boolean;
   accent: string;
   layoutId: string;
   onNavigate?: () => void;
+  collapsed?: boolean;
 }) {
   const Icon = item.icon;
   return (
     <Link
       href={item.href}
       onClick={onNavigate}
-      className={`nav-row relative flex h-8 items-center gap-2.5 rounded-md px-2.5 text-[13px] ${
-        active ? "text-ink" : "text-mute hover:text-ink hover:bg-white/[0.05]"
-      }`}
+      title={collapsed ? item.label : undefined}
+      aria-label={collapsed ? item.label : undefined}
+      className={`nav-row relative flex h-8 items-center rounded-md text-[13px] ${
+        collapsed ? "justify-center px-0" : "gap-2.5 px-2.5"
+      } ${active ? "text-ink" : "text-mute hover:text-ink hover:bg-white/[0.05]"}`}
     >
       {active && (
         <m.span
@@ -51,7 +55,7 @@ function NavRow({
       >
         <Icon />
       </span>
-      <span className="relative z-10">{item.label}</span>
+      {!collapsed && <span className="relative z-10">{item.label}</span>}
     </Link>
   );
 }
@@ -67,6 +71,7 @@ export function SidebarNav({
   groups,
   accent,
   layoutId,
+  collapsed = false,
 }: {
   items: NavItem[];
   groups: string[];
@@ -74,6 +79,8 @@ export function SidebarNav({
   accent: string;
   /** Distinct per shell so the active-pill spring never animates across shells. */
   layoutId: string;
+  /** Icon-rail mode: no find, no group labels, tooltips on hover. */
+  collapsed?: boolean;
 }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -102,6 +109,27 @@ export function SidebarNav({
       (n) => n.label.toLowerCase().includes(q) || n.group.toLowerCase().includes(q)
     );
   }, [query, items]);
+
+  // Collapsed icon rail: a flat, centered list of icon-only rows with tooltips,
+  // no find field or group headers — the analyst's give-me-the-pixels mode.
+  if (collapsed) {
+    return (
+      <nav className="flex-1 overflow-y-auto px-2 pb-4 pt-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div className="flex flex-col gap-0.5">
+          {items.map((item) => (
+            <NavRow
+              key={item.href}
+              item={item}
+              active={pathname === item.href}
+              accent={accent}
+              layoutId={layoutId}
+              collapsed
+            />
+          ))}
+        </div>
+      </nav>
+    );
+  }
 
   return (
     <>
@@ -188,6 +216,39 @@ export function SidebarNav({
         )}
       </nav>
     </>
+  );
+}
+
+/** The collapse/expand toggle — a panel-left glyph shared by both shells so the
+ *  icon-rail control looks and behaves identically in alpha and theta. */
+export function SidebarCollapseButton({
+  collapsed,
+  onClick,
+}: {
+  collapsed: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      title={collapsed ? "Expand sidebar  [" : "Collapse sidebar  ["}
+      aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+      className="btn-ghost"
+    >
+      <svg
+        width="15"
+        height="15"
+        viewBox="0 0 20 20"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <rect x="2.5" y="3.5" width="15" height="13" rx="2.5" />
+        <line x1="7.75" y1="3.5" x2="7.75" y2="16.5" />
+      </svg>
+    </button>
   );
 }
 
