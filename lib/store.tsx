@@ -60,6 +60,9 @@ export interface PortfolioSummary {
   isDemo: boolean;
   /** Number of holdings (excludes cash). */
   count: number;
+  /** Last-known total value (stored prices + cash) — not live-repriced for the
+   *  inactive books, so the switcher labels it "as of last open". */
+  lastValue: number;
 }
 
 /** Options for how an import lands. */
@@ -356,6 +359,11 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
         name: p.name,
         isDemo: !!p.isDemo,
         count: p.holdings.length,
+        lastValue:
+          p.holdings.reduce(
+            (s, h) => s + (Number.isFinite(h.equity) ? h.equity : h.shares * h.price),
+            0
+          ) + (p.cash ?? 0),
       })) ?? [],
     [set]
   );

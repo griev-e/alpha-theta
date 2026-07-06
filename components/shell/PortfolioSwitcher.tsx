@@ -3,6 +3,7 @@
 import { AnimatePresence, m } from "framer-motion";
 import { useEffect, useRef, useState } from "react";
 import { usePortfolio, usePortfolioActions } from "@/lib/store";
+import { fmtUSDCompact } from "@/lib/format";
 
 /**
  * Compact portfolio picker for the sidebar. Lists every portfolio in the set
@@ -75,7 +76,8 @@ export function PortfolioSwitcher() {
           <span className="block truncate text-[12.5px] font-medium text-ink">
             {active.name}
           </span>
-          <span className="block text-[10.5px] text-faint">
+          <span className="block font-mono text-[10.5px] tnum text-faint">
+            {fmtUSDCompact(active.lastValue)} ·{" "}
             {portfolios.length} {portfolios.length === 1 ? "portfolio" : "portfolios"}
           </span>
         </span>
@@ -135,18 +137,29 @@ export function PortfolioSwitcher() {
                         </svg>
                       )}
                     </span>
-                    <span className="min-w-0 flex-1 truncate">{p.name}</span>
-                    {p.isDemo && (
-                      <span className="shrink-0 rounded border border-warn/30 bg-warn/10 px-1 py-px text-[10px] font-medium text-warn">
-                        Demo
+                    <span className="min-w-0 flex-1">
+                      <span className="flex items-center gap-1.5">
+                        <span className="truncate">{p.name}</span>
+                        {p.isDemo && (
+                          <span className="shrink-0 rounded border border-warn/30 bg-warn/10 px-1 py-px text-[10px] font-medium text-warn">
+                            Demo
+                          </span>
+                        )}
                       </span>
-                    )}
-                    <span className="shrink-0 font-mono text-[10px] text-faint">
-                      {p.count}
+                      <span className="block font-mono text-[10px] tnum text-faint">
+                        {p.count} {p.count === 1 ? "holding" : "holdings"}
+                      </span>
+                    </span>
+                    <span className="shrink-0 font-mono text-[11px] tnum text-mute">
+                      {fmtUSDCompact(p.lastValue)}
                     </span>
                   </button>
                 );
               })}
+            </div>
+
+            <div className="border-t border-edge px-3 py-1.5 text-[10px] text-faint">
+              Values as of last open · only the active book is live-priced
             </div>
 
             <div className="border-t border-edge">
