@@ -52,7 +52,7 @@ export function Stat({
         type="button"
         onClick={copy}
         title="Click to copy"
-        className={`group/stat block cursor-copy text-left font-mono tnum ${sizeClass} font-medium ${toneClass} mt-1 leading-tight`}
+        className={`group/stat mt-1.5 block cursor-copy text-left font-mono tnum leading-none ${sizeClass} font-medium ${toneClass}`}
       >
         <AnimatedNumber value={value} format={format} />
       </button>

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { m } from "framer-motion";
+import { m, useReducedMotion } from "framer-motion";
 import { Donut } from "@/components/charts/Donut";
 import { Sparkline } from "@/components/charts/Sparkline";
 import { CategoryTag, MoneyFlowBars, ProgressBar, monthElapsedFraction } from "@/components/theta/bits";
@@ -20,6 +20,9 @@ import { PageSkeleton } from "@/components/ui/Skeleton";
 
 export default function ThetaDashboard() {
   const { ready, ledger, view, deleteTransaction, setTransactionCategory } = useTheta();
+  // Ambient hero glow loops on opacity, which MotionConfig's reducedMotion="user"
+  // leaves running (it only disables transforms). Kill it outright under reduce.
+  const reduceMotion = useReducedMotion();
 
   if (!ready) return <PageSkeleton />;
   if (!ledger || !view || !ledgerHasData(ledger)) return <ThetaEmpty page="The dashboard" />;
@@ -72,15 +75,15 @@ export default function ThetaDashboard() {
           aria-hidden
           className="pointer-events-none absolute -right-20 -top-28 h-72 w-72 rounded-full blur-[90px]"
           style={{ background: nwUp ? "var(--wash-mint)" : "var(--wash-neg)" }}
-          animate={{ opacity: [0.55, 1, 0.55], scale: [0.94, 1.06, 0.94] }}
-          transition={{ duration: 6.5, repeat: Infinity, ease: "easeInOut" }}
+          animate={reduceMotion ? undefined : { opacity: [0.55, 1, 0.55], scale: [0.94, 1.06, 0.94] }}
+          transition={reduceMotion ? undefined : { duration: 6.5, repeat: Infinity, ease: "easeInOut" }}
         />
         <m.div
           aria-hidden
           className="pointer-events-none absolute -left-24 top-6 h-60 w-60 rounded-full blur-[90px]"
           style={{ background: "var(--wash-vio)" }}
-          animate={{ opacity: [0.4, 0.85, 0.4], scale: [1.06, 0.94, 1.06] }}
-          transition={{ duration: 7.5, repeat: Infinity, ease: "easeInOut" }}
+          animate={reduceMotion ? undefined : { opacity: [0.4, 0.85, 0.4], scale: [1.06, 0.94, 1.06] }}
+          transition={reduceMotion ? undefined : { duration: 7.5, repeat: Infinity, ease: "easeInOut" }}
         />
 
         <div className="relative flex flex-col gap-6 lg:flex-row lg:items-stretch lg:gap-8">

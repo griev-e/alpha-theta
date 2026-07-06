@@ -7,9 +7,11 @@
   --color-edge2: rgba(255, 255, 255, 0.16);
   --color-ink: #ededed;
   --color-mute: #a1a1a1;
-  /* ~5:1 on the near-black background — clears WCAG AA for body text, where
-     the previous #666 sat just under the 4.5:1 line. */
-  --color-faint: #7c7c7c;
+  /* Clears WCAG AA (4.5:1) for small text not just on the near-black bg but on
+     the raised surfaces too — the previous #7c7c7c dipped to ~4.4:1 on
+     surface-3 (#131316), the lightest panel step. #838383 restores the margin
+     everywhere while staying clearly dimmer than --color-mute. */
+  --color-faint: #838383;
   --color-mint: #5eead4;
   /* alpha's signature brand accent (the portal tab + sidebar). Deliberately
      separate from --color-mint, which is the positive/neutral data accent used

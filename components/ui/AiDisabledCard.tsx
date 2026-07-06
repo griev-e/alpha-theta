@@ -44,9 +44,11 @@ export function AiDisabledCard({
     return (
       <Card className={`px-8 py-12 text-center ${className}`} i={i} hover={false}>
         {title && (
-          <h2 className="font-display text-[15px] font-medium text-ink">{title}</h2>
+          <h2 className="text-balance font-display text-[15px] font-medium text-ink">
+            {title}
+          </h2>
         )}
-        <p className="mx-auto mt-2 max-w-md text-[13px] leading-relaxed text-mute">
+        <p className="mx-auto mt-2 max-w-md text-pretty text-[13px] leading-relaxed text-mute">
           {children}
         </p>
       </Card>

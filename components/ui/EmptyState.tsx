@@ -47,8 +47,8 @@ export function EmptyPanel({
       <GhostChart />
       <div className="relative z-10">
         <div className="mb-4 flex justify-center opacity-90">{icon}</div>
-        <h2 className="font-display text-lg font-semibold text-ink">{heading}</h2>
-        <p className="mt-2 text-[13px] leading-relaxed text-mute">{body}</p>
+        <h2 className="text-balance font-display text-lg font-semibold text-ink">{heading}</h2>
+        <p className="mt-2 text-pretty text-[13px] leading-relaxed text-mute">{body}</p>
         <div className="mt-6 flex items-center justify-center gap-3">
           {primary}
           {secondary}
