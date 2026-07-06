@@ -6,6 +6,8 @@ import {
   covarianceMatrix,
   factorCovariance,
   pairCorrelation,
+  seriate,
+  seriationOrder,
 } from "./correlation";
 
 const base: CorrInputs = {
@@ -245,4 +247,105 @@ describe("PSD by construction", () => {
     // also for a long/short-ish weighting, PSD still guarantees ≥ 0
     expect(quadForm(cov, [0.6, -0.2, 0.4, 0.2])).toBeGreaterThanOrEqual(-1e-12);
   });
+});
+
+describe("seriationOrder", () => {
+  function corrMat(rho: number[][]): number[][] {
+    // Build a symmetric matrix with a 1-diagonal from the given upper triangle.
+    const n = rho.length;
+    const m = rho.map((row) => row.slice());
+    for (let i = 0; i < n; i++) m[i][i] = 1;
+    for (let i = 0; i < n; i++) for (let j = 0; j < i; j++) m[i][j] = m[j][i];
+    return m;
+  }
+
+  it("is the identity for n ≤ 2", () => {
+    expect(seriationOrder([[1]])).toEqual([0]);
+    expect(
+      seriationOrder(
+        corrMat([
+          [1, 0.3],
+          [0.3, 1],
+        ])
+      )
+    ).toEqual([0, 1]);
+  });
+
+  it("is a valid permutation of every index exactly once", () => {
+    const m = corrMat([
+      [1, 0.9, 0.1, 0.05],
+      [0.9, 1, 0.15, 0.1],
+      [0.1, 0.15, 1, 0.85],
+      [0.05, 0.1, 0.85, 1],
+    ]);
+    const order = seriationOrder(m);
+    expect([...order].sort((a, b) => a - b)).toEqual([0, 1, 2, 3]);
+  });
+
+  it("groups two tight clusters adjacently, interleaved in book order", () => {
+    // Book order interleaves two clusters: {0, 2} highly correlated,
+    // {1, 3} highly correlated, cross-cluster correlation near zero.
+    const m = corrMat([
+      [1, 0.02, 0.92, -0.03],
+      [0.02, 1, 0.01, 0.9],
+      [0.92, 0.01, 1, 0.0],
+      [-0.03, 0.9, 0.0, 1],
+    ]);
+    const order = seriationOrder(m);
+    // Each cluster's two members must end up next to each other somewhere in
+    // the seriated order — the whole point of clustering interleaved book
+    // order into adjacent blocks.
+    const posOf = (i: number) => order.indexOf(i);
+    const clusterAAdjacent = Math.abs(posOf(0) - posOf(2)) === 1;
+    const clusterBAdjacent = Math.abs(posOf(1) - posOf(3)) === 1;
+    expect(clusterAAdjacent).toBe(true);
+    expect(clusterBAdjacent).toBe(true);
+  });
+});
+
+describe("seriate", () => {
+  it("permutes symbols and matrix together, preserving pairwise values", () => {
+    const symbols = ["A", "B", "C", "D"];
+    const matrix = corrMat([
+      [1, 0.02, 0.92, -0.03],
+      [0.02, 1, 0.01, 0.9],
+      [0.92, 0.01, 1, 0.0],
+      [-0.03, 0.9, 0.0, 1],
+    ]);
+    const corr = {
+      symbols,
+      matrix,
+      avgCorrelation: 0.2,
+      weightedAvgCorrelation: 0.2,
+      highest: null,
+      lowest: null,
+    };
+    const result = seriate(corr);
+
+    // Same symbols, just reordered.
+    expect([...result.symbols].sort()).toEqual([...symbols].sort());
+    // Order-independent stats pass through unchanged.
+    expect(result.avgCorrelation).toBe(corr.avgCorrelation);
+    expect(result.weightedAvgCorrelation).toBe(corr.weightedAvgCorrelation);
+
+    // Every pairwise value survives the permutation: look up each seriated
+    // pair by symbol and confirm it matches the original matrix's value for
+    // that same symbol pair.
+    const origIndex = new Map(symbols.map((s, i) => [s, i]));
+    for (let i = 0; i < result.symbols.length; i++) {
+      for (let j = 0; j < result.symbols.length; j++) {
+        const oi = origIndex.get(result.symbols[i])!;
+        const oj = origIndex.get(result.symbols[j])!;
+        expect(result.matrix[i][j]).toBeCloseTo(matrix[oi][oj], 10);
+      }
+    }
+  });
+
+  function corrMat(rho: number[][]): number[][] {
+    const n = rho.length;
+    const m = rho.map((row) => row.slice());
+    for (let i = 0; i < n; i++) m[i][i] = 1;
+    for (let i = 0; i < n; i++) for (let j = 0; j < i; j++) m[i][j] = m[j][i];
+    return m;
+  }
 });

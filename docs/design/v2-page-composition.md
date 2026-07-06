@@ -13,10 +13,11 @@ Market Analysis (regime dial + inline AI headline, ranked layer strip),
 Quality (composite ring merged with its category breakdown), Rebalance &
 Optimizer (results-column hero: the diff view and the frontier), Monte Carlo
 (sentence-first hero + rail), Debt Payoff (decay curve + verdict as hero),
-theta Budgets/Goals/Recurring (pace spines, status chips, price-creep
-sparks — each page already leads with its motivating number or state). Risk
-and Correlation shipped their verdict headers; the layout refinements below
-are what's left on each.
+Correlation (the verdict header *and* cluster seriation — the matrix now
+orders by similarity by default, with a toggle back to book order), theta
+Budgets/Goals/Recurring (pace spines, status chips, price-creep sparks —
+each page already leads with its motivating number or state). Risk shipped
+its verdict header; the layout refinement below is what's left on it.
 
 ---
 
@@ -101,17 +102,6 @@ calendar | forecast table) → holdings table → concentration/risk pair.
   headline annual income + yield as inline readouts to its left — income as
   a *cadence you can see* is the page's most evocative asset and it's
   currently secondary to a stats-and-ring card. **M**
-
-### Correlation — *the verdict shipped; the matrix itself doesn't reveal structure yet*
-
-**Now:** a verdict sentence sits above the heatmap (shipped).
-
-**Still open:**
-- **Cluster seriation.** Order symbols by hierarchical-cluster similarity
-  instead of book order so correlated blocks physically group into visible
-  squares along the diagonal — same data, ordered to reveal structure. The
-  single biggest perceptual upgrade still available on this page. **A**
-  (tracked as §55 in the catalogue doc)
 
 ### Benchmark & Factors — *the radar overlay shipped; the hero weighting hasn't changed*
 
