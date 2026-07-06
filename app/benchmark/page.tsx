@@ -222,6 +222,12 @@ export default function BenchmarkPage() {
           xFormat={(v) => fmtPct(v, 1)}
           yFormat={(v) => fmtMultiple(v)}
           height={400}
+          quadrantLabels={{
+            tl: "expensive · slow",
+            tr: "expensive · fast",
+            bl: "cheap · slow",
+            br: "cheap · fast",
+          }}
         />
         <p className="mt-2 text-[12px] leading-relaxed text-mute">
           Top-left is expensive-and-slow, bottom-right is cheap-and-fast. Names

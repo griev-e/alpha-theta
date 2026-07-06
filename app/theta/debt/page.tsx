@@ -84,32 +84,53 @@ export default function DebtPage() {
         </label>
       </div>
 
+      {/* Hero: the payoff verdict + the decay curve that proves it. The number
+          that motivates action (debt-free date, interest saved) leads; the
+          curve is the largest object on the page. */}
+      <Card className="mb-5 px-6 py-5 sm:px-8" i={0} hover={false}>
+        <p className="mb-5 max-w-2xl text-balance text-[17px] font-medium leading-snug tracking-[-0.01em] text-ink">
+          <span
+            aria-hidden
+            className="mr-2.5 inline-block h-3 w-[3px] translate-y-[1px] rounded-full bg-vio/70"
+          />
+          {plan.payoffDate ? (
+            <>
+              Debt-free by{" "}
+              <span className="font-mono tnum text-pos">{fmtDate(plan.payoffDate)}</span>{" "}
+              at {fmtUSD(budget, true)}/mo
+              {interestSaved > 1 ? (
+                <>
+                  {" "}— the extra {fmtUSD(extra, true)}/mo saves{" "}
+                  <span className="font-mono tnum text-pos">{fmtUSD(interestSaved, true)}</span>{" "}
+                  in interest and clears it{" "}
+                  {monthsSaved > 0 ? `${monthsSaved} month${monthsSaved === 1 ? "" : "s"} sooner` : "sooner"}.
+                </>
+              ) : (
+                "."
+              )}
+            </>
+          ) : (
+            <>At {fmtUSD(budget, true)}/mo the balances never fully clear — raise the budget to find a payoff date.</>
+          )}
+        </p>
+        <PayoffCurve schedule={plan.schedule} />
+      </Card>
+
+      {/* Supporting figures — the hero's numbers, demoted to a quiet strip. */}
       <div className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Card className="px-5 py-4" i={0} hover={false}>
+        <Card className="px-5 py-4" i={1} hover={false}>
           <Stat label="Total debt" value={totalDebt} format={fmtUSDCompact} size="sm" toneClass="text-neg" />
         </Card>
-        <Card className="px-5 py-4" i={1} hover={false}>
+        <Card className="px-5 py-4" i={2} hover={false}>
           <Stat label="Debt-free in" value={plan.months} format={(v) => (plan.payoffDate ? `${v} mo` : "—")} size="sm" toneClass="text-pos" sub={plan.payoffDate ? fmtDate(plan.payoffDate) : undefined} />
         </Card>
-        <Card className="px-5 py-4" i={2} hover={false}>
+        <Card className="px-5 py-4" i={3} hover={false}>
           <Stat label="Total interest" value={plan.totalInterest} format={fmtUSDCompact} size="sm" />
         </Card>
-        <Card className="px-5 py-4" i={3} hover={false}>
+        <Card className="px-5 py-4" i={4} hover={false}>
           <Stat label="Monthly budget" value={budget} format={(v) => fmtUSD(v, true)} size="sm" sub={`${fmtUSD(totalMinimum, true)} minimums`} />
         </Card>
       </div>
-
-      {interestSaved > 1 && (
-        <div className="mb-5 rounded-lg border border-pos/25 bg-pos/[0.06] px-4 py-3 text-[13px] text-pos">
-          The extra {fmtUSD(extra, true)}/mo saves {fmtUSD(interestSaved, true)} in interest and clears the debt{" "}
-          {monthsSaved > 0 ? `${monthsSaved} month${monthsSaved === 1 ? "" : "s"} sooner` : "sooner"}.
-        </div>
-      )}
-
-      <Card className="px-5 py-5" i={4}>
-        <CardHeader eyebrow="Payoff curve" title="Balance over time" className="mb-4" />
-        <PayoffCurve schedule={plan.schedule} />
-      </Card>
 
       <Card className="mt-5 px-5 py-5" i={5}>
         <CardHeader eyebrow="Per account" title="Order of attack" className="mb-4" />
@@ -152,7 +173,7 @@ function fmtDate(iso: string): string {
 /** Compact hand-built SVG of the aggregate remaining-balance curve. */
 function PayoffCurve({ schedule }: { schedule: { month: number; remaining: number }[] }) {
   const W = 720;
-  const H = 200;
+  const H = 240;
   const PAD = { l: 8, r: 56, t: 10, b: 22 };
   const months = schedule[schedule.length - 1]?.month || 1;
   const maxY = Math.max(...schedule.map((s) => s.remaining), 1);

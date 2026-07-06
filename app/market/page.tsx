@@ -524,7 +524,7 @@ export default function MarketPage() {
               )}
             </div>
 
-            <p className="mt-3 max-w-xl text-[12.5px] leading-relaxed text-mute">
+            <p className="mt-3 max-w-xl text-balance text-[14px] font-medium leading-snug tracking-[-0.01em] text-ink">
               {synthesize(r)}
             </p>
 
@@ -630,15 +630,19 @@ export default function MarketPage() {
         </Card>
       </div>
 
-      {/* Analytical layers */}
+      {/* Analytical layers — ordered by the weight each earned in the composite
+          (coverage × agreement × stability), so the grid reads strongest-first
+          as a ranked spectrum rather than a flat wall of eight equal squares. */}
       <div className="mb-3 flex items-baseline justify-between">
-        <div className="eyebrow">Eight analytical layers</div>
+        <div className="eyebrow">Eight analytical layers · ranked by earned weight</div>
         <span className="font-mono text-[10px] text-faint">tap a card for its signals</span>
       </div>
       <div className="mb-5 grid items-start gap-4 md:grid-cols-2 xl:grid-cols-4">
-        {r.layers.map((layer, i) => (
-          <LayerCard key={layer.id} layer={layer} i={i} />
-        ))}
+        {[...r.layers]
+          .sort((a, b) => b.weight - a.weight)
+          .map((layer, i) => (
+            <LayerCard key={layer.id} layer={layer} i={i} />
+          ))}
       </div>
 
       {/* Key drivers */}

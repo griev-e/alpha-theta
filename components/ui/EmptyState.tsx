@@ -17,12 +17,16 @@ export function EmptyPanel({
   body,
   primary,
   secondary,
+  watermark,
 }: {
   icon: ReactNode;
   heading: string;
   body: string;
   primary: ReactNode;
   secondary: ReactNode;
+  /** The serif signature glyph (α / θ) drawn huge and faint behind the panel —
+   *  one of the few sanctioned homes for the serif. */
+  watermark?: string;
 }) {
   return (
     <m.div
@@ -31,6 +35,15 @@ export function EmptyPanel({
       transition={{ duration: 0.4 }}
       className="panel-rim relative mx-auto mt-16 max-w-md overflow-hidden px-8 py-10 text-center"
     >
+      {watermark && (
+        <span
+          aria-hidden
+          className="pointer-events-none absolute -right-4 -top-10 select-none italic leading-none text-white/[0.03]"
+          style={{ fontFamily: "var(--font-serif)", fontSize: 220 }}
+        >
+          {watermark}
+        </span>
+      )}
       <GhostChart />
       <div className="relative z-10">
         <div className="mb-4 flex justify-center opacity-90">{icon}</div>
@@ -94,6 +107,7 @@ export function EmptyState({ page }: { page: string }) {
   if (!ready) return null;
   return (
     <EmptyPanel
+      watermark="α"
       icon={<Sigil size={44} />}
       heading="No portfolio loaded"
       body={`${page} needs holdings to analyze. Import your CSV or load the demo portfolio to explore.`}

@@ -8,6 +8,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { TopProgress } from "@/components/ui/TopProgress";
 import { PageAura } from "@/components/ui/PageAura";
 import { CommandPalette, type Command } from "./CommandPalette";
+import { MarketPulse } from "./MarketPulse";
 import { FirstViewProvider, useRouteFirstView } from "@/lib/firstView";
 import { fmtUSDCompact, relativeTime } from "@/lib/format";
 import { Tooltip } from "@/components/ui/Tooltip";
@@ -322,6 +323,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </span>
           {ready && portfolio && (
             <div className="ml-auto flex items-center gap-2">
+              <MarketPulse />
               <RefreshButton refreshing={live.refreshing} onRefresh={refreshLive} />
               <Tooltip
                 underline={false}

@@ -16,12 +16,17 @@ export function ProgressBar({
   color = "var(--color-vio)",
   height = 6,
   delay = 0,
+  pace,
 }: {
   value: number;
   max: number;
   color?: string;
   height?: number;
   delay?: number;
+  /** Optional "on-pace" tick (in the same units as value/max) — e.g. the
+   *  fraction of the budget that the elapsed part of the month accounts for,
+   *  so over/under-pace reads before the limit is hit. */
+  pace?: number;
 }) {
   return (
     <Meter
@@ -31,8 +36,17 @@ export function ProgressBar({
       overColor="var(--color-neg)"
       height={height}
       delay={delay}
+      benchmark={pace}
+      benchmarkLabel="On pace for today"
     />
   );
+}
+
+/** Fraction of the current month elapsed (0–1) — the honest "on pace" line for
+ *  a monthly budget: by day 15 of a 30-day month you'd expect ~50% spent. */
+export function monthElapsedFraction(now = new Date()): number {
+  const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  return Math.min(1, now.getDate() / daysInMonth);
 }
 
 /** Small category chip: colored dot + label. */

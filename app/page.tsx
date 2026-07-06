@@ -178,7 +178,7 @@ export default function OverviewPage() {
           aria-hidden
           className="pointer-events-none absolute -right-24 -top-28 h-72 w-72 rounded-full blur-[90px]"
           style={{
-            background: heroUp ? "rgba(52,211,153,0.10)" : "rgba(251,113,133,0.10)",
+            background: heroUp ? "var(--wash-pos)" : "var(--wash-neg)",
           }}
         />
         <div className="relative flex flex-col gap-7 lg:flex-row lg:items-stretch lg:gap-8">

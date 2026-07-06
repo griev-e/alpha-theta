@@ -25,11 +25,9 @@ export function PageHeader({
     >
       <div>
         <div className="eyebrow mb-1 lg:hidden">{eyebrow}</div>
-        <h1 className="font-display text-[22px] font-semibold tracking-tight text-ink">
-          {title}
-        </h1>
+        <h1 className="display-xl text-balance text-ink">{title}</h1>
         {description && (
-          <p className="mt-1 max-w-2xl text-pretty text-[13px] leading-relaxed text-mute">
+          <p className="mt-1.5 max-w-2xl text-pretty text-[13px] leading-relaxed text-mute">
             {description}
           </p>
         )}

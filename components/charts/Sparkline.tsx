@@ -1,5 +1,6 @@
 "use client";
 
+import { useId } from "react";
 import { useElementWidth } from "@/lib/useElementWidth";
 
 /**
@@ -22,6 +23,9 @@ export function Sparkline({
   belowColor?: string;
 }) {
   const [ref, width] = useElementWidth<HTMLDivElement>();
+  // Unique per instance so many sparklines can share the page without their
+  // gradient defs colliding.
+  const gid = useId().replace(/[:]/g, "");
 
   if (values.length < 2) {
     return <div ref={ref} style={{ height }} className="w-full" />;
@@ -66,10 +70,16 @@ export function Sparkline({
               : ""
           }.`}
         >
-          <path
-            d={area}
-            fill={`color-mix(in srgb, ${stroke} 10%, transparent)`}
-          />
+          <defs>
+            {/* Vertical wash under the line — richer than a flat tint: brightest
+                just beneath the trace, fading to nothing at the floor. */}
+            <linearGradient id={`spark-${gid}`} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={stroke} stopOpacity={0.22} />
+              <stop offset="70%" stopColor={stroke} stopOpacity={0.04} />
+              <stop offset="100%" stopColor={stroke} stopOpacity={0} />
+            </linearGradient>
+          </defs>
+          <path d={area} fill={`url(#spark-${gid})`} />
           {baseline !== undefined && (
             <line
               x1={0}
@@ -81,6 +91,14 @@ export function Sparkline({
             />
           )}
           <path d={line} fill="none" stroke={stroke} strokeWidth={1.6} />
+          {/* Endpoint: a soft halo behind a solid dot — the "live tip." */}
+          <circle
+            cx={x(values.length - 1)}
+            cy={y(last)}
+            r={5}
+            fill={stroke}
+            opacity={0.18}
+          />
           <circle
             cx={x(values.length - 1)}
             cy={y(last)}

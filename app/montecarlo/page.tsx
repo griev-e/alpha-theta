@@ -19,7 +19,6 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { ModelBadge } from "@/components/ui/ModelBadge";
-import { Ring } from "@/components/ui/Ring";
 import { Stat } from "@/components/ui/Stat";
 import { Computing } from "@/components/ui/Computing";
 import type { MonteCarloInputs, MonteCarloResult } from "@/lib/analytics/montecarlo";
@@ -93,6 +92,10 @@ export default function MonteCarloPage() {
 
   const prob = result?.probTargetAtHorizon ?? 0;
 
+  // Sentence-first verdict for the hero — the plain-language outcome the fan
+  // then proves. Only meaningful once a result exists.
+  const horizonYear = new Date().getFullYear() + dYears;
+
   return (
     <div>
       <PageHeader
@@ -101,223 +104,215 @@ export default function MonteCarloPage() {
         description={`3,000 simulated futures · drift ${fmtPct(risk.expectedReturn, 1)} (CAPM, treated as uncertain) · volatility ${fmtPct(risk.volatility, 1)} with fat tails, from your actual book. Deterministic per portfolio — not a random slot machine.`}
       />
 
-      {/* Controls */}
-      <Card className="mb-5 px-6 py-5" i={0}>
-        <div className="mb-5 flex items-center justify-between">
-          <div className="eyebrow">Assumptions</div>
-          <button
-            onClick={() => setSeedSalt((s) => s + 1)}
-            className="flex items-center gap-1.5 rounded-md border border-edge px-2.5 py-1 font-mono text-[11px] text-mute transition-colors hover:border-edge2 hover:text-ink"
-            title="Redraw a fresh set of 3,000 paths"
-          >
-            <svg
-              viewBox="0 0 16 16"
-              aria-hidden
-              className="h-3 w-3"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.6"
-              strokeLinecap="round"
-              strokeLinejoin="round"
+      {/* Hero band: the cone of outcomes is the page's subject; the controls
+          that reshape it sit in a rail beside it, not in the top-anchor. */}
+      <div className="grid gap-5 xl:grid-cols-[1fr_320px]">
+        <Card className="min-w-0 px-6 py-5" i={0}>
+          {/* Verdict + the glanceable probability, above the fan */}
+          <div className="mb-4 flex items-start justify-between gap-5">
+            <p className="max-w-xl text-balance text-[17px] font-medium leading-snug tracking-[-0.01em] text-ink">
+              {result ? (
+                <>
+                  In {horizonYear}, the median path reaches{" "}
+                  <span className="font-mono tnum">{fmtUSDCompact(result.median)}</span>{" "}
+                  — a {Math.round(prob * 100)}% chance of clearing your{" "}
+                  {targetMultiple}× target of{" "}
+                  <span className="font-mono tnum text-warn">
+                    {fmtUSDCompact(target)}
+                  </span>
+                  .
+                </>
+              ) : (
+                <span className="text-mute">Simulating your book across {dYears} years…</span>
+              )}
+            </p>
+            <div className="flex shrink-0 items-center gap-2">
+              <div className="text-right">
+                <div className="font-mono tnum text-[34px] font-medium leading-none text-ink">
+                  {result ? `${Math.round(prob * 100)}%` : "—"}
+                </div>
+                <div className="eyebrow mt-1">chance of target</div>
+              </div>
+              <ModelBadge detail="Simulated from a CAPM drift (drawn per path, not treated as known) and fat-tailed shocks. Read to the nearest few points." />
+            </div>
+          </div>
+          <div className="relative">
+            <Computing active={pending || !result} label="simulating 3,000 paths…" />
+            {!result ? (
+              <div className="h-[380px]" />
+            ) : (
+              <ErrorBoundary label="The projection">
+                <FanChart result={result} target={target} height={380} />
+              </ErrorBoundary>
+            )}
+          </div>
+        </Card>
+
+        {/* Controls rail — adjusting an assumption reshapes the cone beside it. */}
+        <Card className="h-fit px-5 py-5 xl:sticky xl:top-16" i={1} hover={false}>
+          <div className="mb-5 flex items-center justify-between">
+            <div className="eyebrow">Assumptions</div>
+            <button
+              onClick={() => setSeedSalt((s) => s + 1)}
+              className="flex items-center gap-1.5 rounded-md border border-edge px-2.5 py-1 font-mono text-[11px] text-mute transition-colors hover:border-edge2 hover:text-ink"
+              title="Redraw a fresh set of 3,000 paths"
             >
-              <path d="M13.6 6.5A6 6 0 1 0 14 9" />
-              <path d="M13.5 2.5v4h-4" />
-            </svg>
-            Refresh simulation
-          </button>
-        </div>
-        <div className="grid gap-x-10 gap-y-6 md:grid-cols-3">
-          <div>
-            <div className="mb-2 flex items-baseline justify-between">
-              <span className="eyebrow">Horizon</span>
-              <span className="font-mono tnum text-[15px] text-ink">{years} years</span>
-            </div>
-            <input
-              type="range"
-              min={1}
-              max={30}
-              step={1}
-              value={years}
-              onChange={(e) => setYears(Number(e.target.value))}
-              className="w-full"
-            />
+              <svg
+                viewBox="0 0 16 16"
+                aria-hidden
+                className="h-3 w-3"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.6"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M13.6 6.5A6 6 0 1 0 14 9" />
+                <path d="M13.5 2.5v4h-4" />
+              </svg>
+              Redraw
+            </button>
           </div>
-          <div>
-            <div className="mb-2 flex items-baseline justify-between">
-              <span className="eyebrow">Monthly contribution</span>
-              <span className="font-mono tnum text-[15px] text-ink">
-                {fmtUSD(contribution, true)}
-              </span>
+          <div className="grid gap-y-6">
+            <div>
+              <div className="mb-2 flex items-baseline justify-between">
+                <span className="eyebrow">Horizon</span>
+                <span className="font-mono tnum text-[15px] text-ink">{years} years</span>
+              </div>
+              <input
+                type="range"
+                min={1}
+                max={30}
+                step={1}
+                value={years}
+                onChange={(e) => setYears(Number(e.target.value))}
+                className="w-full"
+              />
             </div>
-            <input
-              type="range"
-              min={0}
-              max={5000}
-              step={50}
-              value={contribution}
-              onChange={(e) => setContribution(Number(e.target.value))}
-              className="w-full"
-            />
-          </div>
-          <div>
-            <div className="mb-2 flex items-baseline justify-between">
-              <span className="eyebrow">Target</span>
-              <span className="font-mono tnum text-[15px] text-warn">
-                {fmtUSDCompact(target)}
-                <span className="ml-1.5 text-[11px] text-faint">
-                  {targetMultiple}× today
+            <div>
+              <div className="mb-2 flex items-baseline justify-between">
+                <span className="eyebrow">Monthly contribution</span>
+                <span className="font-mono tnum text-[15px] text-ink">
+                  {fmtUSD(contribution, true)}
                 </span>
-              </span>
+              </div>
+              <input
+                type="range"
+                min={0}
+                max={5000}
+                step={50}
+                value={contribution}
+                onChange={(e) => setContribution(Number(e.target.value))}
+                className="w-full"
+              />
             </div>
-            <input
-              type="range"
-              min={1.5}
-              max={100}
-              step={0.5}
-              value={targetMultiple}
-              onChange={(e) => setTargetMultiple(Number(e.target.value))}
-              className="w-full"
+            <div>
+              <div className="mb-2 flex items-baseline justify-between">
+                <span className="eyebrow">Target</span>
+                <span className="font-mono tnum text-[15px] text-warn">
+                  {fmtUSDCompact(target)}
+                  <span className="ml-1.5 text-[11px] text-faint">
+                    {targetMultiple}× today
+                  </span>
+                </span>
+              </div>
+              <input
+                type="range"
+                min={1.5}
+                max={100}
+                step={0.5}
+                value={targetMultiple}
+                onChange={(e) => setTargetMultiple(Number(e.target.value))}
+                className="w-full"
+              />
+            </div>
+          </div>
+        </Card>
+      </div>
+
+      {result && (
+        <ErrorBoundary label="The projection detail">
+          <ResultsDetail result={result} target={target} years={dYears} />
+        </ErrorBoundary>
+      )}
+    </div>
+  );
+}
+
+/** The secondary band below the hero: the numeric outcomes and the terminal
+ *  distribution — the detail you study after the cone tells the story. */
+function ResultsDetail({
+  result,
+  target,
+  years,
+}: {
+  result: MonteCarloResult;
+  target: number;
+  years: number;
+}) {
+  return (
+    <div className="mt-5 grid gap-5 xl:grid-cols-2">
+      <Card className="px-6 py-5" i={2}>
+        <div className="eyebrow mb-4">Outcomes at {years}y</div>
+        <div className="space-y-4">
+          <Stat
+            label="Median"
+            value={result.median}
+            format={fmtUSDCompact}
+            sub={`${fmtPct(result.medianCagr, 1)} CAGR on money in`}
+          />
+          <div className="grid grid-cols-2 gap-4">
+            <Stat
+              label="Pessimistic p5"
+              value={result.p5}
+              format={fmtUSDCompact}
+              size="sm"
+              toneClass="text-neg"
+            />
+            <Stat
+              label="Optimistic p95"
+              value={result.p95}
+              format={fmtUSDCompact}
+              size="sm"
+              toneClass="text-mint"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <Stat
+              label="Tail average (CVaR 95)"
+              value={result.cvar95}
+              format={fmtUSDCompact}
+              size="sm"
+              toneClass="text-neg"
+              tip="The average ending value across the worst 5% of simulated paths. Where the p5 line says '5% of outcomes end below here', this says how bad those outcomes are on average — the standard expected-shortfall view of tail risk."
+            />
+            <Stat
+              label="Max drawdown (median)"
+              value={result.maxDrawdown.median}
+              format={(v) => `−${fmtPct(v, 0)}`}
+              size="sm"
+              toneClass="text-warn"
+              tip={`The typical worst peak-to-trough fall a path experiences somewhere along the way — the median path drops ${fmtPct(result.maxDrawdown.median, 0)} from a running high at some point, and 1 in 10 paths drops ${fmtPct(result.maxDrawdown.p90, 0)} or more. Reaching the target usually means sitting through a fall like this without selling.`}
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <Stat
+              label="Touched target ever"
+              value={result.probTargetEver}
+              format={(v) => fmtPct(v, 0)}
+              size="sm"
+            />
+            <Stat
+              label="Total contributed"
+              value={result.totalContributed}
+              format={fmtUSDCompact}
+              size="sm"
             />
           </div>
         </div>
       </Card>
 
-      <div className="relative">
-        <Computing
-          active={pending || !result}
-          label="simulating 3,000 paths…"
-        />
-        {!result ? (
-          <div className="panel h-[480px]" />
-        ) : (
-          <ErrorBoundary label="The projection">
-            <ResultsView result={result} target={target} years={dYears} prob={prob} />
-          </ErrorBoundary>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function ResultsView({
-  result,
-  target,
-  years,
-  prob,
-}: {
-  result: MonteCarloResult;
-  target: number;
-  years: number;
-  prob: number;
-}) {
-  return (
-    <div>
-      <div className="mb-5 grid gap-5 xl:grid-cols-[1fr_320px]">
-        <Card className="px-6 py-5" i={1}>
-          <CardHeader
-            eyebrow="Projection fan"
-            title="Where 3,000 futures land"
-            right={
-              <div className="flex items-center gap-3 font-mono text-[10px] text-faint">
-                <span className="flex items-center gap-1">
-                  <span className="h-2 w-3 rounded-sm bg-mint/30" /> p25–75
-                </span>
-                <span className="flex items-center gap-1">
-                  <span className="h-2 w-3 rounded-sm bg-mint/10" /> p5–95
-                </span>
-              </div>
-            }
-            className="mb-3"
-          />
-          <FanChart result={result} target={target} height={380} />
-        </Card>
-
-        <div className="space-y-5">
-          <Card className="flex flex-col items-center px-6 py-6" i={2}>
-            <div className="mb-4 flex w-full items-center justify-between self-start">
-              <span className="eyebrow">Target probability</span>
-              <ModelBadge detail="Simulated from a CAPM drift (drawn per path, not treated as known) and fat-tailed shocks. Read to the nearest few points." />
-            </div>
-            <Ring score={prob * 100} size={150} stroke={10}>
-              <div className="font-mono tnum text-[30px] font-medium text-ink">
-                {Math.round(prob * 100)}%
-              </div>
-              <div className="eyebrow !text-[0.5rem]">at horizon</div>
-            </Ring>
-            {result.probTargetStdErr > 0 && (
-              <div className="mt-2 font-mono text-[10px] text-faint">
-                ±{(result.probTargetStdErr * 200).toFixed(1)}% (95% CI, 3,000 paths)
-              </div>
-            )}
-            <div className="mt-4 w-full space-y-2 border-t border-edge pt-4">
-              <div className="flex justify-between text-[12px]">
-                <span className="text-mute">Touched at any point</span>
-                <span className="font-mono tnum text-ink">
-                  {fmtPct(result.probTargetEver, 0)}
-                </span>
-              </div>
-              <div className="flex justify-between text-[12px]">
-                <span className="text-mute">Target</span>
-                <span className="font-mono tnum text-warn">{fmtUSDCompact(target)}</span>
-              </div>
-            </div>
-          </Card>
-
-          <Card className="px-6 py-5" i={3}>
-            <div className="eyebrow mb-4">Outcomes at {years}y</div>
-            <div className="space-y-4">
-              <Stat
-                label="Median"
-                value={result.median}
-                format={fmtUSDCompact}
-                sub={`${fmtPct(result.medianCagr, 1)} CAGR on money in`}
-              />
-              <div className="grid grid-cols-2 gap-4">
-                <Stat
-                  label="Pessimistic p5"
-                  value={result.p5}
-                  format={fmtUSDCompact}
-                  size="sm"
-                  toneClass="text-neg"
-                />
-                <Stat
-                  label="Optimistic p95"
-                  value={result.p95}
-                  format={fmtUSDCompact}
-                  size="sm"
-                  toneClass="text-mint"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <Stat
-                  label="Tail average (CVaR 95)"
-                  value={result.cvar95}
-                  format={fmtUSDCompact}
-                  size="sm"
-                  toneClass="text-neg"
-                  tip="The average ending value across the worst 5% of simulated paths. Where the p5 line says '5% of outcomes end below here', this says how bad those outcomes are on average — the standard expected-shortfall view of tail risk."
-                />
-                <Stat
-                  label="Max drawdown (median)"
-                  value={result.maxDrawdown.median}
-                  format={(v) => `−${fmtPct(v, 0)}`}
-                  size="sm"
-                  toneClass="text-warn"
-                  tip={`The typical worst peak-to-trough fall a path experiences somewhere along the way — the median path drops ${fmtPct(result.maxDrawdown.median, 0)} from a running high at some point, and 1 in 10 paths drops ${fmtPct(result.maxDrawdown.p90, 0)} or more. Reaching the target usually means sitting through a fall like this without selling.`}
-                />
-              </div>
-              <Stat
-                label="Total contributed"
-                value={result.totalContributed}
-                format={fmtUSDCompact}
-                size="sm"
-              />
-            </div>
-          </Card>
-        </div>
-      </div>
-
-      <Card className="px-6 py-5" i={4}>
+      <Card className="px-6 py-5" i={3}>
         <CardHeader
           eyebrow="Terminal distribution"
           title={`Spread of outcomes at year ${years}`}

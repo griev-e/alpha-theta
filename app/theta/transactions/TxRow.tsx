@@ -107,7 +107,14 @@ export function TxRow({
       transition={{ delay: 0.15 + i * 0.025, duration: 0.3 }}
       className="group border-b border-edge/60 transition-colors last:border-0 hover:bg-white/[0.03]"
     >
-      <td className="py-3 pl-6 pr-3">
+      <td className="relative py-3 pl-6 pr-3">
+        {/* Category-color rail — the same left-edge accent grammar alpha's
+            holding rows use, so a ledger is scannable by category at a glance. */}
+        <span
+          aria-hidden
+          className="absolute inset-y-[6px] left-0 w-[2px] rounded-full opacity-40 transition-opacity duration-200 group-hover:opacity-100"
+          style={{ background: accent }}
+        />
         <div className="flex items-center gap-3">
           <span
             className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg font-mono text-[13px] font-medium"

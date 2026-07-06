@@ -4,7 +4,7 @@ import Link from "next/link";
 import { m } from "framer-motion";
 import { Donut } from "@/components/charts/Donut";
 import { Sparkline } from "@/components/charts/Sparkline";
-import { CategoryTag, MoneyFlowBars, ProgressBar } from "@/components/theta/bits";
+import { CategoryTag, MoneyFlowBars, ProgressBar, monthElapsedFraction } from "@/components/theta/bits";
 import { AddTransactionButton } from "@/components/theta/modals";
 import { ThetaEmpty } from "@/components/theta/ui";
 import { AnimatedNumber } from "@/components/ui/AnimatedNumber";
@@ -64,14 +64,14 @@ export default function ThetaDashboard() {
         <m.div
           aria-hidden
           className="pointer-events-none absolute -right-20 -top-28 h-72 w-72 rounded-full blur-[90px]"
-          style={{ background: nwUp ? "rgba(94,234,212,0.11)" : "rgba(251,113,133,0.11)" }}
+          style={{ background: nwUp ? "var(--wash-mint)" : "var(--wash-neg)" }}
           animate={{ opacity: [0.55, 1, 0.55], scale: [0.94, 1.06, 0.94] }}
           transition={{ duration: 6.5, repeat: Infinity, ease: "easeInOut" }}
         />
         <m.div
           aria-hidden
           className="pointer-events-none absolute -left-24 top-6 h-60 w-60 rounded-full blur-[90px]"
-          style={{ background: "rgba(167,139,250,0.09)" }}
+          style={{ background: "var(--wash-vio)" }}
           animate={{ opacity: [0.4, 0.85, 0.4], scale: [1.06, 0.94, 1.06] }}
           transition={{ duration: 7.5, repeat: Infinity, ease: "easeInOut" }}
         />
@@ -204,7 +204,7 @@ export default function ThetaDashboard() {
                         <span className="text-faint"> / {fmtUSD(b.limit, true)}</span>
                       </span>
                     </div>
-                    <ProgressBar value={b.spent} max={b.limit} color={CATEGORY_COLOR[b.category]} delay={0.1 + i * 0.05} />
+                    <ProgressBar value={b.spent} max={b.limit} color={CATEGORY_COLOR[b.category]} delay={0.1 + i * 0.05} pace={b.limit * monthElapsedFraction()} />
                   </div>
                 );
               })}
