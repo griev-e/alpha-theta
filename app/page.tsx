@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { m } from "framer-motion";
 import { Donut, PALETTE } from "@/components/charts/Donut";
+import { Legend } from "@/components/charts/Legend";
 import { Treemap } from "@/components/charts/Treemap";
 import { AnimatedNumber } from "@/components/ui/AnimatedNumber";
 import { Card, CardHeader } from "@/components/ui/Card";
@@ -43,6 +44,10 @@ export default function OverviewPage() {
   const [sortKey, setSortKey] = useState<SortKey>("equity");
   const [asc, setAsc] = useState(false);
   const [mixView, setMixView] = useState<"holding" | "sector">("holding");
+  // One shared hover across the treemap, donut, and holdings table — hovering a
+  // symbol in any of them lights it in the other two (the dashboard as one
+  // organism, not three widgets). Only meaningful in the per-holding views.
+  const [activeSymbol, setActiveSymbol] = useState<string | null>(null);
 
   const risk = useMemo(
     () =>
@@ -257,19 +262,22 @@ export default function OverviewPage() {
             eyebrow="Allocation map"
             title="Position sizing × performance"
             right={
-              <div className="flex items-center gap-3 font-mono text-[12px] text-faint">
-                <span className="flex items-center gap-1.5">
-                  <span className="h-2.5 w-2.5 rounded-sm bg-neg/60" /> loss
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <span className="h-2.5 w-2.5 rounded-sm bg-pos/60" /> gain
-                </span>
-              </div>
+              <Legend
+                items={[
+                  { label: "loss", color: "color-mix(in srgb, var(--color-neg) 60%, transparent)" },
+                  { label: "gain", color: "color-mix(in srgb, var(--color-pos) 60%, transparent)" },
+                ]}
+              />
             }
             className="mb-4"
           />
           <ErrorBoundary label="The holdings map">
-            <Treemap items={treemapItems} height={340} />
+            <Treemap
+              items={treemapItems}
+              height={340}
+              activeId={activeSymbol}
+              onActiveChange={setActiveSymbol}
+            />
           </ErrorBoundary>
         </Card>
 
@@ -294,6 +302,8 @@ export default function OverviewPage() {
               slices={mixSlices}
               centerLabel="Total"
               centerValue={fmtUSDCompact(portfolio.totalValue)}
+              activeId={mixView === "holding" ? activeSymbol : undefined}
+              onActiveChange={mixView === "holding" ? setActiveSymbol : undefined}
             />
           </ErrorBoundary>
           <div className="mt-4 grid grid-cols-3 gap-3 border-t border-edge pt-4">
@@ -431,6 +441,8 @@ export default function OverviewPage() {
                   i={i}
                   maxWeight={maxWeight}
                   maxAbsReturn={maxAbsReturn}
+                  active={activeSymbol === p.symbol}
+                  onHover={setActiveSymbol}
                 />
               ))}
             </tbody>
@@ -527,11 +539,16 @@ function HoldingRow({
   i,
   maxWeight,
   maxAbsReturn,
+  active = false,
+  onHover,
 }: {
   p: Position;
   i: number;
   maxWeight: number;
   maxAbsReturn: number;
+  /** Lit from the shared Overview hover (treemap/donut/table cross-highlight). */
+  active?: boolean;
+  onHover?: (symbol: string | null) => void;
 }) {
   const router = useRouter();
   const open = () => router.push(`/research?symbol=${encodeURIComponent(p.symbol)}`);
@@ -564,17 +581,23 @@ function HoldingRow({
       onKeyDown={(e) => {
         if (e.key === "Enter") open();
       }}
+      onMouseEnter={() => onHover?.(p.symbol)}
+      onMouseLeave={() => onHover?.(null)}
       role="link"
       tabIndex={0}
       aria-label={`Open ${p.symbol} in Research`}
-      className="group relative cursor-pointer border-b border-edge/60 transition-colors duration-700 hover:bg-white/[0.03]"
+      className={`group relative cursor-pointer border-b border-edge/60 transition-colors duration-700 hover:bg-white/[0.03] ${
+        active ? "bg-white/[0.03]" : ""
+      }`}
     >
       {/* Asset: brand logo + symbol + name */}
       <td className="relative px-6 py-3">
-        {/* Accent edge that lights up on hover */}
+        {/* Accent edge that lights up on hover — or when synced from the map/donut */}
         <span
           aria-hidden
-          className="absolute inset-y-[6px] left-0 w-[2px] rounded-full opacity-0 transition-opacity duration-200 group-hover:opacity-100"
+          className={`absolute inset-y-[6px] left-0 w-[2px] rounded-full transition-opacity duration-200 group-hover:opacity-100 ${
+            active ? "opacity-100" : "opacity-0"
+          }`}
           style={{ background: accent }}
         />
         <div className="flex items-center gap-3">

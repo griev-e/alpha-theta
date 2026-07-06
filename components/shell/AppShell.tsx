@@ -10,9 +10,9 @@ import { PageAura } from "@/components/ui/PageAura";
 import { CommandPalette, type Command } from "./CommandPalette";
 import { KeyboardMap } from "./KeyboardMap";
 import { MarketPulse } from "./MarketPulse";
+import { StatusCenter } from "./StatusCenter";
 import { FirstViewProvider, useRouteFirstView } from "@/lib/firstView";
-import { fmtUSDCompact, relativeTime } from "@/lib/format";
-import { Tooltip } from "@/components/ui/Tooltip";
+import { fmtUSDCompact } from "@/lib/format";
 import { usePortfolio, useLiveStatus, usePortfolioActions } from "@/lib/store";
 import { useSidebarWidth } from "@/lib/useSidebarWidth";
 import { ThetaProvider } from "@/lib/theta/store";
@@ -280,14 +280,6 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   const current = NAV.find((n) => n.href === pathname);
 
-  const liveLabel = live.degraded
-    ? live.livePriceCount > 0
-      ? "offline · last good prices"
-      : "offline · imported prices"
-    : live.quotesAt
-      ? "live"
-      : "connecting";
-
   return (
     <div className="min-h-screen lg:flex">
       <TopProgress accent="var(--color-accent)" loading={live.refreshing} />
@@ -395,38 +387,11 @@ export function AppShell({ children }: { children: ReactNode }) {
           {ready && portfolio && (
             <div className="ml-auto flex items-center gap-2">
               <MarketPulse />
-              <RefreshButton refreshing={live.refreshing} onRefresh={refreshLive} />
-              <Tooltip
-                underline={false}
-                content={
-                  <div className="space-y-0.5">
-                    <div className="font-medium text-mute">
-                      {live.degraded
-                        ? "Live feed unreachable"
-                        : live.quotesAt
-                          ? "Live market data"
-                          : "Connecting to the feed"}
-                    </div>
-                    {live.quotesAt && (
-                      <div>Last quote {relativeTime(live.quotesAt)}</div>
-                    )}
-                    <div className="text-faint">
-                      {live.livePriceCount} of {portfolio.positions.length} priced live
-                    </div>
-                  </div>
-                }
-              >
-                <span className="flex items-center gap-2">
-                  <LiveDot degraded={live.degraded || !live.quotesAt} />
-                  <span
-                    className={`font-mono text-[11px] tracking-[0.08em] ${
-                      live.degraded || !live.quotesAt ? "text-warn/90" : "text-mute"
-                    }`}
-                  >
-                    {(live.degraded || !live.quotesAt) ? liveLabel.toUpperCase() : "LIVE"}
-                  </span>
-                </span>
-              </Tooltip>
+              <StatusCenter
+                live={live}
+                positionCount={portfolio.positions.length}
+                onRefresh={refreshLive}
+              />
             </div>
           )}
         </header>

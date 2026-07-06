@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, m as Motion } from "framer-motion";
 import { PALETTE } from "@/components/charts/Donut";
+import { Legend } from "@/components/charts/Legend";
 import { AiThinking } from "@/components/ui/AiThinking";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { Computing } from "@/components/ui/Computing";
@@ -497,15 +498,12 @@ export default function RebalancePage() {
                     eyebrow="Allocation"
                     title="Current → projected"
                     right={
-                      <div className="flex items-center gap-3 font-mono text-[10px] text-faint">
-                        <span className="flex items-center gap-1">
-                          <span className="inline-block h-2 w-2 rounded-sm bg-white/30" />{" "}
-                          now
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <span className="inline-block h-2.5 w-px bg-mint" /> target
-                        </span>
-                      </div>
+                      <Legend
+                        items={[
+                          { label: "now", color: "rgba(255,255,255,0.3)" },
+                          { label: "target", color: "var(--color-mint)", mark: "line" },
+                        ]}
+                      />
                     }
                     className="mb-4"
                   />

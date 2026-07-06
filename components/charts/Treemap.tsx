@@ -105,9 +105,15 @@ function cellColor(intensity: number): { bg: string; border: string } {
 export const Treemap = memo(function Treemap({
   items,
   height = 360,
+  activeId,
+  onActiveChange,
 }: {
   items: TreemapItem[];
   height?: number;
+  /** Controlled highlight — a cell lights up in sync with a sibling chart or
+   *  table. Uncontrolled (no `onActiveChange`) it manages its own hover. */
+  activeId?: string | null;
+  onActiveChange?: (id: string | null) => void;
 }) {
   // Real pixel coordinates: cells and labels never stretch with the viewport.
   const [wrapRef, W] = useElementWidth<HTMLDivElement>();
@@ -115,7 +121,13 @@ export const Treemap = memo(function Treemap({
     () => (W > 0 ? squarify(items, 0, 0, W, height) : []),
     [items, W, height]
   );
-  const [active, setActive] = useState<string | null>(null);
+  const [internalActive, setInternalActive] = useState<string | null>(null);
+  const controlled = onActiveChange !== undefined;
+  const active = controlled ? activeId ?? null : internalActive;
+  const setActive = (id: string | null) => {
+    if (!controlled) setInternalActive(id);
+    onActiveChange?.(id);
+  };
   const total = useMemo(
     () => items.reduce((s, d) => s + Math.max(0, d.value), 0),
     [items],
