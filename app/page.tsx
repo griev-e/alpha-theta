@@ -17,6 +17,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Segmented } from "@/components/ui/Segmented";
+import { Money } from "@/components/ui/Money";
 import { Stat } from "@/components/ui/Stat";
 import { TickerLogo } from "@/components/ui/TickerLogo";
 import { riskReport } from "@/lib/analytics/risk";
@@ -207,7 +208,7 @@ export default function OverviewPage() {
                   : undefined
               }
             >
-              <AnimatedNumber value={portfolio.totalValue} format={(v) => fmtUSD(v)} />
+              <AnimatedNumber value={portfolio.totalValue} format={(v) => fmtUSD(v)} dim />
             </div>
             <div className="mt-4 grid w-fit grid-cols-[auto_auto_auto] items-baseline gap-x-3 gap-y-1.5 font-mono tnum text-[13px]">
               <HeroDelta
@@ -232,12 +233,14 @@ export default function OverviewPage() {
               value={portfolio.equityValue}
               format={fmtUSDCompact}
               sub={`${fmtPct(1 - portfolio.cashWeight, 1)} deployed`}
+              dim
             />
             <Stat
               label="Cash"
               value={portfolio.cash}
               format={fmtUSDCompact}
               sub={`${fmtPct(portfolio.cashWeight, 1)} dry powder`}
+              dim
             />
             <Stat
               label="Portfolio beta"
@@ -646,7 +649,7 @@ function HoldingRow({
         }
       >
         <div className="font-mono tnum text-[13px] text-ink">
-          {fmtUSD(p.price)}
+          <Money value={p.price} />
         </div>
         {dayPct !== null && p.dayChange !== null ? (
           <div
@@ -665,7 +668,7 @@ function HoldingRow({
       {/* Equity with shares · basis folded underneath */}
       <td className="px-6 py-3 text-right">
         <div className="font-mono tnum text-[13px] text-ink">
-          {fmtUSD(p.equity)}
+          <Money value={p.equity} />
         </div>
         <div className={`font-mono tnum text-[11px] ${sortKey === "equity" ? "text-mute" : "text-faint"}`}>
           {fmtShares(p.shares)} sh · {fmtUSD(p.costBasis)}

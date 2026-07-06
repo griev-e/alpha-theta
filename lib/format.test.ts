@@ -9,6 +9,7 @@ import {
   fmtUSD,
   fmtUSDCompact,
   relativeTime,
+  splitMoney,
   tone,
 } from "./format";
 
@@ -119,6 +120,39 @@ describe("clock-relative helpers", () => {
     // Older than a week falls back to a short calendar date.
     expect(relativeTime("2026-06-10T12:00:00Z")).toBe("Jun 10");
     expect(relativeTime("garbage")).toBe("—");
+  });
+});
+
+describe("splitMoney", () => {
+  it("peels the currency symbol and trailing cents off the loud digits", () => {
+    expect(splitMoney("$12,304.56")).toEqual({
+      lead: "$",
+      main: "12,304",
+      tail: ".56",
+    });
+  });
+
+  it("keeps a leading sign with the currency symbol", () => {
+    expect(splitMoney("-$1,200.00")).toEqual({
+      lead: "-$",
+      main: "1,200",
+      tail: ".00",
+    });
+    expect(splitMoney("−$12.50")).toEqual({ lead: "−$", main: "12", tail: ".50" });
+  });
+
+  it("treats a whole-dollar figure as all loud, no tail", () => {
+    expect(splitMoney("$1,235")).toEqual({ lead: "$", main: "1,235", tail: "" });
+  });
+
+  it("leaves a compact magnitude's decimals loud (only the symbol dims)", () => {
+    // .24 is significant here (1.24 million), not cents — must not be peeled off.
+    expect(splitMoney("$1.24M")).toEqual({ lead: "$", main: "1.24M", tail: "" });
+    expect(splitMoney("-$2.1B")).toEqual({ lead: "-$", main: "2.1B", tail: "" });
+  });
+
+  it("passes the em dash straight through", () => {
+    expect(splitMoney("—")).toEqual({ lead: "", main: "—", tail: "" });
   });
 });
 

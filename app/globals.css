@@ -197,6 +197,12 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
+/* The furniture in a dollar figure — the currency symbol/sign and the trailing
+   cents — recedes so the significant digits carry. See <Money>. */
+.money-dim {
+  opacity: 0.55;
+}
+
 /* AI-generated prose reads differently from chrome: a touch larger, looser
    leading, and a comfortable measure — so a Claude brief feels like something
    written, not another UI label. */

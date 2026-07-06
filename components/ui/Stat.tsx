@@ -13,6 +13,7 @@ export function Stat({
   toneClass = "text-ink",
   size = "md",
   tip,
+  dim = false,
 }: {
   label: string;
   value: number;
@@ -22,6 +23,8 @@ export function Stat({
   size?: "sm" | "md" | "lg";
   /** When set, the label gains a hover box explaining the metric. */
   tip?: ReactNode;
+  /** Dim a currency figure's symbol/sign and cents (the `<Money>` hierarchy). */
+  dim?: boolean;
 }) {
   const sizeClass =
     size === "lg"
@@ -54,7 +57,7 @@ export function Stat({
         title="Click to copy"
         className={`group/stat mt-1.5 block cursor-copy text-left font-mono tnum leading-none ${sizeClass} font-medium ${toneClass}`}
       >
-        <AnimatedNumber value={value} format={format} />
+        <AnimatedNumber value={value} format={format} dim={dim} />
       </button>
       {sub && <div className="mt-1 text-[12px] text-mute">{sub}</div>}
     </div>

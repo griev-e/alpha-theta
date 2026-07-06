@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { fmtUSD } from "@/lib/format";
+import { Money } from "@/components/ui/Money";
 
 /**
  * Click-to-edit currency value. Shows formatted USD; on click becomes a number
@@ -62,9 +62,9 @@ export function EditableMoney({
     <button
       onClick={start}
       title="Click to edit"
-      className={`rounded-md px-1 font-mono tnum transition-colors hover:bg-white/[0.06] hover:text-ink ${className}`}
+      className={`rounded-md px-1 font-mono transition-colors hover:bg-white/[0.06] hover:text-ink ${className}`}
     >
-      {value < 0 ? `−${fmtUSD(Math.abs(value), whole)}` : fmtUSD(value, whole)}
+      <Money value={value} whole={whole} />
     </button>
   );
 }

@@ -90,7 +90,7 @@ export default function ThetaDashboard() {
           <div className="lg:w-[240px] lg:shrink-0 lg:self-center">
             <div className="eyebrow">Net worth</div>
             <div className="mt-1.5 font-mono tnum text-[36px] font-medium leading-none text-ink sm:text-[44px]">
-              <AnimatedNumber value={view.netWorth} format={(v) => fmtUSD(v)} />
+              <AnimatedNumber value={view.netWorth} format={(v) => fmtUSD(v)} dim />
             </div>
             <div className="mt-4 flex flex-wrap items-center gap-2 font-mono tnum text-[12.5px]">
               <span
@@ -139,8 +139,8 @@ export default function ThetaDashboard() {
             }
             tip="How many months your liquid cash (checking + savings) would cover your current monthly spending. Under three months is a thin cushion; six or more is comfortable."
           />
-          <Stat label="Assets" value={view.totalAssets} format={fmtUSDCompact} sub={`across ${assetCount} accounts`} />
-          <Stat label="Liabilities" value={view.totalLiabilities} format={fmtUSDCompact} sub={`${liabCount} balances owed`} />
+          <Stat label="Assets" value={view.totalAssets} format={fmtUSDCompact} sub={`across ${assetCount} accounts`} dim />
+          <Stat label="Liabilities" value={view.totalLiabilities} format={fmtUSDCompact} sub={`${liabCount} balances owed`} dim />
           <Stat
             label="This month net"
             value={view.monthNet}
