@@ -97,24 +97,14 @@ export function FanChart({
         onMouseLeave={() => setHm(null)}
       >
         {yTicks.map((v) => (
-          <g key={v}>
-            <line
-              x1={PAD.l}
-              x2={W - PAD.r}
-              y1={y(v)}
-              y2={y(v)}
-              stroke="color-mix(in srgb, var(--color-track) 7%, transparent)"
-            />
-            <text
-              x={W - PAD.r + 8}
-              y={y(v) + 4}
-              fill="var(--color-faint)"
-              className="font-mono"
-              style={{ fontSize: 11 }}
-            >
-              {fmtUSDCompact(v)}
-            </text>
-          </g>
+          <line
+            key={v}
+            x1={PAD.l}
+            x2={W - PAD.r}
+            y1={y(v)}
+            y2={y(v)}
+            stroke="color-mix(in srgb, var(--color-track) 7%, transparent)"
+          />
         ))}
         {yearTicks.map((yr) => (
           <text
@@ -176,6 +166,52 @@ export function FanChart({
           animate={{ pathLength: 1 }}
           transition={{ duration: 1.4, ease: [0.22, 1, 0.36, 1] }}
         />
+
+        {/* terminal percentile chips — the right edge reads the outcome each
+            band lands at, so the fan states its own P95/P50/P5 without a hover. */}
+        {(() => {
+          const term = bands[bands.length - 1];
+          const rows = (
+            [
+              ["P95", term.p95, "var(--color-mint-dim)"],
+              ["P50", term.p50, "var(--color-mint)"],
+              ["P5", term.p5, "var(--color-mint-dim)"],
+            ] as const
+          ).map(([tag, v, col]) => ({ tag, v, col, cy: y(v) }));
+          // Nudge apart so adjacent chips never collide at tight horizons.
+          const MIN = 22;
+          for (let i = 1; i < rows.length; i++) {
+            if (rows[i - 1].cy > rows[i].cy - MIN) rows[i].cy = rows[i - 1].cy + MIN;
+          }
+          return rows.map((rw) => (
+            <m.g
+              key={rw.tag}
+              initial={{ opacity: 0, x: -4 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 1.4, duration: 0.4 }}
+            >
+              <circle cx={x(term.month)} cy={y(rw.v)} r={2.6} fill={rw.col} />
+              <text
+                x={x(term.month) + 8}
+                y={rw.cy + 3.5}
+                fill={rw.col}
+                className="font-mono"
+                style={{ fontSize: 10, letterSpacing: "0.04em" }}
+              >
+                {rw.tag}
+              </text>
+              <text
+                x={x(term.month) + 8}
+                y={rw.cy + 14}
+                fill="var(--color-mute)"
+                className="font-mono tnum"
+                style={{ fontSize: 10 }}
+              >
+                {fmtUSDCompact(rw.v)}
+              </text>
+            </m.g>
+          ));
+        })()}
 
         {/* target line */}
         {target > 0 && target < maxY && (

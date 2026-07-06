@@ -1,6 +1,7 @@
 "use client";
 
 import { CategoryTag } from "@/components/theta/bits";
+import { Sparkline } from "@/components/charts/Sparkline";
 import { AddRecurringButton } from "@/components/theta/modals";
 import { ThetaEmpty, IconButton, TrashIcon } from "@/components/theta/ui";
 import { Card, CardHeader } from "@/components/ui/Card";
@@ -182,6 +183,7 @@ function DetectedRow({
   onTrack: () => void;
   onDismiss: () => void;
 }) {
+  const creeping = !!d.priceCreep;
   return (
     <div className="group flex items-center justify-between gap-3 py-3 first:pt-0 last:pb-0 text-[13px]">
       <div className="min-w-0">
@@ -203,6 +205,17 @@ function DetectedRow({
           {fmtUSD(d.amount)} · {d.cadence} · {d.count} charges · {fmtUSD(d.annualCost, true)}/yr
         </div>
       </div>
+      {/* Amount-over-time spark — a flat line reads "stable", a rising tail is
+          the price creep the chip calls out, shown not just told. */}
+      {d.amounts.length >= 2 && (
+        <div className="hidden w-16 shrink-0 sm:block" title="Charge history">
+          <Sparkline
+            values={d.amounts}
+            height={26}
+            color={creeping ? "var(--color-warn)" : "var(--color-mute)"}
+          />
+        </div>
+      )}
       <div className="flex shrink-0 items-center gap-1.5">
         <button
           onClick={onTrack}

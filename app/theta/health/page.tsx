@@ -6,7 +6,6 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { AiThinking } from "@/components/ui/AiThinking";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { Ring } from "@/components/ui/Ring";
-import { Meter } from "@/components/ui/Meter";
 import { ThetaEmpty } from "@/components/theta/ui";
 import { ledgerHasData, useTheta } from "@/lib/theta/store";
 import { useThetaAssumptions } from "@/lib/theta/assumptionsStore";
@@ -261,10 +260,23 @@ function fmtMetric(m: HealthMetric): string {
   return m.value.toFixed(2);
 }
 
+/** A reference anchor (poor/good) in the metric's own unit. */
+function fmtAnchor(v: number, format: HealthMetric["format"]): string {
+  if (format === "months") return `${v % 1 === 0 ? v : v.toFixed(1)}mo`;
+  if (format === "pct") return fmtPct(v, 0);
+  return v.toFixed(2);
+}
+
 function MetricRow({ m }: { m: HealthMetric }) {
   const score = m.score;
   const color =
     score === null ? "var(--color-faint)" : score >= 70 ? "var(--color-pos)" : score >= 45 ? "var(--color-warn)" : "var(--color-neg)";
+  // Keep the position dot clear of the rounded ends so it stays legible even
+  // when a value pins to the very bottom or top of the reference band.
+  const dotPct = score === null ? 0 : Math.max(3, Math.min(97, score));
+  // The "poor" anchor always sits at the worse (left) end of the track, the
+  // "good" anchor at the better (right) end — regardless of metric direction —
+  // so every bar reads left-to-right from weak to strong.
   return (
     <div className="py-3 first:pt-0 last:pb-0">
       <div className="mb-1.5 flex items-center justify-between">
@@ -276,7 +288,31 @@ function MetricRow({ m }: { m: HealthMetric }) {
           {score === null ? "no data" : score}
         </span>
       </div>
-      {score !== null && <Meter value={score} max={100} color={color} height={6} />}
+      {score !== null ? (
+        <>
+          {/* Reference-band bar: faint track, a shaded healthy zone (the range
+              that scores 70+), and your position as a dot — the scorer's own
+              band, made visible. */}
+          <div className="relative mt-2 h-2 rounded-full bg-white/[0.04]">
+            <div
+              className="absolute inset-y-0 right-0 rounded-full"
+              style={{
+                left: "70%",
+                background: "color-mix(in srgb, var(--color-pos) 22%, transparent)",
+              }}
+            />
+            <div
+              className="absolute top-1/2 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 bg-void"
+              style={{ left: `${dotPct}%`, borderColor: color }}
+            />
+          </div>
+          <div className="mt-1 flex items-center justify-between font-mono text-[10px] text-faint">
+            <span>{fmtAnchor(m.poor, m.format)}</span>
+            <span className="text-pos/70">healthy →</span>
+            <span>{fmtAnchor(m.good, m.format)}</span>
+          </div>
+        </>
+      ) : null}
       <p className="mt-1.5 text-[11.5px] leading-relaxed text-faint">{m.description}</p>
     </div>
   );
