@@ -210,6 +210,17 @@ body {
   font-weight: 600;
 }
 
+/* ── The two eyebrow dialects ──────────────────────────────────────────────
+   Metadata is marked in one of two voices; keep them distinct, don't blur them:
+     • `.eyebrow` (below) — sentence-case, sans, gray. The voice for *labels of
+       content*: "Net value", "Allocation map", "Positioning". Titles a human
+       wrote for a human.
+     • mono uppercase + `tracking-[0.18em]` — the voice for *machine / status*:
+       LIVE, SAMPLE DATA, the AiThinking ticker, cost chips. A readout, not a
+       title.
+   The test: is it naming a section of content (→ .eyebrow) or reporting a
+   system state (→ tracked mono caps)? New surfaces pick one, never a third. */
+
 /* Quiet metadata label, Vercel-style: small, gray, sentence case. */
 .eyebrow {
   font-family: var(--font-sans);
@@ -232,6 +243,19 @@ body {
 }
 .panel-hover:hover {
   border-color: var(--color-edge2);
+  box-shadow: var(--edge-hi), var(--shadow-pop);
+}
+
+/* Clickable panels physically rise: on top of the brighter border + pop shadow,
+   the fill steps up to --surface-2 so a card that is a *link* (Discover ideas,
+   theta account cards) reads as liftable, not just outlined. Compose with
+   .panel .panel-hover. */
+.panel-link {
+  transition: border-color 150ms ease, box-shadow 150ms ease, background 150ms ease;
+}
+.panel-link:hover {
+  border-color: var(--color-edge2);
+  background: var(--surface-2);
   box-shadow: var(--edge-hi), var(--shadow-pop);
 }
 

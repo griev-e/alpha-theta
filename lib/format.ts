@@ -1,3 +1,25 @@
+/**
+ * The figures dictionary — one place the number style is decided, so new
+ * surfaces can't drift. The rules every formatter below follows:
+ *
+ *  - **Compact vs. full.** Hero and space-tight figures use the compact forms
+ *    (`fmtUSDCompact` → $1.24M, `fmtNum` compact where offered); tables, tickets
+ *    and anywhere the exact cent matters use the full `fmtUSD`. Prefer compact
+ *    in chrome, full in the ledger.
+ *  - **Signed.** Deltas pass `signed = true` so a gain reads `+2.4%`; a loss
+ *    keeps its own minus. Absolute quantities (a price, a balance) are never
+ *    signed by the formatter — the caller adds a `+`/`−` only when the figure is
+ *    itself a change.
+ *  - **The true minus.** Negative currency from `Intl` uses the locale minus
+ *    (U+2212, `−`), not a hyphen — keep it; when composing a sign by hand for a
+ *    delta, use `−` (U+2212) to match, never `-`.
+ *  - **Non-finite is an em dash.** Every formatter returns `"—"` for NaN/∞ so a
+ *    missing input never renders `NaN` or `$Infinity`.
+ *  - **Tabular numerals.** Any figure that can change in place or sits in a
+ *    column is set in `.tnum` (font-variant-numeric: tabular-nums) so digits
+ *    don't shift width as they tick.
+ */
+
 const USD = new Intl.NumberFormat("en-US", {
   style: "currency",
   currency: "USD",

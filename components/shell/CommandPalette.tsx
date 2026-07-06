@@ -189,10 +189,10 @@ export function CommandPalette({
             role="dialog"
             aria-modal="true"
             aria-label="Command palette"
-            initial={{ opacity: 0, y: 10, scale: 0.985 }}
+            initial={{ opacity: 0, y: 8, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 8, scale: 0.985 }}
-            transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
+            exit={{ opacity: 0, y: 6, scale: 0.98 }}
+            transition={{ duration: 0.15, ease: [0.22, 1, 0.36, 1] }}
             className="overlay relative z-10 w-full max-w-lg overflow-hidden"
           >
             <div className="flex items-center gap-2.5 border-b border-edge px-4">
