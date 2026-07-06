@@ -552,18 +552,25 @@ function symbolColor(symbol: string): string {
  * *direction* of the move — so a live-price refresh flashes green on an up-tick
  * and rose on a down-tick (a silent swap otherwise, or worse, a green flash on
  * a falling price). The flash is scoped to the price cell, not the whole row.
+ *
+ * `index` staggers the flash by ~30ms per row (capped at 15), so a 60s reprice
+ * ripples down the tape as a wave instead of every cell blinking at once (§26).
  */
-function usePriceTick(value: number): "up" | "down" | null {
+function usePriceTick(value: number, index = 0): "up" | "down" | null {
   const prev = useRef(value);
   const [dir, setDir] = useState<"up" | "down" | null>(null);
   useEffect(() => {
     if (prev.current === value) return;
     const next = value > prev.current ? "up" : "down";
     prev.current = value;
-    setDir(next);
-    const id = setTimeout(() => setDir(null), 600);
-    return () => clearTimeout(id);
-  }, [value]);
+    const delay = Math.min(index, 15) * 30;
+    const start = setTimeout(() => setDir(next), delay);
+    const end = setTimeout(() => setDir(null), delay + 600);
+    return () => {
+      clearTimeout(start);
+      clearTimeout(end);
+    };
+  }, [value, index]);
   return dir;
 }
 
@@ -598,7 +605,7 @@ function HoldingRow({
   // Direction of the last live reprice — flashes the price cell green (up) or
   // rose (down) the instant a refresh moves it, then eases back out: a live
   // feed updating in place, its direction legible, instead of a silent swap.
-  const tick = usePriceTick(p.price);
+  const tick = usePriceTick(p.price, i);
   const firstView = useFirstView();
   // Entrance stagger only on the first visit, and capped so a long book doesn't
   // hold the last rows back by a second; the layout spring (re-sorting) stays.
