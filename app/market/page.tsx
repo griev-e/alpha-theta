@@ -380,9 +380,7 @@ function MarketBriefCard({ report }: { report: RegimeReport }) {
             <h3 className="font-display text-[17px] font-semibold leading-snug text-ink">
               {state.data.brief.headline}
             </h3>
-            <p className="mt-2 max-w-3xl text-[13px] leading-relaxed text-mute">
-              {state.data.brief.read}
-            </p>
+            <p className="ai-prose mt-2">{state.data.brief.read}</p>
           </RevealItem>
 
           <RevealItem className="mt-5 grid gap-x-10 gap-y-5 lg:grid-cols-2">

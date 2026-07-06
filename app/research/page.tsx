@@ -36,6 +36,7 @@ import {
   type ResearchTarget,
 } from "@/lib/research/useResearch";
 import { usePortfolio } from "@/lib/store";
+import { useWatchlist } from "@/lib/watchlist";
 import type { AnalystRating, Fundamentals, Position } from "@/lib/types";
 import { PageSkeleton } from "@/components/ui/Skeleton";
 
@@ -89,6 +90,38 @@ export default function ResearchPage() {
     );
   }, [portfolio]);
 
+  const { symbols: watchSymbols } = useWatchlist();
+
+  // Ordered list backing the rail + j/k navigation: your holdings first, then
+  // watchlist names you don't hold, then (with no book) the starters.
+  const railSymbols = useMemo(() => {
+    const held = portfolio?.positions.map((p) => p.symbol) ?? [];
+    const base = held.length > 0 ? held : STARTER_TICKERS;
+    const extra = watchSymbols.filter((s) => !base.includes(s));
+    return [...base, ...extra];
+  }, [portfolio, watchSymbols]);
+
+  // j / k step through the rail like a terminal, ignoring text fields.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      if (
+        e.target instanceof HTMLInputElement ||
+        e.target instanceof HTMLTextAreaElement
+      )
+        return;
+      if ((e.key !== "j" && e.key !== "k") || railSymbols.length === 0) return;
+      e.preventDefault();
+      const idx = symbol ? railSymbols.indexOf(symbol) : -1;
+      const delta = e.key === "j" ? 1 : -1;
+      const next = idx < 0 ? 0 : (idx + delta + railSymbols.length) % railSymbols.length;
+      setTouched(true);
+      setSymbol(railSymbols[next]);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [railSymbols, symbol]);
+
   if (!ready) return <PageSkeleton />;
 
   const picks = portfolio?.positions.map((p) => p.symbol) ?? [];
@@ -110,45 +143,172 @@ export default function ResearchPage() {
         <TickerSearch onSelect={select} />
       </m.div>
 
-      <QuickPicks
-        label={picks.length > 0 ? "Your holdings" : "Popular"}
-        symbols={picks.length > 0 ? picks : STARTER_TICKERS}
-        active={symbol}
-        positions={portfolio?.positions ?? []}
-        onSelect={select}
-      />
+      {/* Mobile keeps the horizontal quick-pick chips; desktop gets the rail. */}
+      <div className="lg:hidden">
+        <QuickPicks
+          label={picks.length > 0 ? "Your holdings" : "Popular"}
+          symbols={picks.length > 0 ? picks : STARTER_TICKERS}
+          active={symbol}
+          positions={portfolio?.positions ?? []}
+          onSelect={select}
+        />
+      </div>
 
-      {symbol ? (
-        // Keyed remount (no AnimatePresence exit gating) so switching tickers
-        // fades the new view straight in instead of leaving a blank frame while
-        // the old one animates out.
-        <m.div
-          key={symbol}
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
-        >
-          <ResearchView
-            symbol={symbol}
-            range={range}
-            onRange={setRange}
-            holding={holding}
-            portfolioIncome={portfolioIncome}
-          />
-        </m.div>
-      ) : (
-        <Card className="mt-8 px-8 py-12 text-center">
-          <h2 className="font-display text-lg font-semibold text-ink">
-            Search any ticker to begin
-          </h2>
-          <p className="mx-auto mt-2 max-w-md text-[13px] leading-relaxed text-mute">
-            Type a symbol or company name above. No portfolio required —
-            research works for any security, with live market data when
-            available.
-          </p>
-        </Card>
-      )}
+      <div className="grid gap-5 lg:grid-cols-[236px_minmax(0,1fr)]">
+        <ResearchRail
+          className="hidden lg:block"
+          holdings={portfolio?.positions ?? []}
+          watchlist={watchSymbols}
+          active={symbol}
+          onSelect={select}
+        />
+
+        <div className="min-w-0">
+          {symbol ? (
+            // Keyed remount (no AnimatePresence exit gating) so switching tickers
+            // fades the new view straight in instead of leaving a blank frame
+            // while the old one animates out.
+            <m.div
+              key={symbol}
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+            >
+              <ResearchView
+                symbol={symbol}
+                range={range}
+                onRange={setRange}
+                holding={holding}
+                portfolioIncome={portfolioIncome}
+              />
+            </m.div>
+          ) : (
+            <Card className="px-8 py-12 text-center">
+              <h2 className="font-display text-lg font-semibold text-ink">
+                Search any ticker to begin
+              </h2>
+              <p className="mx-auto mt-2 max-w-md text-[13px] leading-relaxed text-mute">
+                Type a symbol or company name above, or pick from the rail. No
+                portfolio required — research works for any security, with live
+                market data when available.
+              </p>
+            </Card>
+          )}
+        </div>
+      </div>
     </div>
+  );
+}
+
+/** The star toggle for the current ticker — add/remove from the watchlist. */
+function WatchStar({ symbol }: { symbol: string }) {
+  const { has, toggle } = useWatchlist();
+  const on = has(symbol);
+  return (
+    <button
+      onClick={() => toggle(symbol)}
+      title={on ? "Remove from watchlist" : "Add to watchlist"}
+      aria-label={on ? "Remove from watchlist" : "Add to watchlist"}
+      aria-pressed={on}
+      className="btn-ghost"
+    >
+      <svg
+        width="15"
+        height="15"
+        viewBox="0 0 20 20"
+        fill={on ? "var(--color-warn)" : "none"}
+        stroke={on ? "var(--color-warn)" : "currentColor"}
+        strokeWidth="1.5"
+        strokeLinejoin="round"
+      >
+        <path d="M10 2.6l2.35 4.76 5.25.77-3.8 3.7.9 5.22L10 14.9l-4.7 2.47.9-5.22-3.8-3.7 5.25-.77z" />
+      </svg>
+    </button>
+  );
+}
+
+/**
+ * The left terminal rail: your holdings and watchlist as a scannable list,
+ * j/k to move between them, the active ticker lit. Replaces the quick-pick
+ * chips on desktop; the security — not the search box — anchors the page.
+ */
+function ResearchRail({
+  className = "",
+  holdings,
+  watchlist,
+  active,
+  onSelect,
+}: {
+  className?: string;
+  holdings: Position[];
+  watchlist: string[];
+  active: string | null;
+  onSelect: (s: string) => void;
+}) {
+  const bySymbol = new Map(holdings.map((p) => [p.symbol, p]));
+  const held = holdings.map((p) => p.symbol);
+  const heldSet = new Set(held);
+  const watchOnly = watchlist.filter((s) => !heldSet.has(s));
+  const hasBook = held.length > 0;
+  const primary = hasBook ? held : STARTER_TICKERS;
+
+  const Row = (s: string) => {
+    const p = bySymbol.get(s);
+    const isActive = s === active;
+    return (
+      <button
+        key={s}
+        onClick={() => onSelect(s)}
+        className={`group flex w-full items-center gap-2 rounded-lg py-1.5 pl-1.5 pr-2.5 text-left transition-colors ${
+          isActive ? "bg-mint/[0.08]" : "hover:bg-white/[0.04]"
+        }`}
+      >
+        <span
+          aria-hidden
+          className={`h-7 w-[2px] shrink-0 rounded-full ${isActive ? "bg-mint" : "bg-transparent"}`}
+        />
+        <span
+          className={`min-w-0 flex-1 truncate font-mono text-[12.5px] font-medium ${
+            isActive ? "text-mint" : "text-ink"
+          }`}
+        >
+          {s}
+        </span>
+        {p ? (
+          <span className={`font-mono tnum text-[11px] ${deltaToneClass(p.returnPct)}`}>
+            {fmtPct(p.returnPct, 1, true)}
+          </span>
+        ) : (
+          <span className="font-mono text-[10px] uppercase tracking-wide text-faint">
+            watch
+          </span>
+        )}
+      </button>
+    );
+  };
+
+  return (
+    <aside className={`${className} h-fit lg:sticky lg:top-16`}>
+      <div className="panel overflow-hidden">
+        <div className="max-h-[68vh] overflow-y-auto p-1.5">
+          <div className="eyebrow px-2 pb-1 pt-1.5">
+            {hasBook ? "Your holdings" : "Popular"}
+          </div>
+          {primary.map(Row)}
+          {watchOnly.length > 0 && (
+            <>
+              <div className="eyebrow px-2 pb-1 pt-3">Watchlist</div>
+              {watchOnly.map(Row)}
+            </>
+          )}
+        </div>
+        <div className="flex items-center gap-1.5 border-t border-edge px-3 py-2 text-[10px] text-faint">
+          <span className="kbd">j</span>
+          <span className="kbd">k</span>
+          <span>to move</span>
+        </div>
+      </div>
+    </aside>
   );
 }
 
@@ -288,6 +448,7 @@ function ResearchView({
                 <span className="rounded-md border border-edge bg-void/50 px-2 py-0.5 font-mono text-[11px] text-mute">
                   {symbol}
                 </span>
+                <WatchStar symbol={symbol} />
               </div>
               <div className="mt-1 text-[12px] text-faint">
                 {f.sector}

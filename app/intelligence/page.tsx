@@ -164,9 +164,7 @@ function BriefCard({ portfolio }: { portfolio: Portfolio }) {
             <h3 className="font-display text-[17px] font-semibold leading-snug text-ink">
               {state.data.brief.headline}
             </h3>
-            <p className="mt-2 max-w-3xl text-[13px] leading-relaxed text-mute">
-              {state.data.brief.summary}
-            </p>
+            <p className="ai-prose mt-2">{state.data.brief.summary}</p>
           </RevealItem>
 
           {state.data.brief.positioning && (

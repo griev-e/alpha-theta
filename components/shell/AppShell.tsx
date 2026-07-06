@@ -18,7 +18,8 @@ import { ThetaProvider } from "@/lib/theta/store";
 import { ThetaAssumptionsProvider } from "@/lib/theta/assumptionsStore";
 import { AppTitle, Sigil, SignOutButton } from "./brand";
 import { PortfolioSwitcher } from "./PortfolioSwitcher";
-import { MobileNavStrip, SidebarNav } from "./SidebarNav";
+import { MobileNavStrip, SidebarNav, SidebarCollapseButton } from "./SidebarNav";
+import { PATCH_NOTES } from "@/lib/data/patchNotes";
 import { ThetaShell } from "./ThetaShell";
 import {
   IconBenchmark,
@@ -161,6 +162,33 @@ export function AppShell({ children }: { children: ReactNode }) {
   const sidebar = useSidebarWidth("alpha.sidebarWidth.v1");
   const firstView = useRouteFirstView(pathname);
 
+  // A quiet dot on the Patch Notes row until the newest entry has been seen.
+  const [unseenPatch, setUnseenPatch] = useState(false);
+  useEffect(() => {
+    try {
+      setUnseenPatch(localStorage.getItem("alpha.patchSeen.v1") !== PATCH_NOTES[0]?.version);
+    } catch {
+      /* private mode — just don't badge */
+    }
+  }, []);
+  useEffect(() => {
+    if (pathname !== "/patch-notes") return;
+    try {
+      localStorage.setItem("alpha.patchSeen.v1", PATCH_NOTES[0]?.version ?? "");
+    } catch {
+      /* private mode */
+    }
+    setUnseenPatch(false);
+  }, [pathname]);
+
+  const navItems = useMemo(
+    () =>
+      NAV.map((n) =>
+        n.href === "/patch-notes" ? { ...n, dot: unseenPatch } : n
+      ),
+    [unseenPatch]
+  );
+
   // Commands for the ⌘K palette: every nav route, a few global actions, and one
   // switch row per saved portfolio.
   const commands = useMemo<Command[]>(() => {
@@ -270,48 +298,78 @@ export function AppShell({ children }: { children: ReactNode }) {
         style={{ width: sidebar.width }}
       >
         <div className="px-3 pb-3 pt-4">
-          <div className="flex items-center gap-2.5 px-1">
-            <Link href="/" className="flex items-center gap-2.5">
-              <Sigil size={24} />
-              <AppTitle active="alpha" />
-            </Link>
-            {isDemo && (
-              <span className="rounded-full border border-warn/30 bg-warn/10 px-2 py-0.5 text-[10px] font-medium text-warn">
-                Demo
-              </span>
-            )}
-            <SignOutButton className="ml-auto" />
-          </div>
+          {sidebar.collapsed ? (
+            <div className="flex flex-col items-center gap-3">
+              <Link href="/" aria-label="alpha home">
+                <Sigil size={24} />
+              </Link>
+              <SidebarCollapseButton collapsed onClick={sidebar.toggleCollapsed} />
+            </div>
+          ) : (
+            <div className="flex items-center gap-2.5 px-1">
+              <Link href="/" className="flex items-center gap-2.5">
+                {/* A gentle breath on the mark each time the live feed ticks —
+                    the brand acknowledging the heartbeat. */}
+                <m.span
+                  key={live.quotesAt ?? "idle"}
+                  initial={{ opacity: 0.55 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.7, ease: "easeOut" }}
+                >
+                  <Sigil size={24} />
+                </m.span>
+                <AppTitle active="alpha" />
+              </Link>
+              {isDemo && (
+                <span className="rounded-full border border-warn/30 bg-warn/10 px-2 py-0.5 text-[10px] font-medium text-warn">
+                  Demo
+                </span>
+              )}
+              <div className="ml-auto flex items-center gap-0.5">
+                <SignOutButton />
+                <SidebarCollapseButton collapsed={false} onClick={sidebar.toggleCollapsed} />
+              </div>
+            </div>
+          )}
         </div>
 
-        <PortfolioSwitcher />
+        {!sidebar.collapsed && <PortfolioSwitcher />}
 
-        <SidebarNav items={NAV} groups={GROUPS} accent="var(--color-accent)" layoutId="nav-active" />
+        <SidebarNav
+          items={navItems}
+          groups={GROUPS}
+          accent="var(--color-accent)"
+          layoutId="nav-active"
+          collapsed={sidebar.collapsed}
+        />
 
         {/* Drag handle — adjusts sidebar width, persisted in localStorage.
             Also a keyboard/touch-friendly control: arrow keys nudge the width,
-            Home or a double-click resets it, so resizing isn't mouse-only. */}
-        <div
-          role="separator"
-          aria-orientation="vertical"
-          aria-label="Resize sidebar"
-          aria-valuenow={sidebar.width}
-          aria-valuemin={sidebar.min}
-          aria-valuemax={sidebar.max}
-          tabIndex={0}
-          onMouseDown={sidebar.onMouseDown}
-          onDoubleClick={sidebar.onDoubleClick}
-          onKeyDown={sidebar.onKeyDown}
-          className={`group/handle absolute right-0 top-0 z-10 flex h-full w-1.5 -translate-x-1/2 cursor-col-resize items-center justify-center ${
-            sidebar.dragging ? "bg-white/15" : "hover:bg-white/10"
-          }`}
-        >
-          <span
-            className={`h-8 w-[3px] rounded-full bg-white/25 transition-opacity ${
-              sidebar.dragging ? "opacity-100" : "opacity-0 group-hover/handle:opacity-100"
+            Home or a double-click resets it, so resizing isn't mouse-only.
+            Hidden while collapsed — the icon rail is a fixed width. */}
+        {!sidebar.collapsed && (
+          <div
+            role="separator"
+            aria-orientation="vertical"
+            aria-label="Resize sidebar"
+            aria-valuenow={sidebar.width}
+            aria-valuemin={sidebar.min}
+            aria-valuemax={sidebar.max}
+            tabIndex={0}
+            onMouseDown={sidebar.onMouseDown}
+            onDoubleClick={sidebar.onDoubleClick}
+            onKeyDown={sidebar.onKeyDown}
+            className={`group/handle absolute right-0 top-0 z-10 flex h-full w-1.5 -translate-x-1/2 cursor-col-resize items-center justify-center ${
+              sidebar.dragging ? "bg-white/15" : "hover:bg-white/10"
             }`}
-          />
-        </div>
+          >
+            <span
+              className={`h-8 w-[3px] rounded-full bg-white/25 transition-opacity ${
+                sidebar.dragging ? "opacity-100" : "opacity-0 group-hover/handle:opacity-100"
+              }`}
+            />
+          </div>
+        )}
       </aside>
 
       <div className="relative z-10 min-w-0 flex-1">

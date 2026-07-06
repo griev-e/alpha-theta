@@ -104,6 +104,10 @@ export default function OverviewPage() {
       label: p.symbol,
       value: p.equity,
       color: PALETTE[i % PALETTE.length],
+      delta:
+        p.dayChange !== null && p.equity - p.dayChange > 0
+          ? p.dayChange / (p.equity - p.dayChange)
+          : undefined,
     })),
     ...(portfolio.cash > 0
       ? [

@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 import { AnimatedNumber } from "./AnimatedNumber";
 import { Tooltip } from "./Tooltip";
+import { useToast } from "./Toast";
 
 export function Stat({
   label,
@@ -28,6 +29,16 @@ export function Stat({
       : size === "md"
         ? "text-[21px]"
         : "text-[16px]";
+  const toast = useToast();
+  // Click the figure to copy what's shown — analyst muscle memory. Reads the
+  // formatted string (what the eye sees), not a raw fraction.
+  const copy = () => {
+    const text = format(value);
+    navigator.clipboard?.writeText(text).then(
+      () => toast(`Copied ${text}`),
+      () => {}
+    );
+  };
   return (
     <div>
       {tip ? (
@@ -37,9 +48,14 @@ export function Stat({
       ) : (
         <div className="eyebrow">{label}</div>
       )}
-      <div className={`font-mono tnum ${sizeClass} font-medium ${toneClass} mt-1 leading-tight`}>
+      <button
+        type="button"
+        onClick={copy}
+        title="Click to copy"
+        className={`group/stat block cursor-copy text-left font-mono tnum ${sizeClass} font-medium ${toneClass} mt-1 leading-tight`}
+      >
         <AnimatedNumber value={value} format={format} />
-      </div>
+      </button>
       {sub && <div className="mt-1 text-[12px] text-mute">{sub}</div>}
     </div>
   );

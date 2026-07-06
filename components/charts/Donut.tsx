@@ -9,6 +9,9 @@ export interface DonutSlice {
   label: string;
   value: number;
   color: string;
+  /** Optional day-change (fraction) shown in the hover center readout — turns
+   *  the donut from a static split into a glance at what's moving. */
+  delta?: number;
 }
 
 /** Animated donut with center readout that follows hover. */
@@ -93,6 +96,15 @@ export function Donut({
               {hover && total > 0 && (
                 <div className="mt-0.5 font-mono text-[12px] text-mute">
                   {fmtPct(hover.value / total, 1)}
+                </div>
+              )}
+              {hover && hover.delta !== undefined && (
+                <div
+                  className={`mt-0.5 font-mono tnum text-[11px] ${
+                    hover.delta >= 0 ? "text-pos" : "text-neg"
+                  }`}
+                >
+                  {fmtPct(hover.delta, 2, true)} today
                 </div>
               )}
             </m.div>

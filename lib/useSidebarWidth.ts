@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 const MIN_WIDTH = 180;
 const MAX_WIDTH = 420;
 const DEFAULT_WIDTH = 240;
+const COLLAPSED_WIDTH = 60;
 const KEY_STEP = 16;
 
 /**
@@ -16,18 +17,51 @@ const KEY_STEP = 16;
  */
 export function useSidebarWidth(storageKey: string) {
   const [width, setWidth] = useState(DEFAULT_WIDTH);
+  const [collapsed, setCollapsed] = useState(false);
   const [dragging, setDragging] = useState(false);
   const startX = useRef(0);
   const startWidth = useRef(DEFAULT_WIDTH);
+  const collapsedKey = `${storageKey}.collapsed`;
 
   useEffect(() => {
     try {
       const saved = Number(localStorage.getItem(storageKey));
       if (saved && saved >= MIN_WIDTH && saved <= MAX_WIDTH) setWidth(saved);
+      setCollapsed(localStorage.getItem(collapsedKey) === "1");
     } catch {
       /* private mode — fall back to the default width */
     }
-  }, [storageKey]);
+  }, [storageKey, collapsedKey]);
+
+  const toggleCollapsed = useCallback(() => {
+    setCollapsed((c) => {
+      const next = !c;
+      try {
+        localStorage.setItem(collapsedKey, next ? "1" : "0");
+      } catch {
+        /* private mode — collapse state just won't persist */
+      }
+      return next;
+    });
+  }, [collapsedKey]);
+
+  // `[` toggles the rail (Linear-style), ignored while typing in a field.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (
+        e.key === "[" &&
+        !e.metaKey &&
+        !e.ctrlKey &&
+        !(e.target instanceof HTMLInputElement) &&
+        !(e.target instanceof HTMLTextAreaElement)
+      ) {
+        e.preventDefault();
+        toggleCollapsed();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [toggleCollapsed]);
 
   useEffect(() => {
     if (!dragging) return;
@@ -104,7 +138,11 @@ export function useSidebarWidth(storageKey: string) {
   );
 
   return {
-    width,
+    // The width the shell should actually apply — the collapsed rail wins over
+    // the user's dragged width while collapsed.
+    width: collapsed ? COLLAPSED_WIDTH : width,
+    collapsed,
+    toggleCollapsed,
     dragging,
     onMouseDown,
     onDoubleClick,

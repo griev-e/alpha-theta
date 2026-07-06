@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AddGoalModal, ContributeModal } from "@/components/theta/modals";
 import { ActionButton, ThetaEmpty, IconButton, PlusIcon, TrashIcon } from "@/components/theta/ui";
 import { Card, CardHeader } from "@/components/ui/Card";
@@ -121,8 +121,24 @@ function GoalCard({
   const targetLabel = new Date(`${g.targetDate}T00:00:00`).toLocaleDateString("en-US", { month: "short", year: "numeric" });
   const status = STATUS_META[f.status];
 
+  // Fire the mint bloom exactly once, the first render a goal reads as funded.
+  const [celebrate, setCelebrate] = useState(false);
+  useEffect(() => {
+    if (f.status !== "funded") return;
+    const key = `theta.goalCelebrated.${g.id}`;
+    try {
+      if (localStorage.getItem(key)) return;
+      localStorage.setItem(key, "1");
+    } catch {
+      return;
+    }
+    setCelebrate(true);
+    const t = setTimeout(() => setCelebrate(false), 950);
+    return () => clearTimeout(t);
+  }, [f.status, g.id]);
+
   return (
-    <Card className="group px-5 py-5" i={i + 1}>
+    <Card className={`group px-5 py-5 ${celebrate ? "goal-shimmer" : ""}`} i={i + 1}>
       <CardHeader
         eyebrow={`Target ${targetLabel}`}
         title={g.name}

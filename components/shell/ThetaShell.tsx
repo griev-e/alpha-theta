@@ -14,7 +14,7 @@ import { useSimplefinAutoSync } from "@/lib/theta/useSimplefinAutoSync";
 import { useSidebarWidth } from "@/lib/useSidebarWidth";
 import { AppTitle, Mark, SignOutButton } from "./brand";
 import { IconImport, IconIntelligence } from "./icons";
-import { MobileNavStrip, SidebarNav } from "./SidebarNav";
+import { MobileNavStrip, SidebarNav, SidebarCollapseButton } from "./SidebarNav";
 import {
   IconAccounts,
   IconBudgets,
@@ -113,41 +113,62 @@ export function ThetaShell({ children }: { children: ReactNode }) {
         style={{ width: sidebar.width }}
       >
         <div className="px-3 pb-3 pt-4">
-          <div className="flex items-center gap-2.5 px-1">
-            <Link href="/theta" className="flex items-center gap-2.5">
-              <Mark kind="theta" size={24} />
-              <AppTitle active="theta" />
-            </Link>
-            <SignOutButton className="ml-auto" />
-          </div>
+          {sidebar.collapsed ? (
+            <div className="flex flex-col items-center gap-3">
+              <Link href="/theta" aria-label="theta home">
+                <Mark kind="theta" size={24} />
+              </Link>
+              <SidebarCollapseButton collapsed onClick={sidebar.toggleCollapsed} />
+            </div>
+          ) : (
+            <div className="flex items-center gap-2.5 px-1">
+              <Link href="/theta" className="flex items-center gap-2.5">
+                <Mark kind="theta" size={24} />
+                <AppTitle active="theta" />
+              </Link>
+              <div className="ml-auto flex items-center gap-0.5">
+                <SignOutButton />
+                <SidebarCollapseButton collapsed={false} onClick={sidebar.toggleCollapsed} />
+              </div>
+            </div>
+          )}
         </div>
 
-        <SidebarNav items={NAV} groups={GROUPS} accent="var(--color-vio)" layoutId="theta-nav-active" />
+        <SidebarNav
+          items={NAV}
+          groups={GROUPS}
+          accent="var(--color-vio)"
+          layoutId="theta-nav-active"
+          collapsed={sidebar.collapsed}
+        />
 
         {/* Drag handle — adjusts sidebar width, persisted in localStorage.
             Also a keyboard/touch-friendly control: arrow keys nudge the width,
-            Home or a double-click resets it, so resizing isn't mouse-only. */}
-        <div
-          role="separator"
-          aria-orientation="vertical"
-          aria-label="Resize sidebar"
-          aria-valuenow={sidebar.width}
-          aria-valuemin={sidebar.min}
-          aria-valuemax={sidebar.max}
-          tabIndex={0}
-          onMouseDown={sidebar.onMouseDown}
-          onDoubleClick={sidebar.onDoubleClick}
-          onKeyDown={sidebar.onKeyDown}
-          className={`group/handle absolute right-0 top-0 z-10 flex h-full w-1.5 -translate-x-1/2 cursor-col-resize items-center justify-center ${
-            sidebar.dragging ? "bg-white/15" : "hover:bg-white/10"
-          }`}
-        >
-          <span
-            className={`h-8 w-[3px] rounded-full bg-white/25 transition-opacity ${
-              sidebar.dragging ? "opacity-100" : "opacity-0 group-hover/handle:opacity-100"
+            Home or a double-click resets it, so resizing isn't mouse-only.
+            Hidden while collapsed — the icon rail is a fixed width. */}
+        {!sidebar.collapsed && (
+          <div
+            role="separator"
+            aria-orientation="vertical"
+            aria-label="Resize sidebar"
+            aria-valuenow={sidebar.width}
+            aria-valuemin={sidebar.min}
+            aria-valuemax={sidebar.max}
+            tabIndex={0}
+            onMouseDown={sidebar.onMouseDown}
+            onDoubleClick={sidebar.onDoubleClick}
+            onKeyDown={sidebar.onKeyDown}
+            className={`group/handle absolute right-0 top-0 z-10 flex h-full w-1.5 -translate-x-1/2 cursor-col-resize items-center justify-center ${
+              sidebar.dragging ? "bg-white/15" : "hover:bg-white/10"
             }`}
-          />
-        </div>
+          >
+            <span
+              className={`h-8 w-[3px] rounded-full bg-white/25 transition-opacity ${
+                sidebar.dragging ? "opacity-100" : "opacity-0 group-hover/handle:opacity-100"
+              }`}
+            />
+          </div>
+        )}
       </aside>
 
       <div className="relative z-10 min-w-0 flex-1">
