@@ -11,6 +11,7 @@ import { CommandPalette, type Command } from "./CommandPalette";
 import { KeyboardMap } from "./KeyboardMap";
 import { FirstViewProvider, useRouteFirstView } from "@/lib/firstView";
 import { useTheta } from "@/lib/theta/store";
+import { detectRecurring, newSubscriptions, normalizeMerchant } from "@/lib/theta/detect";
 import { useSimplefinAutoSync } from "@/lib/theta/useSimplefinAutoSync";
 import { useSidebarWidth } from "@/lib/useSidebarWidth";
 import { SampleDataTag } from "@/components/ui/SampleDataTag";
@@ -60,9 +61,30 @@ function DemoTag({ className = "" }: { className?: string }) {
 
 export function ThetaShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
-  const { isSample, ready } = useTheta();
+  const { isSample, ready, ledger } = useTheta();
   useSimplefinAutoSync();
   const current = NAV.find((n) => n.href === pathname);
+
+  // A quiet dot on the Recurring nav row when the ledger has auto-detected a
+  // subscription it doesn't yet track (§37), mirroring alpha's patch-notes dot.
+  // Suppressed while you're on the page — you're already looking at it.
+  const hasNewSubs = useMemo(() => {
+    if (!ledger) return false;
+    const dismissed = new Set(ledger.dismissedRecurring ?? []);
+    return newSubscriptions(
+      detectRecurring(ledger.transactions),
+      ledger.recurring
+    ).some((d) => !dismissed.has(normalizeMerchant(d.merchant)));
+  }, [ledger]);
+  const navItems = useMemo(
+    () =>
+      NAV.map((n) =>
+        n.href === "/theta/recurring"
+          ? { ...n, dot: hasNewSubs && pathname !== "/theta/recurring" }
+          : n
+      ),
+    [hasNewSubs, pathname]
+  );
   const showSample = ready && isSample;
   const sidebar = useSidebarWidth("theta.sidebarWidth.v1");
   const firstView = useRouteFirstView(pathname);
@@ -133,7 +155,7 @@ export function ThetaShell({ children }: { children: ReactNode }) {
         </div>
 
         <SidebarNav
-          items={NAV}
+          items={navItems}
           groups={GROUPS}
           accent="var(--color-vio)"
           layoutId="theta-nav-active"
@@ -199,7 +221,7 @@ export function ThetaShell({ children }: { children: ReactNode }) {
               <SignOutButton />
             </div>
           </div>
-          <MobileNavStrip items={NAV} />
+          <MobileNavStrip items={navItems} />
         </header>
 
         <main className="mx-auto w-full max-w-[1380px] min-w-0 px-4 py-6 sm:px-8 sm:py-8">
