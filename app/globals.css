@@ -195,6 +195,21 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
+/* AI-generated prose reads differently from chrome: a touch larger, looser
+   leading, and a comfortable measure — so a Claude brief feels like something
+   written, not another UI label. */
+.ai-prose {
+  font-size: 14px;
+  line-height: 1.65;
+  max-width: 62ch;
+  color: var(--color-mute);
+  text-wrap: pretty;
+}
+.ai-prose strong {
+  color: var(--color-ink);
+  font-weight: 600;
+}
+
 /* Quiet metadata label, Vercel-style: small, gray, sentence case. */
 .eyebrow {
   font-family: var(--font-sans);
