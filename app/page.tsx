@@ -34,7 +34,7 @@ import { usePortfolio } from "@/lib/store";
 import { useFirstView } from "@/lib/firstView";
 import { DeltaArrow } from "@/components/ui/DeltaArrow";
 import type { Position } from "@/lib/types";
-import { PageSkeleton } from "@/components/ui/Skeleton";
+import { TableSkeleton } from "@/components/ui/Skeleton";
 
 type SortKey = "equity" | "returnPct" | "weight" | "symbol" | "today";
 
@@ -80,7 +80,7 @@ export default function OverviewPage() {
     return arr;
   }, [portfolio, sortKey, asc]);
 
-  if (!ready) return <PageSkeleton />;
+  if (!ready) return <TableSkeleton />;
   if (!portfolio || !risk) return <EmptyState page="The overview" />;
 
   // Bar scales for the holdings table, computed once instead of per row.

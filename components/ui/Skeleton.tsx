@@ -49,3 +49,56 @@ export function PageSkeleton({
     </div>
   );
 }
+
+/**
+ * A table-first page ghost: header + a card of ghost rows, for pages whose
+ * primary content is a long list (the Overview holdings table, theta's
+ * Transactions log) rather than a card grid. Rows fade toward the bottom so the
+ * placeholder recedes like a real scroll list instead of reading as a solid slab.
+ */
+export function TableSkeleton({
+  rows = 8,
+  cols = 3,
+}: {
+  /** Number of ghost body rows. */
+  rows?: number;
+  /** Trailing numeric columns per row. */
+  cols?: number;
+}) {
+  return (
+    <div aria-hidden="true">
+      <div className="mb-6">
+        <SkeletonBlock className="h-3 w-20" />
+        <SkeletonBlock className="mt-2 h-6 w-40" />
+      </div>
+      <div className="panel px-5 py-4">
+        <div className="flex items-center gap-4 border-b border-edge pb-3">
+          <SkeletonBlock className="h-3 w-28" />
+          <div className="ml-auto flex gap-8">
+            {Array.from({ length: cols }).map((_, i) => (
+              <SkeletonBlock key={i} className="h-3 w-12" />
+            ))}
+          </div>
+        </div>
+        {Array.from({ length: rows }).map((_, r) => (
+          <div
+            key={r}
+            className="flex items-center gap-4 py-3.5"
+            style={{ opacity: Math.max(0.25, 1 - r * 0.08) }}
+          >
+            <SkeletonBlock className="h-8 w-8 shrink-0 rounded-full" />
+            <div className="min-w-0">
+              <SkeletonBlock className="h-3.5 w-24" />
+              <SkeletonBlock className="mt-1.5 h-2.5 w-16" />
+            </div>
+            <div className="ml-auto flex items-center gap-8">
+              {Array.from({ length: cols }).map((_, i) => (
+                <SkeletonBlock key={i} className="h-3.5 w-12" />
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}

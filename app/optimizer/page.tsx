@@ -7,6 +7,7 @@ import { AxisY } from "@/components/charts/Axis";
 import { AiThinking } from "@/components/ui/AiThinking";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { AiDisabledCard, EnvKey } from "@/components/ui/AiDisabledCard";
+import { RangeSlider } from "@/components/ui/RangeSlider";
 import { Computing } from "@/components/ui/Computing";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -306,14 +307,13 @@ function ConstraintsCard({
               {fmtPct(maxWeight, 0)}
             </span>
           </div>
-          <input
-            type="range"
+          <RangeSlider
             min={0.05}
             max={1}
             step={0.05}
             value={maxWeight}
-            onChange={(e) => setMaxWeight(Number(e.target.value))}
-            className="w-full"
+            onChange={setMaxWeight}
+            format={(v) => fmtPct(v, 0)}
           />
           <p className="mt-1.5 text-[11px] leading-snug text-faint">
             No single holding exceeds this weight of the invested book. Floor is{" "}
@@ -361,15 +361,14 @@ function ConstraintsCard({
                 {fmtPct(minWeight, 1)}
               </span>
             </div>
-            <input
-              type="range"
+            <RangeSlider
               min={0.005}
               max={0.05}
               step={0.005}
               value={minWeight}
               disabled={allowExit}
-              onChange={(e) => setMinWeight(Number(e.target.value))}
-              className="w-full"
+              onChange={setMinWeight}
+              format={(v) => fmtPct(v, 1)}
             />
             <p className="mt-1.5 text-[11px] leading-snug text-faint">
               Smallest weight a holding you already own can be trimmed to before

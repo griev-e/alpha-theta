@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { AnimatePresence, m } from "framer-motion";
 import { Card, CardHeader } from "@/components/ui/Card";
+import { RangeSlider } from "@/components/ui/RangeSlider";
 import { Computing } from "@/components/ui/Computing";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ModelBadge } from "@/components/ui/ModelBadge";
@@ -227,18 +228,17 @@ export default function ScenariosPage() {
                     {magnitude}%
                   </span>
                 </div>
-                <input
-                  type="range"
+                <RangeSlider
                   min={-60}
                   max={40}
                   step={1}
                   value={magnitude}
-                  onChange={(e) => {
-                    setMagnitude(Number(e.target.value));
+                  onChange={(v) => {
+                    setMagnitude(v);
                     setActivePreset(null);
                     setCustomActive(true);
                   }}
-                  className="w-full"
+                  format={(v) => `${v > 0 ? "+" : ""}${v}%`}
                 />
               </div>
             ) : (
@@ -252,18 +252,17 @@ export default function ScenariosPage() {
                     {(rateMove * 100).toFixed(0)}bp
                   </span>
                 </div>
-                <input
-                  type="range"
+                <RangeSlider
                   min={-2}
                   max={3}
                   step={0.25}
                   value={rateMove}
-                  onChange={(e) => {
-                    setRateMove(Number(e.target.value));
+                  onChange={(v) => {
+                    setRateMove(v);
                     setActivePreset(null);
                     setCustomActive(true);
                   }}
-                  className="w-full"
+                  format={(v) => `${v > 0 ? "+" : ""}${(v * 100).toFixed(0)}bp`}
                 />
               </div>
             )}

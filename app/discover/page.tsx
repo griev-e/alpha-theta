@@ -501,7 +501,7 @@ function IdeaCard({ idea, i, price }: { idea: DiscoverIdea; i: number; price?: n
       initial={{ opacity: 0, y: 14 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.08 + i * 0.07, duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
-      className="flex flex-col tile p-4 transition-transform duration-300 hover:-translate-y-0.5 sm:p-5"
+      className="panel-link flex flex-col tile p-4 transition-transform duration-300 hover:-translate-y-0.5 sm:p-5"
       style={{ borderTop: `2px solid ${conv}` }}
     >
       <div className="flex items-start justify-between gap-3">
