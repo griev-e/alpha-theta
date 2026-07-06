@@ -48,12 +48,17 @@ export function AxisX({
   );
 }
 
-/** Vertical axis: a gridline per tick plus a right-anchored label. */
+/**
+ * Vertical axis: a gridline per tick plus a value label. Labels sit to the left
+ * of the grid by default; pass `labelSide="right"` for charts that keep their
+ * scale on the right (e.g. the projection fan).
+ */
 export function AxisY({
   ticks,
   gridFrom,
   gridTo,
   labelX,
+  labelSide = "left",
   fontSize = 10,
   gridOpacityPct = 8,
   color = "var(--color-faint)",
@@ -62,14 +67,17 @@ export function AxisY({
   /** Gridline x extent. */
   gridFrom: number;
   gridTo: number;
-  /** X for the label (defaults just left of the gridline start). */
+  /** X for the label (defaults just outside the grid on the chosen side). */
   labelX?: number;
+  /** Which side the labels sit on. */
+  labelSide?: "left" | "right";
   fontSize?: number;
   /** Track-color gridline opacity, as a whole-number percent. */
   gridOpacityPct?: number;
   color?: string;
 }) {
-  const lx = labelX ?? gridFrom - 8;
+  const right = labelSide === "right";
+  const lx = labelX ?? (right ? gridTo + 6 : gridFrom - 8);
   return (
     <g>
       {ticks.map((t, i) => (
@@ -85,7 +93,7 @@ export function AxisY({
             <text
               x={lx}
               y={t.pos + 3}
-              textAnchor="end"
+              textAnchor={right ? "start" : "end"}
               fill={color}
               className="font-mono"
               style={{ fontSize }}

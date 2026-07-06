@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import { useElementWidth } from "@/lib/useElementWidth";
 import { fmtUSDCompact } from "@/lib/format";
+import { AxisX, AxisY } from "@/components/charts/Axis";
 import type { ProjectionBand } from "@/lib/theta/project";
 
 /**
@@ -61,18 +62,16 @@ export function ProjectionFan({
   return (
     <div ref={wrapRef} className="w-full">
       <svg width={W} height={H} className="overflow-visible">
-        {/* horizontal gridlines */}
-        {[0.25, 0.5, 0.75, 1].map((f) => {
-          const v = minY + (maxY - minY) * f;
-          return (
-            <g key={f}>
-              <line x1={PAD.l} x2={W - PAD.r} y1={y(v)} y2={y(v)} stroke="currentColor" className="text-edge" strokeWidth="1" />
-              <text x={W - PAD.r + 6} y={y(v) + 3} className="fill-faint text-[10px] font-mono">
-                {fmtUSDCompact(v)}
-              </text>
-            </g>
-          );
-        })}
+        {/* horizontal gridlines + value scale (shared Axis primitive, §62) */}
+        <AxisY
+          ticks={[0.25, 0.5, 0.75, 1].map((f) => {
+            const v = minY + (maxY - minY) * f;
+            return { pos: y(v), label: fmtUSDCompact(v) };
+          })}
+          gridFrom={PAD.l}
+          gridTo={W - PAD.r}
+          labelSide="right"
+        />
 
         {/* sample paths backdrop */}
         {samplePaths.slice(0, 16).map((path, i) => (
@@ -99,12 +98,14 @@ export function ProjectionFan({
           </g>
         ) : null}
 
-        {/* x-axis year labels */}
-        {yearTicks.map((m) => (
-          <text key={m} x={x(m)} y={H - 8} className="fill-faint text-[10px] font-mono" textAnchor="middle">
-            {m === 0 ? "now" : `${Math.round(m / 12)}y`}
-          </text>
-        ))}
+        {/* x-axis year labels (shared Axis primitive, §62) */}
+        <AxisX
+          ticks={yearTicks.map((m) => ({
+            pos: x(m),
+            label: m === 0 ? "now" : `${Math.round(m / 12)}y`,
+          }))}
+          y={H - 8}
+        />
       </svg>
     </div>
   );
