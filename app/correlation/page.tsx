@@ -1,13 +1,14 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Heatmap } from "@/components/charts/Heatmap";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { Segmented } from "@/components/ui/Segmented";
 import { Stat } from "@/components/ui/Stat";
-import { correlationMatrix } from "@/lib/analytics/correlation";
+import { correlationMatrix, seriate } from "@/lib/analytics/correlation";
 import { riskReport } from "@/lib/analytics/risk";
 import { liveBenchmarkProfiles } from "@/lib/live/cma";
 import { useAssumptions } from "@/lib/assumptions/store";
@@ -18,6 +19,11 @@ import { PageSkeleton } from "@/components/ui/Skeleton";
 export default function CorrelationPage() {
   const { ready, portfolio } = usePortfolio();
   const { version } = useAssumptions();
+  // Clustered by default — the whole point of seriation is that structure
+  // (a mega-cap tech cluster, a diversifying pocket) should be the first
+  // thing the matrix shows, not something the reader has to find in book
+  // order. Book order stays one click away for "where's my ticker."
+  const [order, setOrder] = useState<"clustered" | "book">("clustered");
 
   const data = useMemo(() => {
     if (!portfolio) return null;
@@ -33,6 +39,7 @@ export default function CorrelationPage() {
   if (!portfolio || !data) return <EmptyState page="The correlation matrix" />;
 
   const { corr, risk } = data;
+  const shown = order === "clustered" ? seriate(corr) : corr;
 
   const wAvgRho = corr.weightedAvgCorrelation;
   const verdict =
@@ -105,10 +112,25 @@ export default function CorrelationPage() {
         <CardHeader
           eyebrow="Pairwise estimates"
           title="Which holdings move together"
+          right={
+            <Segmented
+              value={order}
+              onChange={setOrder}
+              options={[
+                { value: "clustered", label: "Clustered" },
+                { value: "book", label: "Book order" },
+              ]}
+            />
+          }
           className="mb-5"
         />
+        <p className="mb-4 -mt-2 text-[11.5px] leading-relaxed text-faint">
+          {order === "clustered"
+            ? "Ordered by similarity — correlated names are grouped into adjacent blocks so the book's structure emerges visually."
+            : "Ordered as imported."}
+        </p>
         <ErrorBoundary label="The correlation matrix">
-          <Heatmap symbols={corr.symbols} matrix={corr.matrix} />
+          <Heatmap key={order} symbols={shown.symbols} matrix={shown.matrix} />
         </ErrorBoundary>
       </Card>
     </div>

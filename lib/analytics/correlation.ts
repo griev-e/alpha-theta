@@ -285,3 +285,78 @@ export function correlationMatrix(portfolio: Portfolio): CorrelationMatrix {
 export function covarianceMatrix(portfolio: Portfolio): number[][] {
   return estimatedCovariance(coveredPositions(portfolio).map(corrInputs));
 }
+
+/**
+ * Seriation — reorders a correlation matrix so that correlated names sit next
+ * to each other instead of in import (book) order, so the heatmap's own
+ * structure (a cluster of coupled mega-caps, a diversifying pocket of bonds)
+ * emerges visually instead of being scattered across the diagonal.
+ *
+ * Average-linkage (UPGMA) agglomerative clustering on the distance 1 − ρ:
+ * repeatedly merge the two closest clusters, tracking each cluster's member
+ * order, until one cluster remains. The final member order is the seriated
+ * index permutation. This is the standard `hclust`-order heatmap seriation —
+ * not the (more expensive) optimal-leaf-ordering variant, but it reliably
+ * groups correlated blocks together, which is the visual goal. Pure math, no
+ * external dependency; O(n³), fine at portfolio scale (a few dozen names).
+ */
+export function seriationOrder(matrix: number[][]): number[] {
+  const n = matrix.length;
+  const identity = matrix.map((_, i) => i);
+  if (n <= 2) return identity;
+
+  const dist = matrix.map((row) =>
+    row.map((rho) => Math.max(0, 1 - rho))
+  );
+
+  let members: number[][] = identity.map((i) => [i]);
+  let clusterDist = dist.map((row) => row.slice());
+
+  while (members.length > 1) {
+    let a = 0;
+    let b = 1;
+    let best = Infinity;
+    for (let i = 0; i < members.length; i++) {
+      for (let j = i + 1; j < members.length; j++) {
+        if (clusterDist[i][j] < best) {
+          best = clusterDist[i][j];
+          a = i;
+          b = j;
+        }
+      }
+    }
+
+    const others = members.map((_, k) => k).filter((k) => k !== a && k !== b);
+    const sizeA = members[a].length;
+    const sizeB = members[b].length;
+    // Lance-Williams update for average linkage: the merged cluster's distance
+    // to every remaining cluster is the size-weighted mean of the two merged
+    // clusters' distances to it.
+    const mergedRow = others.map(
+      (k) => (sizeA * clusterDist[a][k] + sizeB * clusterDist[b][k]) / (sizeA + sizeB)
+    );
+
+    const nextDist: number[][] = others.map((oi) =>
+      others.map((oj) => clusterDist[oi][oj])
+    );
+    for (let i = 0; i < others.length; i++) nextDist[i].push(mergedRow[i]);
+    nextDist.push([...mergedRow, 0]);
+
+    members = [...others.map((k) => members[k]), [...members[a], ...members[b]]];
+    clusterDist = nextDist;
+  }
+
+  return members[0];
+}
+
+/** {@link CorrelationMatrix} with its rows/columns permuted to the seriated
+ *  order (see {@link seriationOrder}); the summary stats are order-independent
+ *  and pass through unchanged. */
+export function seriate(corr: CorrelationMatrix): CorrelationMatrix {
+  const order = seriationOrder(corr.matrix);
+  return {
+    ...corr,
+    symbols: order.map((i) => corr.symbols[i]),
+    matrix: order.map((i) => order.map((j) => corr.matrix[i][j])),
+  };
+}

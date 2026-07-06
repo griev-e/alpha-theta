@@ -34,6 +34,12 @@ Four PRs have landed against this catalogue, merged to `main`:
   the status center popover, and the `Legend`/`Axis` chart primitives
   (adopted in two consumers each; broader sweep still open — see §62/65
   below).
+- **Correlation heatmap seriation** (§55). Average-linkage (UPGMA)
+  hierarchical clustering on `1 − ρ`, reordering the matrix so correlated
+  blocks sit adjacent instead of scattered across book order — a
+  "Clustered / Book order" toggle on the Correlation page, clustered by
+  default. Pure math, no new dependency. `lib/analytics/correlation.ts`
+  (`seriationOrder`, `seriate`), `app/correlation/page.tsx`.
 
 Several other catalogue items turned out to already exist from the earlier
 `premium-roadmap.md` push (risk contribution list, rebalance diff bars, the
@@ -50,21 +56,18 @@ verified in the code rather than re-built.
 
 Ranked by (perceived-quality lift × fidelity to identity) ÷ effort:
 
-1. **Correlation heatmap seriation** (§55) — order symbols by cluster
-   similarity instead of book order so correlated blocks emerge visually.
-   Pure math, no deps, the single biggest "wow" left in Correlation.
-2. **The table system extraction** (§65–67, 70, 72) — one `Table.tsx` off
+1. **The table system extraction** (§65–67, 70, 72) — one `Table.tsx` off
    the Overview table's spec, propagated to Dividends, Rebalance, Quality,
    theta Transactions. The last big structural inconsistency in the app.
-3. **The first-import moment** (§119) — the one conducted performance the
+2. **The first-import moment** (§119) — the one conducted performance the
    product owes its user; every piece it needs already exists.
-4. **theta's net worth as a trajectory** (§90) — a stacked composition-over-
+3. **theta's net worth as a trajectory** (§90) — a stacked composition-over-
    time area chart with milestone flags, replacing a flat account list.
-5. **Treemap sector mode** (§59) — a Holdings/Sector toggle with animated
+4. **Treemap sector mode** (§59) — a Holdings/Sector toggle with animated
    regrouping.
-6. **Overview session ribbon** (§75) — today's best/worst movers + session
+5. **Overview session ribbon** (§75) — today's best/worst movers + session
    state, the connective tissue between the hero and the treemap.
-7. **Numeral craft finish** (§4, §7, §10) — the `<Money>` dimmed-symbol
+6. **Numeral craft finish** (§4, §7, §10) — the `<Money>` dimmed-symbol
    formatter is the one typography item from the original eight that never
    shipped.
 
@@ -199,9 +202,6 @@ Effort: **QW** = quick win (≤ half a day) · **M** = medium (1–3 days) ·
     `components/charts/Histogram.tsx`. **QW**
 54. **Sparkline hover readout.** theta's hero trend sparkline is mute on
     hover; add a crosshair + month/value chip via `ChartTooltip`. **QW**
-55. **Correlation heatmap seriation.** Order symbols by hierarchical-cluster
-    similarity instead of book order so correlated blocks emerge visually —
-    pure math, no deps. `lib/analytics/correlation.ts` + `Heatmap.tsx`. **A**
 56. **Heatmap cross-dim.** Hovering a cell dims other rows/columns and shows
     both tickers' logos in the tooltip. **QW**
 57. **Scatter benchmark reference point.** Quadrant labels shipped; add the
@@ -345,8 +345,8 @@ Effort: **QW** = quick win (≤ half a day) · **M** = medium (1–3 days) ·
 
 ## Sequencing
 
-1. **Correlation seriation + the table system** — the two highest-leverage
-   structural items left (§55, §65–67/70/72).
+1. **The table system** — the highest-leverage structural item left
+   (§65–67, 70, 72).
 2. **The first-import moment** (§119) — pure choreography over existing
    pieces, high emotional payoff, contained scope.
 3. **theta's net worth trajectory** (§90) + the remaining theta polish
