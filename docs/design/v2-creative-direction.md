@@ -126,21 +126,24 @@ verified in the code rather than re-built.
 
 ## Biggest remaining opportunities
 
-Ranked by (perceived-quality lift × fidelity to identity) ÷ effort:
+The five ambitious structural bets that led this catalogue have all **shipped**:
 
-1. **Household view** (§121) — an aggregate read across the portfolio set,
-   honest about non-active books being last-known.
+- **The table system** (§65–67, 70, 72) — `components/ui/Table.tsx`, with
+  Dividends and theta Transactions migrated.
+- **theta's net worth as a trajectory** (§90) — a stacked
+  liquid/invested/liability area chart with milestone flags.
+- **Treemap sector mode** (§59) — a Holdings/Sector toggle nesting the
+  allocation-map cells under faint sector containers, morphing on regroup.
+- **Command palette verbs** (§123) — a shell-owned verb parser so "cash 5000"
+  (alpha) and "spent 12 coffee" (theta) act instead of navigate.
+- **Household view** (§121) — an aggregate read across the whole portfolio set
+  (`lib/household.ts`, `/household`, a switcher entry), honest about non-active
+  books being last-known.
 
-Most of the ambitious structural bets have now **shipped**: the table-system
-extraction (§65–67, 70, 72) — `components/ui/Table.tsx`, with Dividends and
-theta Transactions migrated; **theta's net worth as a trajectory** (§90) — a
-stacked liquid/invested/liability area chart with milestone flags replacing the
-flat account list; **treemap sector mode** (§59) — a Holdings/Sector toggle
-that nests the allocation-map cells under faint sector containers, morphing on
-regroup; and **command palette verbs** (§123) — a shell-owned verb parser so
-"cash 5000" (alpha) and "spent 12 coffee" (theta) act instead of navigate. The
-first-import moment (§119), the Overview session ribbon (§75), and
-the `<Money>` numeral formatter (§4) landed earlier in the Medium tier.
+The first-import moment (§119), the Overview session ribbon (§75), and the
+`<Money>` numeral formatter (§4) landed earlier in the Medium tier. What remains
+in the catalogue below is the long tail of QW/M polish, not another headline
+structural bet.
 
 ---
 
@@ -405,10 +408,14 @@ Effort: **QW** = quick win (≤ half a day) · **M** = medium (1–3 days) ·
      in localStorage, never repeated. All the pieces exist; this is
      choreography, not construction. `app/page.tsx`, `lib/firstView.ts`.
      **M**
-121. **Household view.** An aggregate read across the portfolio set (sum
-     value, blended allocation, per-portfolio contribution) as a switcher
-     option — honest about non-active books being last-known. `lib/
-     store.tsx`, new `/household` or switcher mode. **A**
+121. **Household view.** ✓ SHIPPED — `lib/household.ts` (`buildHousehold`,
+     pure) blends every book: total value, per-portfolio contribution, and a
+     merged holdings list (a name held in two accounts reads as one line),
+     using the active book's live values and every other's last-known. The
+     store exposes it as `household`; `/household` renders the hero + per-book
+     bars + a blended donut + positions table, reached from a Household entry
+     in the `PortfolioSwitcher`. Honest throughout: last-known books are
+     flagged. **A**
 122. **The tape, complete.** The pulse strip and status center shipped; the
      tick wave (§26) and the session ribbon (§75) are the two pieces left
      before this is one "alive" release. **A** (remaining scope only)

@@ -2,6 +2,7 @@
 
 import { AnimatePresence, m } from "framer-motion";
 import { useEffect, useRef, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import { usePortfolio, usePortfolioActions } from "@/lib/store";
 import { fmtUSDCompact } from "@/lib/format";
 
@@ -11,8 +12,10 @@ import { fmtUSDCompact } from "@/lib/format";
  * ones. Rename/delete live on the Import & Data page to keep this menu quick.
  */
 export function PortfolioSwitcher() {
-  const { portfolios, activeId, ready } = usePortfolio();
+  const { portfolios, activeId, ready, household } = usePortfolio();
   const { selectPortfolio, createPortfolio } = usePortfolioActions();
+  const router = useRouter();
+  const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [creating, setCreating] = useState(false);
   const [name, setName] = useState("");
@@ -107,6 +110,42 @@ export function PortfolioSwitcher() {
             role="listbox"
           >
             <div className="max-h-64 overflow-y-auto py-1">
+              {/* Household — the aggregate across every book (§121). Only worth
+                  offering when there's more than one to blend. */}
+              {portfolios.length > 1 && household && (
+                <>
+                  <button
+                    role="option"
+                    aria-selected={pathname === "/household"}
+                    onClick={() => {
+                      router.push("/household");
+                      setOpen(false);
+                    }}
+                    className={`relative flex w-full items-center gap-2 px-3 py-1.5 text-left text-[12.5px] transition-colors ${
+                      pathname === "/household" ? "bg-white/[0.06] text-ink" : "text-mute hover:bg-white/[0.04] hover:text-ink"
+                    }`}
+                  >
+                    <span className="flex h-3.5 w-3.5 shrink-0 items-center justify-center text-faint">
+                      <svg width="12" height="12" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+                        <rect x="3" y="3" width="6" height="6" rx="1" />
+                        <rect x="11" y="3" width="6" height="6" rx="1" />
+                        <rect x="3" y="11" width="6" height="6" rx="1" />
+                        <rect x="11" y="11" width="6" height="6" rx="1" />
+                      </svg>
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate">Household</span>
+                      <span className="block font-mono text-[10px] tnum text-faint">
+                        all {portfolios.length} books
+                      </span>
+                    </span>
+                    <span className="shrink-0 font-mono text-[11px] tnum text-mute">
+                      {fmtUSDCompact(household.total)}
+                    </span>
+                  </button>
+                  <div className="mx-3 my-1 border-t border-edge/60" />
+                </>
+              )}
               {portfolios.map((p) => {
                 const isActive = p.id === active.id;
                 return (

@@ -17,6 +17,7 @@ import { primeLiveCMA } from "./live/cma";
 import { useLiveData } from "./live/useLiveData";
 import { useReturnHistory } from "./live/useReturnHistory";
 import { getServerState, putPortfolio } from "./persist";
+import { buildHousehold, type Household } from "./household";
 import {
   activePortfolio,
   addPortfolio,
@@ -89,6 +90,8 @@ interface PortfolioData {
   portfolios: PortfolioSummary[];
   /** id of the active portfolio, or null when the set is empty. */
   activeId: string | null;
+  /** Aggregate across every book (§121) — active live, the rest last-known. */
+  household: Household | null;
 }
 
 /** Stable action handles — identity survives price ticks. */
@@ -368,6 +371,14 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
     [set]
   );
 
+  // The household aggregate — recomputed when the set changes or the active
+  // book re-prices (its live value feeds the total). Cheap for a handful of
+  // books; consumers that don't read it pay only the shallow object churn.
+  const household = useMemo<Household | null>(
+    () => (set ? buildHousehold(set.portfolios, set.activeId, portfolio) : null),
+    [set, portfolio]
+  );
+
   const data = useMemo<PortfolioData>(
     () => ({
       ready,
@@ -376,8 +387,9 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
       portfolio,
       portfolios: summaries,
       activeId: set?.activeId ?? null,
+      household,
     }),
-    [ready, portfolio, active?.isDemo, summaries, set?.activeId]
+    [ready, portfolio, active?.isDemo, summaries, set?.activeId, household]
   );
 
   const actions = useMemo<PortfolioActions>(
