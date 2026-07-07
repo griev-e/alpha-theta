@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo } from "react";
-import { Sparkline } from "@/components/charts/Sparkline";
+import { NetWorthArea } from "@/components/charts/NetWorthArea";
+import { Legend } from "@/components/charts/Legend";
 import { ProgressBar } from "@/components/theta/bits";
 import { ThetaEmpty } from "@/components/theta/ui";
 import { Card, CardHeader } from "@/components/ui/Card";
@@ -11,6 +12,11 @@ import { riskReport } from "@/lib/analytics/risk";
 import { SPX } from "@/lib/data/benchmarks";
 import { usePortfolio } from "@/lib/store";
 import { householdRisk } from "@/lib/theta/household";
+import {
+  alignCompositionToSeries,
+  netWorthComposition,
+  netWorthMilestones,
+} from "@/lib/theta/history";
 import { ledgerHasData, useTheta } from "@/lib/theta/store";
 import { fmtNum, fmtPct, fmtUSD, fmtUSDCompact } from "@/lib/format";
 import { PageSkeleton } from "@/components/ui/Skeleton";
@@ -47,6 +53,24 @@ export default function NetWorthPage() {
     const name = portfolios.find((p) => p.id === activeId)?.name ?? "your portfolio";
     return { ...result, name, beta: risk.beta };
   }, [ledger, view, portfolio, activeId, portfolios]);
+
+  // The stacked trajectory (§90): liquid / invested / liability bands over
+  // time, anchored to the same headline net-worth series so the total agrees.
+  const trajectory = useMemo(() => {
+    if (!ledger || !view) return null;
+    const comp = netWorthComposition(ledger.accounts, ledger.transactions);
+    const points = alignCompositionToSeries(comp, view.netWorthSeries);
+    const firstCovered = points.find((p) => p.covered)?.month ?? null;
+    // A leading uncovered run means the record doesn't reach that far back — the
+    // total is stored history and the mix is estimated from today's shape.
+    const estimated = firstCovered !== null && !points[0]?.covered;
+    return {
+      points,
+      milestones: netWorthMilestones(points),
+      estimated,
+      firstCovered,
+    };
+  }, [ledger, view]);
 
   if (!ready) return <PageSkeleton />;
   if (!ledger || !view || !ledgerHasData(ledger)) return <ThetaEmpty page="Net worth" />;
@@ -89,15 +113,26 @@ export default function NetWorthPage() {
           </div>
         </div>
         <div className="relative">
-          {series.length >= 2 ? (
-            <>
-              <Sparkline values={series.map((p) => p.value)} height={220} color="var(--color-mint)" />
-              <div className="mt-2 flex">
-                {series.map((p, idx) => (
-                  <div key={`${p.month}-${idx}`} className="flex-1 text-center font-mono text-[10px] text-faint">{p.month}</div>
-                ))}
-              </div>
-            </>
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <Legend
+              items={[
+                { label: "Liquid", color: "var(--color-mint)" },
+                { label: "Invested", color: "var(--color-vio)" },
+                { label: "Owed", color: "var(--color-neg)" },
+              ]}
+            />
+            {trajectory?.estimated && trajectory.firstCovered && (
+              <span className="font-mono text-[10px] text-faint">
+                {`Mix before ${trajectory.firstCovered} estimated from today's shape`}
+              </span>
+            )}
+          </div>
+          {trajectory && trajectory.points.length >= 2 ? (
+            <NetWorthArea
+              points={trajectory.points}
+              milestones={trajectory.milestones}
+              height={260}
+            />
           ) : (
             <p className="py-12 text-center text-[13px] text-faint">Not enough history to chart yet.</p>
           )}

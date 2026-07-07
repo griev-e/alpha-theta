@@ -128,19 +128,19 @@ verified in the code rather than re-built.
 
 Ranked by (perceived-quality lift × fidelity to identity) ÷ effort:
 
-1. **theta's net worth as a trajectory** (§90) — a stacked composition-over-
-   time area chart with milestone flags, replacing a flat account list.
-2. **Treemap sector mode** (§59) — a Holdings/Sector toggle with animated
+1. **Treemap sector mode** (§59) — a Holdings/Sector toggle with animated
    regrouping.
-3. **Command palette verbs** (§123) — arguments and actions ("cash 5000",
+2. **Command palette verbs** (§123) — arguments and actions ("cash 5000",
    "compare NVDA AMD"), graduating the palette from navigation to command line.
-4. **Household view** (§121) — an aggregate read across the portfolio set,
+3. **Household view** (§121) — an aggregate read across the portfolio set,
    honest about non-active books being last-known.
 
-The table-system extraction (§65–67, 70, 72) that led this list has **shipped**
-— `components/ui/Table.tsx`, with Dividends and theta Transactions migrated (see
-the shipped log above). The first-import moment (§119), the Overview session
-ribbon (§75), and the `<Money>` numeral formatter (§4) also landed in the
+Two of the ambitious structural bets have now **shipped**: the table-system
+extraction (§65–67, 70, 72) — `components/ui/Table.tsx`, with Dividends and
+theta Transactions migrated — and **theta's net worth as a trajectory** (§90) —
+a stacked liquid/invested/liability area chart with milestone flags replacing
+the flat account list. The first-import moment (§119), the Overview session
+ribbon (§75), and the `<Money>` numeral formatter (§4) landed earlier in the
 Medium tier.
 
 ---
@@ -335,10 +335,12 @@ Effort: **QW** = quick win (≤ half a day) · **M** = medium (1–3 days) ·
     Xmo at current burn" (the forecast engine already exposes it) — the
     single most emotionally important personal-finance figure, currently
     buried in Cash Flow. `app/theta/page.tsx`. **QW**
-90. **Net worth: composition area.** A stacked liquid/invested/liability
-    area chart over time (the history engine has the walk) with milestone
-    flags (crossed $0, new high), replacing the flat account-list-first
-    layout. `app/theta/networth/page.tsx`. **A**
+90. **Net worth: composition area.** ✓ SHIPPED — `NetWorthArea` stacks the
+    liquid/invested/liability bands over time from a new
+    `netWorthComposition` walk, anchored to the headline net series so the
+    total agrees (`alignCompositionToSeries`); the net line rides on top,
+    `netWorthMilestones` flags the $0 crossing + new high, and a hover breaks
+    any month into its three bands. `app/theta/networth/page.tsx`. **A**
 97. **Cash flow: lead with the low-point story.** Put the annotated
     forecast (§50) and a sentence ("Lowest point $1,240 on Jul 28, after
     rent") at the top, ahead of the historical flow bars. `app/theta/

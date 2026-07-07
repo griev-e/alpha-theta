@@ -8,6 +8,14 @@ export type PatchNote = {
 // Newest first. Add an entry here whenever a notable change ships.
 export const PATCH_NOTES: PatchNote[] = [
   {
+    version: "1.55",
+    date: "2026-07-07",
+    title: "theta Net Worth, as a trajectory",
+    changes: [
+      "theta's Net Worth page now leads with a stacked area chart of your net worth over time, split into the three things it's actually made of — liquid cash, invested assets, and what you owe — so you see not just the number but its shape. The net-worth line rides on top, and milestone crossings (net worth turning positive, a new all-time high in the window) are flagged right on the chart. Hovering any month breaks it into the three bands. The total always matches the headline figure; for months before your transaction record begins, the mix is estimated from today's shape and labelled as such.",
+    ],
+  },
+  {
     version: "1.54",
     date: "2026-07-07",
     title: "One table system: sortable, sticky, and dense-able lists",

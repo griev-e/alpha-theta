@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
   accountTrend,
+  alignCompositionToSeries,
   deriveFlowSeries,
   deriveNetWorthSeries,
   monthlyFlows,
+  netWorthComposition,
+  netWorthMilestones,
   netWorthTrajectory,
 } from "./history";
 import type { Account, Transaction } from "./data";
@@ -131,5 +134,81 @@ describe("accountTrend", () => {
   it("falls back to the stored trend when the account has no transactions", () => {
     const acct: Account = { id: "chk", name: "c", institution: "x", kind: "checking", balance: 5000, trend: [1, 2, 3], mask: "1" };
     expect(accountTrend(acct, [], 4, NOW)).toEqual([1, 2, 3]);
+  });
+});
+
+describe("netWorthComposition", () => {
+  const accounts: Account[] = [
+    { id: "chk", name: "Checking", institution: "x", kind: "checking", balance: 8000, trend: [], mask: "1" },
+    { id: "bkr", name: "Brokerage", institution: "x", kind: "brokerage", balance: 50000, trend: [], mask: "2" },
+    { id: "cc", name: "Card", institution: "x", kind: "credit", balance: -2000, trend: [], mask: "3" },
+  ];
+
+  it("buckets each account by kind and sums bands to the total net worth", () => {
+    const comp = netWorthComposition(accounts, [], { now: NOW, months: 2 });
+    const cur = comp[comp.length - 1];
+    expect(cur.liquid).toBe(8000);
+    expect(cur.invested).toBe(50000);
+    expect(cur.liabilities).toBe(-2000);
+    // net = liquid + invested + liabilities, and equals the total balance sum.
+    expect(cur.net).toBe(56000);
+  });
+
+  it("reverse-walks each band independently through its account's transactions", () => {
+    // June: +1000 into checking, +2000 into brokerage. End of May rewinds both.
+    const txs = [tx("2026-06-05", 1000, "Income", "chk"), tx("2026-06-06", 2000, "Income", "bkr")];
+    const comp = netWorthComposition(accounts, txs, { now: NOW, months: 3 });
+    const may = comp.find((p) => p.key === "2026-05")!;
+    expect(may.liquid).toBe(7000); // 8000 − 1000
+    expect(may.invested).toBe(48000); // 50000 − 2000
+    expect(may.liabilities).toBe(-2000); // untouched
+  });
+});
+
+describe("netWorthMilestones", () => {
+  it("flags the month net worth first turns non-negative", () => {
+    const pts = [{ net: -500 }, { net: -100 }, { net: 200 }, { net: 900 }];
+    const ms = netWorthMilestones(pts);
+    const zero = ms.find((m) => m.kind === "zero");
+    expect(zero?.index).toBe(2);
+  });
+
+  it("flags the all-time high, and never on the same point as the crossing", () => {
+    const pts = [{ net: -500 }, { net: 200 }]; // crossing and peak are both idx 1
+    const ms = netWorthMilestones(pts);
+    expect(ms.filter((m) => m.index === 1)).toHaveLength(1);
+    expect(ms.find((m) => m.kind === "zero")?.index).toBe(1);
+    // A separate later peak does earn its own flag.
+    const rising = [{ net: -500 }, { net: 100 }, { net: 800 }];
+    const ms2 = netWorthMilestones(rising);
+    expect(ms2.find((m) => m.kind === "high")?.index).toBe(2);
+  });
+});
+
+describe("alignCompositionToSeries", () => {
+  const comp = netWorthComposition(
+    [
+      { id: "chk", name: "c", institution: "x", kind: "checking", balance: 6000, trend: [], mask: "1" },
+      { id: "bkr", name: "b", institution: "x", kind: "brokerage", balance: 6000, trend: [], mask: "2" },
+    ],
+    [],
+    { now: NOW, months: 2 }
+  );
+
+  it("rescales bands to hit the target total while keeping proportions", () => {
+    const cur = comp[comp.length - 1]; // liquid 6000, invested 6000, net 12000
+    const aligned = alignCompositionToSeries(comp, [{ month: cur.month, value: 24000 }]);
+    const a = aligned[aligned.length - 1];
+    expect(a.net).toBe(24000);
+    expect(a.liquid).toBe(12000); // proportion preserved (half of total)
+    expect(a.invested).toBe(12000);
+  });
+
+  it("adopts the target total without scaling on a sign flip", () => {
+    const cur = comp[comp.length - 1];
+    const aligned = alignCompositionToSeries(comp, [{ month: cur.month, value: -5000 }]);
+    const a = aligned[aligned.length - 1];
+    expect(a.net).toBe(-5000);
+    expect(a.liquid).toBe(6000); // bands untouched — no meaningful proportional map
   });
 });

@@ -23,6 +23,28 @@ import { MONTHS } from "./data";
 export type FlowPoint = MonthFlow & { key: string };
 /** A net-worth point keyed by `YYYY-MM` for unambiguous ordering. */
 export type NetWorthPoint = { key: string; month: string; value: number };
+/**
+ * A net-worth point decomposed into the three stacked bands the trajectory
+ * chart draws (§90): liquid cash, invested assets, and liabilities (kept
+ * negative, i.e. what's owed). `net` is their algebraic sum, equal to the
+ * plain `netWorthTrajectory` value, so the composition never disagrees with
+ * the headline number.
+ */
+export type CompositionPoint = {
+  key: string;
+  month: string;
+  liquid: number;
+  invested: number;
+  liabilities: number; // ≤ 0
+  net: number;
+  covered: boolean;
+};
+
+/** Milestone crossings the trajectory chart flags. */
+export type NetWorthMilestone = { index: number; kind: "zero" | "high"; label: string };
+
+const LIABILITY_KINDS = new Set<Account["kind"]>(["credit", "loan"]);
+const INVESTED_KINDS = new Set<Account["kind"]>(["brokerage", "retirement"]);
 
 const ym = (iso: string) => iso.slice(0, 7);
 
@@ -193,6 +215,133 @@ export function deriveNetWorthSeries(
   const stored = new Map(storedNW.map((p) => [p.month, { month: p.month, value: p.value }]));
   const merged = mergeFallback(derived, stored, (base, s) => ({ ...base, value: s.value }));
   return merged.map((p) => ({ key: p.key, month: p.month, value: p.value }));
+}
+
+/**
+ * Net worth decomposed into liquid / invested / liability bands at each
+ * trailing month-end (§90), reverse-walking each account's *own* balance the
+ * same way `netWorthTrajectory` walks the total — but bucketed by account kind
+ * so the trajectory chart can stack the three bands. Accounts with no
+ * transactions hold their current balance flat back through the window (the
+ * honest limit of the data). `net` sums the three bands, so it equals the plain
+ * total trajectory for the same inputs.
+ */
+export function netWorthComposition(
+  accounts: Account[],
+  transactions: Transaction[],
+  opts: SeriesOptions = {}
+): CompositionPoint[] {
+  const months = opts.months ?? 12;
+  const now = opts.now ?? new Date();
+
+  // Per-account transactions, sorted, so each account rewinds independently.
+  const byAccount = new Map<string, Transaction[]>();
+  for (const t of transactions) {
+    const arr = byAccount.get(t.account);
+    if (arr) arr.push(t);
+    else byAccount.set(t.account, [t]);
+  }
+  for (const arr of byAccount.values()) arr.sort((a, b) => a.date.localeCompare(b.date));
+
+  const sumAfter = (arr: Transaction[] | undefined, iso: string): number => {
+    if (!arr) return 0;
+    let s = 0;
+    for (let i = arr.length - 1; i >= 0; i--) {
+      if (arr[i].date <= iso) break;
+      s += arr[i].amount;
+    }
+    return s;
+  };
+  const covered = new Set(transactions.map((t) => ym(t.date)));
+
+  const out: CompositionPoint[] = [];
+  for (let back = months - 1; back >= 0; back--) {
+    const { key, month } = monthKey(now, back);
+    const iso = endOfMonthISO(key);
+    let liquid = 0;
+    let invested = 0;
+    let liabilities = 0;
+    for (const a of accounts) {
+      const bal = back === 0 ? a.balance : a.balance - sumAfter(byAccount.get(a.id), iso);
+      if (LIABILITY_KINDS.has(a.kind)) liabilities += bal;
+      else if (INVESTED_KINDS.has(a.kind)) invested += bal;
+      else liquid += bal;
+    }
+    out.push({
+      key,
+      month,
+      liquid,
+      invested,
+      liabilities,
+      net: liquid + invested + liabilities,
+      covered: covered.has(key),
+    });
+  }
+  return out;
+}
+
+/**
+ * Anchor a composition's total to the headline net-worth series so the
+ * trajectory chart never disagrees with the number the rest of the app shows.
+ * For a fully-covered book the two totals are already identical (both are the
+ * same reverse-walk) so this is a no-op; for months the transaction record
+ * doesn't reach — where the headline falls back to stored history — the bands
+ * are rescaled to that total while keeping their proportions, rather than
+ * drawing a flat pre-history the record can't actually support. A sign flip has
+ * no meaningful proportional map, so those points just adopt the target total.
+ * Matched by month label (unique within a trailing-year window).
+ */
+export function alignCompositionToSeries(
+  comp: CompositionPoint[],
+  series: { month: string; value: number }[]
+): CompositionPoint[] {
+  const target = new Map(series.map((p) => [p.month, p.value]));
+  return comp.map((c) => {
+    const t = target.get(c.month);
+    if (t === undefined) return c;
+    if (c.net === 0 || t === 0 || Math.sign(c.net) !== Math.sign(t)) {
+      return { ...c, net: t };
+    }
+    const f = t / c.net;
+    return {
+      ...c,
+      liquid: c.liquid * f,
+      invested: c.invested * f,
+      liabilities: c.liabilities * f,
+      net: t,
+    };
+  });
+}
+
+/**
+ * The milestones the trajectory chart flags: the month net worth first turned
+ * non-negative ("crossed $0"), and the all-time high within the window — each
+ * flagged at most once, and never both on the same point, so the chart stays
+ * quiet rather than annotating a monotonic climb at every step.
+ */
+export function netWorthMilestones(points: { net: number }[]): NetWorthMilestone[] {
+  const out: NetWorthMilestone[] = [];
+  if (points.length < 2) return out;
+
+  let zeroIdx = -1;
+  for (let i = 1; i < points.length; i++) {
+    if (points[i - 1].net < 0 && points[i].net >= 0) {
+      out.push({ index: i, kind: "zero", label: "Crossed $0 — net worth turned positive" });
+      zeroIdx = i;
+      break;
+    }
+  }
+
+  let hiIdx = 0;
+  for (let i = 1; i < points.length; i++) {
+    if (points[i].net > points[hiIdx].net) hiIdx = i;
+  }
+  // Only worth flagging if the peak is a genuine climb, and not the same point
+  // the zero-crossing already marks.
+  if (hiIdx > 0 && hiIdx !== zeroIdx && points[hiIdx].net > points[0].net) {
+    out.push({ index: hiIdx, kind: "high", label: "New high — highest net worth in this window" });
+  }
+  return out;
 }
 
 /**
