@@ -128,20 +128,19 @@ verified in the code rather than re-built.
 
 Ranked by (perceived-quality lift × fidelity to identity) ÷ effort:
 
-1. **Treemap sector mode** (§59) — a Holdings/Sector toggle with animated
-   regrouping.
-2. **Command palette verbs** (§123) — arguments and actions ("cash 5000",
+1. **Command palette verbs** (§123) — arguments and actions ("cash 5000",
    "compare NVDA AMD"), graduating the palette from navigation to command line.
-3. **Household view** (§121) — an aggregate read across the portfolio set,
+2. **Household view** (§121) — an aggregate read across the portfolio set,
    honest about non-active books being last-known.
 
-Two of the ambitious structural bets have now **shipped**: the table-system
+Three of the ambitious structural bets have now **shipped**: the table-system
 extraction (§65–67, 70, 72) — `components/ui/Table.tsx`, with Dividends and
-theta Transactions migrated — and **theta's net worth as a trajectory** (§90) —
-a stacked liquid/invested/liability area chart with milestone flags replacing
-the flat account list. The first-import moment (§119), the Overview session
-ribbon (§75), and the `<Money>` numeral formatter (§4) landed earlier in the
-Medium tier.
+theta Transactions migrated; **theta's net worth as a trajectory** (§90) — a
+stacked liquid/invested/liability area chart with milestone flags replacing the
+flat account list; and **treemap sector mode** (§59) — a Holdings/Sector toggle
+that nests the allocation-map cells under faint sector containers, morphing on
+regroup. The first-import moment (§119), the Overview session ribbon (§75), and
+the `<Money>` numeral formatter (§4) landed earlier in the Medium tier.
 
 ---
 
@@ -279,8 +278,12 @@ Effort: **QW** = quick win (≤ half a day) · **M** = medium (1–3 days) ·
 57. **Scatter benchmark reference point.** Quadrant labels shipped; add the
     SPX reference point to the factor scatter so it reads against the
     index, not just its own corners. `app/benchmark/page.tsx`. **QW**
-59. **Treemap sector mode.** A Holdings/Sector segmented toggle: cells group
-    under faint sector containers with animated regrouping (layout springs).
+59. **Treemap sector mode.** ✓ SHIPPED — a Holdings/Sector segmented toggle on
+    the allocation map: `Treemap` gained a two-level nested layout (squarify
+    sectors, then holdings within each) drawing faint sector containers with a
+    label + total; cells carry a stable id and are positioned by an animated
+    transform so the toggle springs them between layouts. Each holding files
+    under its dominant sector (a fund by its largest look-through weight).
     `components/charts/Treemap.tsx`, `app/page.tsx`. **A**
 62. **Finish the Axis sweep.** `AxisX`/`AxisY` shipped and are adopted in
     FanChart + the optimizer frontier; PriceChart, Scatter, and theta's bar

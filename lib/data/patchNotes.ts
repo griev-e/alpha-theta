@@ -8,6 +8,14 @@ export type PatchNote = {
 // Newest first. Add an entry here whenever a notable change ships.
 export const PATCH_NOTES: PatchNote[] = [
   {
+    version: "1.56",
+    date: "2026-07-07",
+    title: "Overview allocation map: a sector view",
+    changes: [
+      "The Overview allocation map (the treemap) now has a Holdings / Sector toggle. In Sector view, your positions regroup under faint sector containers — Technology, Energy, Consumer Staples, and so on, each labelled with its total — so you can see how your book concentrates by sector at a glance, then flip back to the flat per-holding view. Cells spring smoothly between the two layouts. Each holding files under its dominant sector (a fund by its largest look-through weight).",
+    ],
+  },
+  {
     version: "1.55",
     date: "2026-07-07",
     title: "theta Net Worth, as a trajectory",

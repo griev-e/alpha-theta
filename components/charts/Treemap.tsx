@@ -1,6 +1,6 @@
 "use client";
 
-import { m } from "framer-motion";
+import { AnimatePresence, m } from "framer-motion";
 import { memo, useMemo, useState } from "react";
 import { fmtPct, fmtUSDCompact } from "@/lib/format";
 import { useElementWidth } from "@/lib/useElementWidth";
@@ -14,6 +14,8 @@ export interface TreemapItem {
   intensity: number;
   /** Optional total for a weight readout in the hover tooltip. */
   total?: number;
+  /** Grouping key for sector mode (§59) — e.g. the holding's dominant sector. */
+  group?: string;
 }
 
 interface Rect {
@@ -24,10 +26,32 @@ interface Rect {
   item: TreemapItem;
 }
 
+/** A positioned holding cell (absolute pixel coords). */
+interface Cell {
+  id: string;
+  label: string;
+  value: number;
+  intensity: number;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+/** A faint sector container drawn behind its holdings in sector mode. */
+interface Container {
+  key: string;
+  value: number;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
 /** Squarified treemap layout (Bruls, Huizing & van Wijk). */
 function squarify(items: TreemapItem[], x: number, y: number, w: number, h: number): Rect[] {
   const total = items.reduce((s, d) => s + d.value, 0);
-  if (total <= 0 || items.length === 0) return [];
+  if (total <= 0 || items.length === 0 || w <= 0 || h <= 0) return [];
   const scaled = items
     .filter((d) => d.value > 0)
     .sort((a, b) => b.value - a.value)
@@ -85,6 +109,65 @@ function squarify(items: TreemapItem[], x: number, y: number, w: number, h: numb
   return rects;
 }
 
+const SECTOR_HEADER = 21; // room for the container's label row
+const SECTOR_GAP = 4;
+
+/**
+ * Lay the items out flat (holdings mode) or nested under sector containers
+ * (§59): squarify the sector totals into the frame, then squarify each
+ * sector's holdings inside its container, below a label header. Cells keep a
+ * stable id across both modes so the toggle can morph them between positions.
+ */
+function layout(
+  items: TreemapItem[],
+  grouped: boolean,
+  W: number,
+  H: number
+): { cells: Cell[]; containers: Container[] } {
+  const toCell = (r: Rect): Cell => ({
+    id: r.item.id,
+    label: r.item.label,
+    value: r.item.value,
+    intensity: r.item.intensity,
+    x: r.x,
+    y: r.y,
+    w: r.w,
+    h: r.h,
+  });
+
+  if (!grouped) {
+    return { cells: squarify(items, 0, 0, W, H).map(toCell), containers: [] };
+  }
+
+  const groups = new Map<string, TreemapItem[]>();
+  for (const it of items) {
+    if (it.value <= 0) continue;
+    const key = it.group ?? "Other";
+    const arr = groups.get(key);
+    if (arr) arr.push(it);
+    else groups.set(key, [it]);
+  }
+
+  const groupItems: TreemapItem[] = [...groups.entries()].map(([key, its]) => ({
+    id: `__grp_${key}`,
+    label: key,
+    value: its.reduce((s, d) => s + Math.max(0, d.value), 0),
+    intensity: 0,
+  }));
+
+  const containers: Container[] = [];
+  const cells: Cell[] = [];
+  for (const cr of squarify(groupItems, 0, 0, W, H)) {
+    containers.push({ key: cr.item.label, value: cr.item.value, x: cr.x, y: cr.y, w: cr.w, h: cr.h });
+    const ix = cr.x + SECTOR_GAP;
+    const iy = cr.y + SECTOR_HEADER;
+    const iw = Math.max(0, cr.w - SECTOR_GAP * 2);
+    const ih = Math.max(0, cr.h - SECTOR_HEADER - SECTOR_GAP);
+    for (const r of squarify(groups.get(cr.item.label)!, ix, iy, iw, ih)) cells.push(toCell(r));
+  }
+  return { cells, containers };
+}
+
 function cellColor(intensity: number): { bg: string; border: string } {
   // intensity: return fraction, clamped to ±0.25 → rose..slate..mint
   const t = Math.max(-1, Math.min(1, intensity / 0.25));
@@ -107,6 +190,7 @@ export const Treemap = memo(function Treemap({
   height = 360,
   activeId,
   onActiveChange,
+  grouped = false,
 }: {
   items: TreemapItem[];
   height?: number;
@@ -114,12 +198,14 @@ export const Treemap = memo(function Treemap({
    *  table. Uncontrolled (no `onActiveChange`) it manages its own hover. */
   activeId?: string | null;
   onActiveChange?: (id: string | null) => void;
+  /** Sector mode (§59): group cells under faint sector containers. */
+  grouped?: boolean;
 }) {
   // Real pixel coordinates: cells and labels never stretch with the viewport.
   const [wrapRef, W] = useElementWidth<HTMLDivElement>();
-  const rects = useMemo(
-    () => (W > 0 ? squarify(items, 0, 0, W, height) : []),
-    [items, W, height]
+  const { cells, containers } = useMemo(
+    () => (W > 0 ? layout(items, grouped, W, height) : { cells: [], containers: [] }),
+    [items, grouped, W, height]
   );
   const [internalActive, setInternalActive] = useState<string | null>(null);
   const controlled = onActiveChange !== undefined;
@@ -130,124 +216,167 @@ export const Treemap = memo(function Treemap({
   };
   const total = useMemo(
     () => items.reduce((s, d) => s + Math.max(0, d.value), 0),
-    [items],
+    [items]
   );
-  const activeRect = active ? rects.find((r) => r.item.id === active) : null;
+  const activeCell = active ? cells.find((c) => c.id === active) : null;
+  // Cells morph on regroup; only stagger their first appearance.
+  const cellTransition = { type: "spring" as const, stiffness: 240, damping: 28 };
 
   return (
     <div ref={wrapRef} style={{ height }} className="relative w-full">
       {W > 0 && (
-      <svg
-        width={W}
-        height={height}
-        role="img"
-        aria-label={`Treemap of ${rects.length} holdings, each sized by market value and shaded by return.`}
-      >
-        <defs>
-          {/* Soft cast shadow for the hovered cell — a tile lifting under the
-              app's light, matching the panel physics. */}
-          <filter id="tm-lift" x="-30%" y="-30%" width="160%" height="160%">
-            <feDropShadow dx="0" dy="3" stdDeviation="4" floodColor="#000" floodOpacity="0.55" />
-          </filter>
-        </defs>
-        {rects.map((r, i) => {
-          const { bg, border } = cellColor(r.item.intensity);
-          const isActive = active === r.item.id;
-          const pad = 3;
-          const showLabel = r.w > 68 && r.h > 46;
-          const showSub = r.w > 92 && r.h > 74;
-          return (
-            <m.g
-              key={r.item.id}
-              initial={{ opacity: 0, scale: 0.92 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.5, delay: Math.min(i * 0.035, 0.5), ease: [0.22, 1, 0.36, 1] }}
-              style={{ transformOrigin: `${r.x + r.w / 2}px ${r.y + r.h / 2}px` }}
-              onMouseEnter={() => setActive(r.item.id)}
-              onMouseLeave={() => setActive(null)}
-              className="cursor-default"
-            >
-              <rect
-                x={r.x + pad}
-                y={r.y + pad}
-                width={Math.max(0, r.w - pad * 2)}
-                height={Math.max(0, r.h - pad * 2)}
-                rx={9}
-                fill={bg}
-                stroke={isActive ? "rgba(231,236,244,0.55)" : border}
-                strokeWidth={isActive ? 2 : 1.2}
-                style={{
-                  transform: isActive ? "translateY(-1.5px)" : undefined,
-                  transition: "transform 150ms ease",
-                  filter: isActive ? "url(#tm-lift)" : undefined,
+        <svg
+          width={W}
+          height={height}
+          role="img"
+          aria-label={
+            grouped
+              ? `Treemap of ${cells.length} holdings grouped into ${containers.length} sectors, each sized by market value and shaded by return.`
+              : `Treemap of ${cells.length} holdings, each sized by market value and shaded by return.`
+          }
+        >
+          <defs>
+            {/* Soft cast shadow for the hovered cell — a tile lifting under the
+                app's light, matching the panel physics. */}
+            <filter id="tm-lift" x="-30%" y="-30%" width="160%" height="160%">
+              <feDropShadow dx="0" dy="3" stdDeviation="4" floodColor="#000" floodOpacity="0.55" />
+            </filter>
+          </defs>
+
+          {/* Faint sector containers behind the cells (sector mode only). */}
+          <AnimatePresence>
+            {containers.map((c) => (
+              <m.g
+                key={`grp-${c.key}`}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+              >
+                <rect
+                  x={c.x + 1.5}
+                  y={c.y + 1.5}
+                  width={Math.max(0, c.w - 3)}
+                  height={Math.max(0, c.h - 3)}
+                  rx={11}
+                  fill="rgba(255,255,255,0.015)"
+                  stroke="rgba(255,255,255,0.09)"
+                  strokeWidth={1}
+                />
+                {c.w > 80 && (
+                  <text
+                    x={c.x + 11}
+                    y={c.y + 15}
+                    className="font-mono uppercase"
+                    style={{ fontSize: 10.5, letterSpacing: "0.05em" }}
+                    fill="var(--color-faint)"
+                  >
+                    {c.key}
+                    <tspan dx={7} fill="var(--color-faint)" style={{ opacity: 0.7 }}>
+                      {fmtUSDCompact(c.value)}
+                    </tspan>
+                  </text>
+                )}
+              </m.g>
+            ))}
+          </AnimatePresence>
+
+          {cells.map((c, i) => {
+            const { bg, border } = cellColor(c.intensity);
+            const isActive = active === c.id;
+            const pad = 3;
+            const showLabel = c.w > 68 && c.h > 46;
+            const showSub = c.w > 92 && c.h > 74;
+            return (
+              <m.g
+                key={c.id}
+                initial={{ opacity: 0, x: c.x, y: c.y }}
+                animate={{ opacity: 1, x: c.x, y: c.y }}
+                transition={{
+                  ...cellTransition,
+                  opacity: { duration: 0.5, delay: Math.min(i * 0.03, 0.45) },
                 }}
-              />
-              {showLabel && (
-                <>
-                  <text
-                    x={r.x + 12}
-                    y={r.y + 28}
-                    fill="var(--color-ink)"
-                    style={{ fontSize: 18, fontWeight: 600 }}
-                    className="font-display"
-                  >
-                    {r.item.label}
-                  </text>
-                  <text
-                    x={r.x + 12}
-                    y={r.y + 49}
-                    fill="var(--color-mute)"
-                    style={{ fontSize: 14, fontVariantNumeric: "tabular-nums" }}
-                    className="font-mono"
-                  >
-                    {fmtUSDCompact(r.item.value)}
-                  </text>
-                  {showSub && (
+                onMouseEnter={() => setActive(c.id)}
+                onMouseLeave={() => setActive(null)}
+                className="cursor-default"
+              >
+                <m.rect
+                  x={pad}
+                  y={pad}
+                  animate={{ width: Math.max(0, c.w - pad * 2), height: Math.max(0, c.h - pad * 2) }}
+                  transition={cellTransition}
+                  rx={9}
+                  fill={bg}
+                  stroke={isActive ? "rgba(231,236,244,0.55)" : border}
+                  strokeWidth={isActive ? 2 : 1.2}
+                  style={{
+                    transform: isActive ? "translateY(-1.5px)" : undefined,
+                    transition: "transform 150ms ease",
+                    filter: isActive ? "url(#tm-lift)" : undefined,
+                  }}
+                />
+                {showLabel && (
+                  <>
                     <text
-                      x={r.x + 12}
-                      y={r.y + 68}
-                      fill={
-                        r.item.intensity >= 0
-                          ? "var(--color-pos)"
-                          : "var(--color-neg)"
-                      }
-                      style={{ fontSize: 13, fontVariantNumeric: "tabular-nums" }}
+                      x={12}
+                      y={28}
+                      fill="var(--color-ink)"
+                      style={{ fontSize: 18, fontWeight: 600 }}
+                      className="font-display"
+                    >
+                      {c.label}
+                    </text>
+                    <text
+                      x={12}
+                      y={49}
+                      fill="var(--color-mute)"
+                      style={{ fontSize: 14, fontVariantNumeric: "tabular-nums" }}
                       className="font-mono"
                     >
-                      {fmtPct(r.item.intensity, 1, true)}
+                      {fmtUSDCompact(c.value)}
                     </text>
-                  )}
-                </>
-              )}
-            </m.g>
-          );
-        })}
-      </svg>
+                    {showSub && (
+                      <text
+                        x={12}
+                        y={68}
+                        fill={c.intensity >= 0 ? "var(--color-pos)" : "var(--color-neg)"}
+                        style={{ fontSize: 13, fontVariantNumeric: "tabular-nums" }}
+                        className="font-mono"
+                      >
+                        {fmtPct(c.intensity, 1, true)}
+                      </text>
+                    )}
+                  </>
+                )}
+              </m.g>
+            );
+          })}
+        </svg>
       )}
-      {activeRect && (
+      {activeCell && (
         <ChartTooltip
-          left={Math.min(Math.max(activeRect.x + activeRect.w / 2, 70), W - 70)}
-          top={activeRect.y + 4}
-          place={activeRect.y < 56 ? "bottom" : "top"}
+          left={Math.min(Math.max(activeCell.x + activeCell.w / 2, 70), W - 70)}
+          top={activeCell.y + 4}
+          place={activeCell.y < 56 ? "bottom" : "top"}
         >
           <div className="flex items-center gap-2">
             <span className="font-mono text-[12px] font-medium text-ink">
-              {activeRect.item.label}
+              {activeCell.label}
             </span>
             <span
               className={`font-mono tnum text-[11px] ${
-                activeRect.item.intensity >= 0 ? "text-pos" : "text-neg"
+                activeCell.intensity >= 0 ? "text-pos" : "text-neg"
               }`}
             >
-              {fmtPct(activeRect.item.intensity, 1, true)}
+              {fmtPct(activeCell.intensity, 1, true)}
             </span>
           </div>
           <div className="mt-0.5 font-mono tnum text-[11px] text-mute">
-            {fmtUSDCompact(activeRect.item.value)}
+            {fmtUSDCompact(activeCell.value)}
             {total > 0 && (
               <span className="text-faint">
                 {" · "}
-                {fmtPct(activeRect.item.value / total, 1)} of book
+                {fmtPct(activeCell.value / total, 1)} of book
               </span>
             )}
           </div>
