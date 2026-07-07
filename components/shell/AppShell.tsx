@@ -12,6 +12,7 @@ import { KeyboardMap } from "./KeyboardMap";
 import { NAV_CHORDS } from "./navChords";
 import { MarketPulse } from "./MarketPulse";
 import { StatusCenter } from "./StatusCenter";
+import { StatusDot } from "@/components/ui/StatusDot";
 import { FirstViewProvider, useRouteFirstView } from "@/lib/firstView";
 import { fmtUSDCompact } from "@/lib/format";
 import { SampleDataTag } from "@/components/ui/SampleDataTag";
@@ -141,20 +142,7 @@ function RefreshButton({
 }
 
 function LiveDot({ degraded }: { degraded: boolean }) {
-  return (
-    <span className="relative flex h-2 w-2">
-      {!degraded && (
-        <span
-          className="absolute inline-flex h-full w-full animate-ping rounded-full"
-          style={{ backgroundColor: "color-mix(in srgb, var(--color-live) 38%, transparent)" }}
-        />
-      )}
-      <span
-        className="relative inline-flex h-2 w-2 rounded-full"
-        style={{ backgroundColor: degraded ? "var(--color-warn)" : "var(--color-live)" }}
-      />
-    </span>
-  );
+  return <StatusDot tone={degraded ? "stale" : "live"} />;
 }
 
 export function AppShell({ children }: { children: ReactNode }) {

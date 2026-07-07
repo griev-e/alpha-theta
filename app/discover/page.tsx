@@ -506,7 +506,7 @@ function IdeaCard({ idea, i, price }: { idea: DiscoverIdea; i: number; price?: n
     >
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 items-center gap-3">
-          <TickerLogo symbol={idea.symbol} accent={conv} size={38} />
+          <TickerLogo symbol={idea.symbol} accent={conv} size={38} peek peekName={idea.name} />
           <div className="min-w-0">
             <div className="flex items-center gap-2">
               <span className="font-mono text-[15px] font-semibold text-ink">{idea.symbol}</span>

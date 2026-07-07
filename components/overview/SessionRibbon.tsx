@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import { TickerLogo } from "@/components/ui/TickerLogo";
+import { StatusDot, type StatusTone } from "@/components/ui/StatusDot";
 import { fmtPct, relativeTime } from "@/lib/format";
 import { SESSION_LABEL, usMarketSession } from "@/lib/marketSession";
 import type { Position } from "@/lib/types";
@@ -50,23 +51,21 @@ export function SessionRibbon({
   const session = usMarketSession();
   // The clock names the session; the tape says whether it's actually live.
   const sessionLabel = live ? SESSION_LABEL[session] : "Imported prices";
-  const dotClass = degraded
-    ? "bg-warn"
+  // Map onto the shared status-hue family: open+live pulses (live), an off-hours
+  // live feed is awake-not-primary (info), a dead feed needs attention (stale),
+  // imported prices are inert (idle).
+  const tone: StatusTone = degraded
+    ? "stale"
     : session === "open" && live
-      ? "bg-pos"
+      ? "live"
       : live
-        ? "bg-sky"
-        : "bg-mute";
+        ? "info"
+        : "idle";
 
   return (
     <div className="panel mb-5 flex flex-wrap items-center gap-x-6 gap-y-3 px-4 py-2.5">
       <div className="flex items-center gap-2">
-        <span className="relative flex h-2 w-2">
-          {session === "open" && live && (
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-pos opacity-60" />
-          )}
-          <span className={`relative inline-flex h-2 w-2 rounded-full ${dotClass}`} />
-        </span>
+        <StatusDot tone={tone} />
         <span className="text-[12px] font-medium text-ink">{sessionLabel}</span>
         {quotesAt && (
           <span className="font-mono text-[10.5px] text-faint">

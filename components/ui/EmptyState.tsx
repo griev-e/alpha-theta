@@ -4,6 +4,9 @@ import { m } from "framer-motion";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { Sigil } from "@/components/shell/brand";
+import { FanChart } from "@/components/charts/FanChart";
+import { Heatmap } from "@/components/charts/Heatmap";
+import { GHOST_FAN, GHOST_MATRIX } from "./ghostData";
 import { usePortfolio, usePortfolioActions } from "@/lib/store";
 
 /**
@@ -18,6 +21,7 @@ export function EmptyPanel({
   primary,
   secondary,
   watermark,
+  preview,
 }: {
   icon: ReactNode;
   heading: string;
@@ -27,6 +31,9 @@ export function EmptyPanel({
   /** The serif signature glyph (α / θ) drawn huge and faint behind the panel —
    *  one of the few sanctioned homes for the serif. */
   watermark?: string;
+  /** A page-specific chart ghost behind the panel (§104). Falls back to the
+   *  generic bars-into-a-curve motif when a page has nothing better to show. */
+  preview?: ReactNode;
 }) {
   return (
     <m.div
@@ -44,7 +51,7 @@ export function EmptyPanel({
           {watermark}
         </span>
       )}
-      <GhostChart />
+      {preview ?? <GhostChart />}
       <div className="relative z-10">
         <div className="mb-4 flex justify-center opacity-90">{icon}</div>
         <h2 className="text-balance font-display text-lg font-semibold text-ink">{heading}</h2>
@@ -100,8 +107,46 @@ function GhostChart() {
   );
 }
 
+/**
+ * A page-specific ghost: the real chart component the page is *about*, rendered
+ * faintly behind the empty panel and masked so the heading stays clean (§104).
+ * Feeds on the hand-shaped `ghostData` — never any real analytics.
+ */
+function GhostPreview({ children }: { children: ReactNode }) {
+  return (
+    <div
+      aria-hidden
+      className="pointer-events-none absolute inset-x-0 bottom-0 top-8 select-none opacity-[0.16] [mask-image:linear-gradient(to_bottom,transparent,black_55%)]"
+    >
+      {children}
+    </div>
+  );
+}
+
+const PREVIEWS: Record<string, ReactNode> = {
+  fan: (
+    <GhostPreview>
+      <FanChart result={GHOST_FAN.result} target={GHOST_FAN.target} height={180} />
+    </GhostPreview>
+  ),
+  heatmap: (
+    <GhostPreview>
+      <div className="mx-auto max-w-[260px] px-6">
+        <Heatmap symbols={GHOST_MATRIX.symbols} matrix={GHOST_MATRIX.matrix} />
+      </div>
+    </GhostPreview>
+  ),
+};
+
 /** Shown on analytics pages before any portfolio exists. */
-export function EmptyState({ page }: { page: string }) {
+export function EmptyState({
+  page,
+  preview,
+}: {
+  page: string;
+  /** Which page-specific chart ghost to show behind the panel (§104). */
+  preview?: keyof typeof PREVIEWS;
+}) {
   const { ready } = usePortfolio();
   const { loadDemo } = usePortfolioActions();
   if (!ready) return null;
@@ -111,6 +156,7 @@ export function EmptyState({ page }: { page: string }) {
       icon={<Sigil size={44} />}
       heading="No portfolio loaded"
       body={`${page} needs holdings to analyze. Import your CSV or load the demo portfolio to explore.`}
+      preview={preview ? PREVIEWS[preview] : undefined}
       primary={
         <Link href="/import" className="btn-primary">
           Import CSV

@@ -646,7 +646,7 @@ function HoldingRow({
         />
         <div className="flex items-center gap-3">
           <div className="transition-transform duration-200 group-hover:scale-[1.06]">
-            <TickerLogo symbol={p.symbol} accent={accent} size={32} />
+            <TickerLogo symbol={p.symbol} accent={accent} size={32} peek peekName={p.name} />
           </div>
           <div className="min-w-0">
             <div className="flex items-center gap-1.5">

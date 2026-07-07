@@ -61,8 +61,24 @@ Four PRs have landed against this catalogue, merged to `main`:
   the no-data hatch) were verified already-compliant or honestly not-applicable
   rather than re-built.
 
-- **#134 — Medium-tier sweep (in progress).** Working the 1–3-day tier. Shipped
-  so far: the `<Money>` dimmed-symbol numeral hierarchy (§4, with `splitMoney`);
+- **Medium-tier close-out.** The remaining eight 1–3-day items, finishing the
+  tier. The **status-hue family** documented as one vocabulary + a shared
+  `StatusDot`, swept across the shell/status-center/session-ribbon and the
+  sample/provenance dots (§20); the **chart entry-grammar audit** — PriceChart's
+  line now draws instead of popping, and the mark grammar written next to
+  `--dur-draw` (§25); the **Axis sweep** finished by moving ProjectionFan onto
+  the shared `AxisX/AxisY` (+ a right-side label option) (§62); **sticky
+  sub-headers** — a condensed identity bar on Research and pinned `h2` sections
+  in the report (§43); **page-specific ghost previews** — a faint fan on Monte
+  Carlo, a heatmap on Correlation, from a tiny `ghostData` feeding the real
+  charts (§104); the **ticker-logo peek** — a portal mini-card (name · price ·
+  day change) on long-hover that never clips in a scroll container (§115); the
+  dev-only **/design gallery** rendering every primitive, chart, and state
+  (§124); and the **α/θ duality in-shell**, restrained — an accent underline +
+  entrance aura rather than a third serif next to the Sigil (§41).
+
+- **#134 — Medium-tier sweep.** Working the 1–3-day tier. Shipped:
+  the `<Money>` dimmed-symbol numeral hierarchy (§4, with `splitMoney`);
   the theta cash-flow forecast chart leading with the low-point story (§97) which
   also annotates the running-balance low (§50); theta Projection reworked to
   alpha's Monte Carlo composition — sentence-first hero, fan as hero, Settings
@@ -77,10 +93,9 @@ Four PRs have landed against this catalogue, merged to `main`:
   skeletons — chart-grid / split / terminal (§103); command-palette recents (§46);
   Figma-style scrub-to-edit on theta's assumption fields (§113); and a
   new-subscription dot on theta's Recurring nav row (§37, its client-computable
-  half; the Intelligence fresh-brief dot needs a server signal). Still open on
-  this branch: §20, §25, §41 (α/θ in-shell — deferred pending a design call on the
-  Sigil redundancy), §43, §62, §104, §115 (needs a portal-based tooltip), §124,
-  and the table-system group (§65–67, 70, 72) which is Ambitious-tier.
+  half; the Intelligence fresh-brief dot needs a server signal). The rest of the
+  tier landed in the close-out above; only the table-system group (§65–67, 70,
+  72), which is Ambitious-tier, remains.
 
 Several other catalogue items turned out to already exist from the earlier
 `premium-roadmap.md` push (risk contribution list, rebalance diff bars, the

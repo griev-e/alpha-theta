@@ -54,6 +54,27 @@
      data-positive green (a stopped feed is a status, not a return). */
   --color-live: #236533;
 
+  /* ── Status hue family ──────────────────────────────────────────────────
+     One vocabulary for "what state is this signal in," so a dot means the same
+     thing everywhere it appears — the shell's LIVE dot, the status center, the
+     Overview session ribbon. Four roles, rendered by the shared `StatusDot`:
+       live   feed flowing / market open      green  (a status, not a gain — so
+                                                      --color-live, never pos)
+       info   live but off-hours (pre/post)   sky    (awake, not primary)
+       stale  needs attention (offline,       amber  (the ONLY hue that means
+              a failed save)                          "act" — reserved for it)
+       idle   inactive / imported / unloaded  faint
+     A fifth role, *synthetic* (illustrative sample data, not real), lives off
+     this axis: it uses the app's own accent, ringed, so it can't be mistaken
+     for a feed state — see SampleDataTag. Provenance dots (DataSourceBadge) are
+     a sibling data-quality vocabulary that shares this grammar (green = good,
+     neutral = a gap, amber withheld) but tunes brighter for sitting inline with
+     figures. */
+  --status-live: var(--color-live);
+  --status-info: var(--color-sky);
+  --status-stale: var(--color-warn);
+  --status-idle: var(--color-faint);
+
   --font-display: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
   --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, "SF Mono", monospace;
@@ -72,7 +93,16 @@
   --dur-fast: 150ms; /* interaction feedback (hover, press) */
   --dur-base: 220ms; /* route + content entrances */
   --dur-slow: 350ms; /* larger reveals */
-  --dur-draw: 700ms; /* chart draw-ins (bars rise, lines draw, arcs sweep) */
+  --dur-draw: 700ms; /* chart draw-ins — see the mark grammar below */
+  /* ── Chart entry grammar ────────────────────────────────────────────────
+     Each mark type enters one way, everywhere, so charts feel like one system:
+       lines   draw    — pathLength 0→1        (FanChart median, PriceChart)
+       bars    rise    — height 0→h from base  (Histogram, theta MoneyFlowBars)
+       arcs    sweep   — strokeDashoffset       (Donut)
+       cells   scale   — scale ~0.92→1 from own center + transformOrigin
+                         (Treemap, Scatter points, Radar polygon)
+     Stagger by index (~12–35ms) so a set assembles rather than snapping; the
+     signature ease [0.22,1,0.36,1] on all of them. Entrances play once. */
 
   /* ── Accent ramps ──────────────────────────────────────────────────────
      Three steps per hue (dim rail / base ink / bright highlight) so intensity
@@ -803,6 +833,23 @@ input[type="range"]::-moz-range-thumb {
   max-width: 640px;
   font-size: 10.5px;
   color: #71717a;
+}
+
+/* §43 — sticky section headers while a section scrolls. The report renders
+   bare (no app top bar) on a light sheet, so this adapts the app's dark .glass
+   sticky-header idea to the document: each h2 pins to the top with a white
+   backing and a hairline shadow as content scrolls under it. Screen only —
+   the @media print block below never sees position:sticky, so pagination and
+   the running page numbers are unaffected. */
+@media screen {
+  .report-doc h2 {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    background: #ffffff;
+    padding-top: 12px;
+    box-shadow: 0 6px 12px -10px rgba(9, 9, 11, 0.5);
+  }
 }
 
 @media print {

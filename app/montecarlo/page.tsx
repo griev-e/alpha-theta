@@ -89,7 +89,8 @@ export default function MonteCarloPage() {
   const { result, pending } = useMonteCarlo(mcInputs);
 
   if (!ready) return <SplitSkeleton />;
-  if (!portfolio || !risk) return <EmptyState page="Monte Carlo simulation" />;
+  if (!portfolio || !risk)
+    return <EmptyState page="Monte Carlo simulation" preview="fan" />;
 
   const prob = result?.probTargetAtHorizon ?? 0;
 

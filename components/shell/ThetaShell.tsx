@@ -144,7 +144,7 @@ export function ThetaShell({ children }: { children: ReactNode }) {
             <div className="flex items-center gap-2.5 px-1">
               <Link href="/theta" className="flex items-center gap-2.5">
                 <Mark kind="theta" size={24} />
-                <AppTitle active="theta" />
+                <AppTitle active="theta" accent="var(--color-vio)" />
               </Link>
               <div className="ml-auto flex items-center gap-0.5">
                 <SignOutButton />
@@ -214,7 +214,7 @@ export function ThetaShell({ children }: { children: ReactNode }) {
           <div className="flex items-center justify-between px-4 py-3">
             <Link href="/theta" className="flex items-center gap-2.5">
               <Mark kind="theta" size={22} />
-              <AppTitle active="theta" />
+              <AppTitle active="theta" accent="var(--color-vio)" />
             </Link>
             <div className="flex items-center gap-2.5">
               {showSample && <DemoTag />}

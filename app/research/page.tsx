@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { m } from "framer-motion";
 import { TickerSearch } from "@/components/research/TickerSearch";
@@ -388,6 +388,23 @@ function ResearchView({
   // S&P 500 reference: live valuation fields overlaid on the user's assumptions.
   const spx = liveBenchmarkProfiles().spx;
 
+  // §43 — a condensed identity bar that pins under the top bar once the hero
+  // scrolls away, so the ticker + price stay in view down the whole fundamentals
+  // stack. Watched by an IntersectionObserver on the hero; the sticky bar reserves
+  // no layout space (negative margin) so it can't shift the page.
+  const heroRef = useRef<HTMLDivElement>(null);
+  const [heroOut, setHeroOut] = useState(false);
+  useEffect(() => {
+    const el = heroRef.current;
+    if (!el) return;
+    const io = new IntersectionObserver(
+      ([e]) => setHeroOut(!e.isIntersecting),
+      { rootMargin: "-56px 0px 0px 0px" }
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [symbol]);
+
   // Price resolution, most-trusted first: live quote → live-priced holding →
   // latest charted close. Lets research work even when one feed is down.
   const lastClose = history?.points[history.points.length - 1]?.c ?? null;
@@ -469,7 +486,32 @@ function ResearchView({
 
   return (
     <div className="space-y-5">
+      {/* §43 — sticky condensed identity; reserves no space (−mb) so no reflow */}
+      <div
+        aria-hidden={!heroOut}
+        className={`pointer-events-none sticky top-12 z-30 -mb-[52px] flex h-[52px] items-center gap-2.5 rounded-lg glass px-4 shadow-pop ring-1 ring-edge transition-all duration-200 ${
+          heroOut ? "opacity-100" : "-translate-y-1 opacity-0"
+        }`}
+      >
+        <TickerLogo symbol={symbol} accent="var(--color-mint)" size={22} />
+        <span className="font-mono text-[12px] text-mute">{symbol}</span>
+        <span className="hidden truncate text-[12px] text-faint sm:inline">
+          {f.name}
+        </span>
+        <span className="ml-auto font-mono tnum text-[13px] text-ink">
+          {price !== null ? fmtUSD(price) : "—"}
+        </span>
+        {dayChangePct !== null && (
+          <span
+            className={`font-mono tnum text-[11px] ${deltaToneClass(dayChangePct)}`}
+          >
+            {fmtPct(dayChangePct, 2, true)}
+          </span>
+        )}
+      </div>
+
       {/* Hero: identity, price, chart */}
+      <div ref={heroRef}>
       <Card className="px-6 py-5" i={0}>
         <div className="flex flex-wrap items-start justify-between gap-5">
           <div className="flex items-start gap-4">
@@ -559,6 +601,7 @@ function ResearchView({
           )}
         </div>
       </Card>
+      </div>
 
       {/* Position context (holdings only) — your lot, plus a deeper read beside it */}
       {holding && (

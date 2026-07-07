@@ -1,5 +1,6 @@
 "use client";
 
+import { m } from "framer-motion";
 import { useId, useMemo, useState } from "react";
 import { useElementWidth } from "@/lib/useElementWidth";
 import { fmtPct, fmtUSD } from "@/lib/format";
@@ -190,23 +191,33 @@ export function PriceChart({
                 strokeDasharray="3 4"
               />
 
-              {/* split fill: green above the baseline, rose below */}
-              <path
+              {/* split fill: green above the baseline, rose below — the fills
+                  settle in as the line draws past them (§25: lines draw). */}
+              <m.path
                 d={geom.areaBase}
                 fill={`url(#${gradId}-up)`}
                 clipPath={`url(#${gradId}-above)`}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.7, delay: 0.2 }}
               />
-              <path
+              <m.path
                 d={geom.areaBase}
                 fill={`url(#${gradId}-dn)`}
                 clipPath={`url(#${gradId}-below)`}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.7, delay: 0.2 }}
               />
-              <path
+              <m.path
                 d={geom.line}
                 fill="none"
                 stroke={color}
                 strokeWidth={1.7}
                 strokeLinejoin="round"
+                initial={{ pathLength: 0 }}
+                animate={{ pathLength: 1 }}
+                transition={{ duration: 1.1, ease: [0.22, 1, 0.36, 1] }}
               />
 
               {/* dated event flags (ex-dividends, …) along the axis */}
