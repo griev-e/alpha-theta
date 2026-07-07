@@ -369,9 +369,11 @@ export function AppShell({ children }: { children: ReactNode }) {
     const label =
       pathname === "/report"
         ? "Export Report"
-        : pathname === "/lock"
-          ? null
-          : item?.label;
+        : pathname === "/household"
+          ? "Household"
+          : pathname === "/lock"
+            ? null
+            : item?.label;
     document.title = label ? `${label} · alpha` : "alpha";
   }, [pathname]);
 

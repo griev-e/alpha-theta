@@ -8,6 +8,14 @@ export type PatchNote = {
 // Newest first. Add an entry here whenever a notable change ships.
 export const PATCH_NOTES: PatchNote[] = [
   {
+    version: "1.58",
+    date: "2026-07-07",
+    title: "A household view across all your portfolios",
+    changes: [
+      "If you keep more than one portfolio — an individual account, a Roth, a joint book — the portfolio switcher now has a \"Household\" option that blends them into one read: your total value across every book, how much each contributes, a combined allocation donut, and a merged holdings list where a name you hold in two accounts shows as a single line. It's honest about what's live: only your active portfolio is priced in real time, so the others are shown at their last-known values and labelled as such.",
+    ],
+  },
+  {
     version: "1.57",
     date: "2026-07-07",
     title: "The command palette learns verbs",
