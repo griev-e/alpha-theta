@@ -89,16 +89,19 @@ export function TxRow({
   accountName,
   onDelete,
   onChangeCategory,
+  density = "comfortable",
 }: {
   t: Transaction;
   i: number;
   accountName?: string;
   onDelete?: (id: string) => void;
   onChangeCategory?: (id: string, category: Category) => void;
+  density?: "comfortable" | "compact";
 }) {
   const accent = CATEGORY_COLOR[t.category];
   const income = t.amount > 0;
   const transfer = t.category === "Transfer";
+  const padY = density === "compact" ? "py-1.5" : "py-3";
 
   return (
     <m.tr
@@ -107,7 +110,7 @@ export function TxRow({
       transition={{ delay: 0.15 + i * 0.025, duration: 0.3 }}
       className="group border-b border-edge/60 transition-colors last:border-0 hover:bg-white/[0.03]"
     >
-      <td className="relative py-3 pl-6 pr-3">
+      <td className={`relative ${padY} pl-6 pr-3`}>
         {/* Category-color rail — the same left-edge accent grammar alpha's
             holding rows use, so a ledger is scannable by category at a glance. */}
         <span

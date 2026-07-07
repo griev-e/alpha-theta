@@ -8,6 +8,15 @@ export type PatchNote = {
 // Newest first. Add an entry here whenever a notable change ships.
 export const PATCH_NOTES: PatchNote[] = [
   {
+    version: "1.54",
+    date: "2026-07-07",
+    title: "One table system: sortable, sticky, and dense-able lists",
+    changes: [
+      "The app's list tables now share one implementation instead of each page re-spelling its own. The Dividends per-holding table is sortable on every column (click a header — income, yield, growth, payout, streak — to re-rank), its header stays pinned to the top as you scroll a long book, and a comfortable/compact toggle in the card's corner lets you tighten the rows. Your density choice is remembered per app.",
+      "theta's Transactions now groups by month with a sticky month band that shows that month's net as it scrolls past, sitting above the existing Today/Yesterday day labels — so a long ledger stays oriented — plus the same comfortable/compact density toggle.",
+    ],
+  },
+  {
     version: "1.53",
     date: "2026-07-05",
     title: "Design-system pass: keyboard focus, first-paint skeletons, and a unified button/nav system",

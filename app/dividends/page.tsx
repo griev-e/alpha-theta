@@ -18,6 +18,12 @@ import { fmtPct, fmtUSD, fmtUSDCompact } from "@/lib/format";
 import { usePortfolio } from "@/lib/store";
 import { useAssumptions } from "@/lib/assumptions/store";
 import { PageSkeleton } from "@/components/ui/Skeleton";
+import {
+  Table,
+  TableDensityToggle,
+  useTableDensity,
+  type TableColumn,
+} from "@/components/ui/Table";
 
 const MONTHS = ["J", "F", "M", "A", "M", "J", "J", "A", "S", "O", "N", "D"];
 const MONTH_FULL = [
@@ -38,6 +44,160 @@ const SAFETY_CHIP: Record<HoldingDividend["safetyTone"], string> = {
   watch: "border-warn/30 bg-warn/10 text-warn",
   risk: "border-neg/30 bg-neg/10 text-neg",
 };
+
+/** The muted numeric cell brightens one step while its column is the sort (§117). */
+const numTone = (sorted: boolean) => (sorted ? "text-ink" : "text-mute");
+
+// Per-holding dividend evaluation, expressed on the shared Table lathe (§65):
+// each cell keeps its bespoke bar/chip/flag markup, the primitive owns the
+// sortable header, sticky-glass header, density, and dividers.
+const HOLDING_COLUMNS: TableColumn<HoldingDividend>[] = [
+  {
+    key: "symbol",
+    header: "Asset",
+    sortable: true,
+    sortValue: (h) => h.symbol,
+    cell: (h) => (
+      <div className="flex items-center gap-2">
+        <span className="font-mono font-medium text-ink">{h.symbol}</span>
+        <span className="font-mono text-[10px] uppercase text-faint">
+          {h.frequency === "none" ? "—" : h.frequency}
+        </span>
+        {h.estimated && (
+          <span
+            className="rounded border border-edge2 px-1 py-px font-mono text-[10px] text-faint"
+            title="Income estimated from the dividend yield — provider history unavailable"
+          >
+            est
+          </span>
+        )}
+        {h.flags.length > 0 && !h.estimated && (
+          <span
+            className="cursor-help font-mono text-[10px] text-warn"
+            title={h.flags.join("\n")}
+          >
+            ⚠{h.flags.length}
+          </span>
+        )}
+      </div>
+    ),
+  },
+  {
+    key: "income",
+    header: "Income/yr",
+    align: "right",
+    sortable: true,
+    sortValue: (h) => h.income,
+    cell: (h) => (
+      <span className="font-mono tnum text-ink">{fmtUSD(h.income, true)}</span>
+    ),
+  },
+  {
+    key: "incomeShare",
+    header: "% of income",
+    align: "right",
+    sortable: true,
+    sortValue: (h) => h.incomeShare,
+    cell: (h) => (
+      <div className="flex items-center justify-end gap-2">
+        <div className="h-[4px] w-14 overflow-hidden rounded-full bg-white/[0.05]">
+          <div
+            className="h-full rounded-full bg-mint/60"
+            style={{ width: `${Math.min(h.incomeShare * 200, 100)}%` }}
+          />
+        </div>
+        <span className="font-mono tnum text-mute">
+          {fmtPct(h.incomeShare, 1)}
+        </span>
+      </div>
+    ),
+  },
+  {
+    key: "currentYield",
+    header: "Yield",
+    align: "right",
+    sortable: true,
+    sortValue: (h) => h.currentYield ?? -Infinity,
+    cell: (h, { sorted }) => (
+      <span className={`font-mono tnum ${numTone(sorted)}`}>
+        {h.currentYield === null ? "—" : fmtPct(h.currentYield, 2)}
+      </span>
+    ),
+  },
+  {
+    key: "yieldOnCost",
+    header: "YoC",
+    align: "right",
+    sortable: true,
+    sortValue: (h) => h.yieldOnCost ?? -Infinity,
+    cell: (h, { sorted }) => (
+      <span className={`font-mono tnum ${numTone(sorted)}`}>
+        {h.yieldOnCost === null ? "—" : fmtPct(h.yieldOnCost, 2)}
+      </span>
+    ),
+  },
+  {
+    key: "cagr3",
+    header: "3y growth",
+    align: "right",
+    sortable: true,
+    sortValue: (h) => h.cagr3 ?? -Infinity,
+    cell: (h) => (
+      <span
+        className={`font-mono tnum ${
+          h.cagr3 === null ? "text-faint" : h.cagr3 >= 0 ? "text-pos" : "text-neg"
+        }`}
+      >
+        {h.cagr3 === null ? "—" : fmtPct(h.cagr3, 1, true)}
+      </span>
+    ),
+  },
+  {
+    key: "streak",
+    header: "Streak",
+    align: "right",
+    sortable: true,
+    sortValue: (h) => h.streak,
+    cell: (h, { sorted }) => (
+      <span className={`font-mono tnum ${numTone(sorted)}`}>
+        {h.streak > 0 ? `${h.streak}y` : "—"}
+        {h.cuts10y > 0 && (
+          <span
+            className="ml-1 text-neg"
+            title={`${h.cuts10y} cut(s) in the last decade`}
+          >
+            ✂
+          </span>
+        )}
+      </span>
+    ),
+  },
+  {
+    key: "payoutRatio",
+    header: "Payout",
+    align: "right",
+    sortable: true,
+    sortValue: (h) => h.payoutRatio ?? Infinity,
+    cell: (h, { sorted }) => (
+      <span className={`font-mono tnum ${numTone(sorted)}`}>
+        {h.payoutRatio === null ? "—" : fmtPct(h.payoutRatio, 0)}
+      </span>
+    ),
+  },
+  {
+    key: "safety",
+    header: "Safety",
+    align: "right",
+    cell: (h) => (
+      <span
+        className={`inline-block cursor-help rounded border px-1.5 py-0.5 font-mono text-[10px] ${SAFETY_CHIP[h.safetyTone]}`}
+        title={h.safetyNotes.join("\n")}
+      >
+        {h.safety}
+      </span>
+    ),
+  },
+];
 
 function useDividendProfiles(symbols: string[]) {
   const [profiles, setProfiles] = useState<Record<
@@ -112,6 +272,7 @@ function ScorePill({ label, score }: { label: string; score: number }) {
 export default function DividendsPage() {
   const { ready, portfolio } = usePortfolio();
   const { version } = useAssumptions();
+  const [density, setDensity] = useTableDensity("alpha");
 
   const symbols = useMemo(
     () =>
@@ -382,124 +543,20 @@ export default function DividendsPage() {
         <CardHeader
           eyebrow="Income engine room"
           title="Per-holding dividend evaluation"
+          right={
+            <TableDensityToggle value={density} onChange={setDensity} />
+          }
           className="px-6 pt-5 mb-1"
         />
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[880px] text-[12.5px]">
-            <thead>
-              <tr className="border-b border-edge text-left">
-                {[
-                  "Asset",
-                  "Income/yr",
-                  "% of income",
-                  "Yield",
-                  "YoC",
-                  "3y growth",
-                  "Streak",
-                  "Payout",
-                  "Safety",
-                ].map((h, hi) => (
-                  <th
-                    key={h}
-                    className={`px-5 py-3 text-[11.5px] font-medium text-faint ${hi > 0 ? "text-right" : ""}`}
-                  >
-                    {h}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {r.holdings.map((h, i) => (
-                <Motion.tr
-                  key={h.symbol}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ delay: 0.2 + i * 0.03 }}
-                  className="border-b border-edge/60 hover:bg-white/[0.02]"
-                >
-                  <td className="px-5 py-3">
-                    <div className="flex items-center gap-2">
-                      <span className="font-mono font-medium text-ink">
-                        {h.symbol}
-                      </span>
-                      <span className="font-mono text-[10px] uppercase text-faint">
-                        {h.frequency === "none" ? "—" : h.frequency}
-                      </span>
-                      {h.estimated && (
-                        <span
-                          className="rounded border border-edge2 px-1 py-px font-mono text-[10px] text-faint"
-                          title="Income estimated from the dividend yield — provider history unavailable"
-                        >
-                          est
-                        </span>
-                      )}
-                      {h.flags.length > 0 && !h.estimated && (
-                        <span
-                          className="cursor-help font-mono text-[10px] text-warn"
-                          title={h.flags.join("\n")}
-                        >
-                          ⚠{h.flags.length}
-                        </span>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-5 py-3 text-right font-mono tnum text-ink">
-                    {fmtUSD(h.income, true)}
-                  </td>
-                  <td className="px-5 py-3 text-right">
-                    <div className="flex items-center justify-end gap-2">
-                      <div className="h-[4px] w-14 overflow-hidden rounded-full bg-white/[0.05]">
-                        <div
-                          className="h-full rounded-full bg-mint/60"
-                          style={{ width: `${Math.min(h.incomeShare * 200, 100)}%` }}
-                        />
-                      </div>
-                      <span className="font-mono tnum text-mute">
-                        {fmtPct(h.incomeShare, 1)}
-                      </span>
-                    </div>
-                  </td>
-                  <td className="px-5 py-3 text-right font-mono tnum text-mute">
-                    {h.currentYield === null ? "—" : fmtPct(h.currentYield, 2)}
-                  </td>
-                  <td className="px-5 py-3 text-right font-mono tnum text-mute">
-                    {h.yieldOnCost === null ? "—" : fmtPct(h.yieldOnCost, 2)}
-                  </td>
-                  <td
-                    className={`px-5 py-3 text-right font-mono tnum ${
-                      h.cagr3 === null
-                        ? "text-faint"
-                        : h.cagr3 >= 0
-                          ? "text-pos"
-                          : "text-neg"
-                    }`}
-                  >
-                    {h.cagr3 === null ? "—" : fmtPct(h.cagr3, 1, true)}
-                  </td>
-                  <td className="px-5 py-3 text-right font-mono tnum text-mute">
-                    {h.streak > 0 ? `${h.streak}y` : "—"}
-                    {h.cuts10y > 0 && (
-                      <span className="ml-1 text-neg" title={`${h.cuts10y} cut(s) in the last decade`}>
-                        ✂
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-5 py-3 text-right font-mono tnum text-mute">
-                    {h.payoutRatio === null ? "—" : fmtPct(h.payoutRatio, 0)}
-                  </td>
-                  <td className="px-5 py-3 text-right">
-                    <span
-                      className={`inline-block cursor-help rounded border px-1.5 py-0.5 font-mono text-[10px] ${SAFETY_CHIP[h.safetyTone]}`}
-                      title={h.safetyNotes.join("\n")}
-                    >
-                      {h.safety}
-                    </span>
-                  </td>
-                </Motion.tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <Table
+          columns={HOLDING_COLUMNS}
+          rows={r.holdings}
+          rowKey={(h) => h.symbol}
+          defaultSort={{ key: "income", asc: false }}
+          density={density}
+          sticky
+          minWidth="min-w-[880px]"
+        />
         <p className="px-6 py-3 text-[10.5px] text-faint">
           Hover a safety score for the full point-by-point reasoning; hover ⚠
           for that holding&apos;s risk flags.
