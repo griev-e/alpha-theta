@@ -94,8 +94,24 @@ Four PRs have landed against this catalogue, merged to `main`:
   Figma-style scrub-to-edit on theta's assumption fields (§113); and a
   new-subscription dot on theta's Recurring nav row (§37, its client-computable
   half; the Intelligence fresh-brief dot needs a server signal). The rest of the
-  tier landed in the close-out above; only the table-system group (§65–67, 70,
-  72), which is Ambitious-tier, remains.
+  tier landed in the close-out above.
+
+- **The table system — one lathe (§65–67, 70, 72).** The Overview holdings
+  table's grammar extracted into `components/ui/Table.tsx`: a column-def-driven
+  component owning the sortable header (the rotating chevron + `aria-sort` +
+  active-column brighten, §117), a **sticky-glass header** that pins as the page
+  scrolls (§66, sticky on the cells since Chromium ignores it on `<thead>`), a
+  **density toggle** persisted per app via `useSyncExternalStore` (§67), a
+  footer aggregate slot, and a row-link chevron — cells stay bespoke through a
+  `cell(row)` render so each page keeps its bars/chips/sparks. The
+  **Dividends** per-holding table migrated onto it (now sortable on every
+  column, sticky, dense-able); **theta Transactions** gained sticky **month
+  group headers** with a running net (§70) via a shared `TableGroupHeader`
+  wrapping the existing day sub-groups, plus row density. `TableSkeleton`
+  already covered the skeleton-rows ask (§72). The Overview table stays the
+  bespoke reference (its hover-sync + tick-flash specializations don't reduce to
+  the generic primitive); Rebalance's trade list and the Quality scorecard are
+  card/flex compositions, not semantic tables, so they stay as-is.
 
 Several other catalogue items turned out to already exist from the earlier
 `premium-roadmap.md` push (risk contribution list, rebalance diff bars, the
@@ -112,20 +128,19 @@ verified in the code rather than re-built.
 
 Ranked by (perceived-quality lift × fidelity to identity) ÷ effort:
 
-1. **The table system extraction** (§65–67, 70, 72) — one `Table.tsx` off
-   the Overview table's spec, propagated to Dividends, Rebalance, Quality,
-   theta Transactions. The last big structural inconsistency in the app.
-2. **The first-import moment** (§119) — the one conducted performance the
-   product owes its user; every piece it needs already exists.
-3. **theta's net worth as a trajectory** (§90) — a stacked composition-over-
-   time area chart with milestone flags, replacing a flat account list.
-4. **Treemap sector mode** (§59) — a Holdings/Sector toggle with animated
-   regrouping.
-5. **Overview session ribbon** (§75) — today's best/worst movers + session
-   state, the connective tissue between the hero and the treemap.
-6. **Numeral craft finish** (§4, §7, §10) — the `<Money>` dimmed-symbol
-   formatter is the one typography item from the original eight that never
-   shipped.
+1. **Household view** (§121) — an aggregate read across the portfolio set,
+   honest about non-active books being last-known.
+
+Most of the ambitious structural bets have now **shipped**: the table-system
+extraction (§65–67, 70, 72) — `components/ui/Table.tsx`, with Dividends and
+theta Transactions migrated; **theta's net worth as a trajectory** (§90) — a
+stacked liquid/invested/liability area chart with milestone flags replacing the
+flat account list; **treemap sector mode** (§59) — a Holdings/Sector toggle
+that nests the allocation-map cells under faint sector containers, morphing on
+regroup; and **command palette verbs** (§123) — a shell-owned verb parser so
+"cash 5000" (alpha) and "spent 12 coffee" (theta) act instead of navigate. The
+first-import moment (§119), the Overview session ribbon (§75), and
+the `<Money>` numeral formatter (§4) landed earlier in the Medium tier.
 
 ---
 
@@ -263,8 +278,12 @@ Effort: **QW** = quick win (≤ half a day) · **M** = medium (1–3 days) ·
 57. **Scatter benchmark reference point.** Quadrant labels shipped; add the
     SPX reference point to the factor scatter so it reads against the
     index, not just its own corners. `app/benchmark/page.tsx`. **QW**
-59. **Treemap sector mode.** A Holdings/Sector segmented toggle: cells group
-    under faint sector containers with animated regrouping (layout springs).
+59. **Treemap sector mode.** ✓ SHIPPED — a Holdings/Sector segmented toggle on
+    the allocation map: `Treemap` gained a two-level nested layout (squarify
+    sectors, then holdings within each) drawing faint sector containers with a
+    label + total; cells carry a stable id and are positioned by an animated
+    transform so the toggle springs them between layouts. Each holding files
+    under its dominant sector (a fund by its largest look-through weight).
     `components/charts/Treemap.tsx`, `app/page.tsx`. **A**
 62. **Finish the Axis sweep.** `AxisX`/`AxisY` shipped and are adopted in
     FanChart + the optimizer frontier; PriceChart, Scatter, and theta's bar
@@ -276,20 +295,21 @@ Effort: **QW** = quick win (≤ half a day) · **M** = medium (1–3 days) ·
     "typical equity book 12–20% vol") behind the arc. `components/ui/
     Gauge.tsx`. **M**
 
-### F. Tables — one lathe
+### F. Tables — one lathe  ·  ✓ SHIPPED
 
-65. **Extract the table system.** The Overview table is the spec: extract
-    `components/ui/Table.tsx` (sortable header, numeric cell, footer
-    aggregate row, sticky-glass header, row-link chevron) and migrate
-    Dividends, Rebalance trades, Quality scorecard, theta Transactions onto
-    it. The single biggest structural inconsistency left in the app. **A**
-66. **Sticky header inside scrolling cards**, part of §65. **M**
-67. **Density toggle.** Comfortable/compact row height, persisted per-app,
-    in the table header's right slot. **M**
-70. **Month group headers in Transactions** that stick while their month
-    scrolls, with right-aligned month totals. **M**
+65. **Extract the table system.** ✓ `components/ui/Table.tsx` — column-def
+    driven (sortable header, numeric cell, footer slot, sticky-glass header,
+    row-link chevron). Dividends and theta Transactions migrated; Overview
+    stays the bespoke reference (hover-sync/tick-flash), and Rebalance's trade
+    list + the Quality scorecard are card/flex compositions, not tables. **A**
+66. **Sticky header inside scrolling cards.** ✓ Pins on the cells (Chromium
+    ignores sticky on `<thead>`), opt-in via the `sticky` prop. **M**
+67. **Density toggle.** ✓ Comfortable/compact, persisted per app via
+    `useSyncExternalStore`; `TableDensityToggle` for the header slot. **M**
+70. **Month group headers in Transactions.** ✓ Sticky month band with a
+    running net (`TableGroupHeader`) above the existing day sub-groups. **M**
 72. **Skeleton rows** for table-first pages, part of the per-shape skeleton
-    set (§103). `components/ui/Skeleton.tsx`. **QW**
+    set (§103). ✓ `TableSkeleton` in `components/ui/Skeleton.tsx`. **QW**
 
 ### G. Page compositions — alpha
 
@@ -318,10 +338,12 @@ Effort: **QW** = quick win (≤ half a day) · **M** = medium (1–3 days) ·
     Xmo at current burn" (the forecast engine already exposes it) — the
     single most emotionally important personal-finance figure, currently
     buried in Cash Flow. `app/theta/page.tsx`. **QW**
-90. **Net worth: composition area.** A stacked liquid/invested/liability
-    area chart over time (the history engine has the walk) with milestone
-    flags (crossed $0, new high), replacing the flat account-list-first
-    layout. `app/theta/networth/page.tsx`. **A**
+90. **Net worth: composition area.** ✓ SHIPPED — `NetWorthArea` stacks the
+    liquid/invested/liability bands over time from a new
+    `netWorthComposition` walk, anchored to the headline net series so the
+    total agrees (`alignCompositionToSeries`); the net line rides on top,
+    `netWorthMilestones` flags the $0 crossing + new high, and a hover breaks
+    any month into its three bands. `app/theta/networth/page.tsx`. **A**
 97. **Cash flow: lead with the low-point story.** Put the annotated
     forecast (§50) and a sentence ("Lowest point $1,240 on Jul 28, after
     rent") at the top, ahead of the historical flow bars. `app/theta/
@@ -390,10 +412,16 @@ Effort: **QW** = quick win (≤ half a day) · **M** = medium (1–3 days) ·
 122. **The tape, complete.** The pulse strip and status center shipped; the
      tick wave (§26) and the session ribbon (§75) are the two pieces left
      before this is one "alive" release. **A** (remaining scope only)
-123. **Command palette verbs.** Arguments and actions: "cash 5000" sets
-     cash, "compare NVDA AMD" opens a research compare, "note AAPL
-     earnings" — the palette graduates from navigation to command line.
-     **A**
+123. **Command palette verbs.** ✓ SHIPPED — `CommandPalette` gained a
+     shell-owned `verbs(query)` parser whose results surface as action rows
+     above the filtered nav (transient, kept out of recents), with a `verbHint`
+     example in the no-match state. alpha parses `cash <amount>` → `setCash`;
+     theta parses `spent <amount> [merchant]` / `income <amount> [source]` →
+     `addTransaction` against the default account, shown in the row. Amounts go
+     through a shared `parseMoneyInput` ($ / commas / k·m suffixes). The
+     "compare"/"note" examples are deferred — they'd need a compare route and a
+     notes model that don't exist yet; the framework makes them a drop-in when
+     they do. **A**
 124. **A design gallery page.** `/design` (dev-only route): every primitive,
      chart, and state rendered live — the system made inspectable. **M**
 

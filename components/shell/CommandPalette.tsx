@@ -23,6 +23,8 @@ export interface Command {
   /** Small right-aligned note — a shortcut hint or the destination. */
   hint?: string;
   icon?: ReactNode;
+  /** A one-off command (a parsed verb result) — not remembered in recents. */
+  transient?: boolean;
   /** Runs when chosen; the palette closes immediately after. */
   run: () => void;
 }
@@ -46,12 +48,20 @@ export function CommandPalette({
   accent,
   enableTickerSearch = false,
   chordHints = [],
+  verbs,
+  verbHint,
 }: {
   commands: Command[];
   accent: string;
   enableTickerSearch?: boolean;
   /** A few `g`-chord shortcuts (§39) surfaced in the no-match state (§109). */
   chordHints?: { keys: string[]; label: string }[];
+  /** Verb parser (§123): turns a typed line ("cash 5000") into action
+   *  commands surfaced above the filtered list. The shell owns it, so each app
+   *  defines verbs against its own store. */
+  verbs?: (query: string) => Command[];
+  /** One example verb, shown in the no-match state so the syntax is findable. */
+  verbHint?: string;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -141,18 +151,34 @@ export function CommandPalette({
     );
   }, [commands, query]);
 
+  // Parsed verbs (§123) lead the list while typing — "cash 5000" becomes an
+  // action row above the filtered navigation.
+  const verbCommands = useMemo<Command[]>(() => {
+    const q = query.trim();
+    if (!q || !verbs) return [];
+    try {
+      return verbs(q);
+    } catch {
+      return [];
+    }
+  }, [query, verbs]);
+
   // With no query, lead with the recent commands under their own heading; while
-  // searching, recents step aside. Each entry carries the group it renders under
-  // so a recent command can also appear in its home group below (distinct rows).
+  // searching, verbs come first, then the filtered list. Each entry carries the
+  // group it renders under so a recent command can also appear in its home
+  // group below (distinct rows).
   const displayCommands = useMemo<{ cmd: Command; group: string }[]>(() => {
     const base = filteredCommands.map((cmd) => ({ cmd, group: cmd.group }));
-    if (query.trim()) return base;
+    if (query.trim()) {
+      const verbRows = verbCommands.map((cmd) => ({ cmd, group: cmd.group }));
+      return [...verbRows, ...base];
+    }
     const recents = recentIds
       .map((id) => commands.find((c) => c.id === id))
       .filter((c): c is Command => !!c)
       .map((cmd) => ({ cmd, group: "Recent" }));
     return [...recents, ...base];
-  }, [filteredCommands, query, recentIds, commands]);
+  }, [filteredCommands, query, recentIds, commands, verbCommands]);
 
   // Flat, ordered row list for keyboard traversal: commands first, then any
   // live ticker matches.
@@ -176,7 +202,7 @@ export function CommandPalette({
       if (!row) return;
       close();
       if (row.kind === "command") {
-        pushRecent(row.cmd.id);
+        if (!row.cmd.transient) pushRecent(row.cmd.id);
         row.cmd.run();
       } else router.push(`/research?symbol=${encodeURIComponent(row.hit.symbol)}`);
     },
@@ -284,6 +310,12 @@ export function CommandPalette({
                       ? "Try a ticker or company name to jump to its research page."
                       : "Try a page or action name."}
                   </div>
+                  {verbHint && (
+                    <div className="mt-2 text-[11px] text-faint">
+                      or run a command — e.g.{" "}
+                      <span className="font-mono text-mute">{verbHint}</span>
+                    </div>
+                  )}
                   {chordHints.length > 0 && (
                     <div className="mt-4 flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
                       {chordHints.map((h) => (

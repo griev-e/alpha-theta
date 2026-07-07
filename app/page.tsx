@@ -56,6 +56,9 @@ export default function OverviewPage() {
   const [sortKey, setSortKey] = useState<SortKey>("equity");
   const [asc, setAsc] = useState(false);
   const [mixView, setMixView] = useState<"holding" | "sector">("holding");
+  // The allocation map's grouping — flat holdings, or cells nested under faint
+  // sector containers (§59). Independent of the donut's mix view.
+  const [mapView, setMapView] = useState<"holding" | "sector">("holding");
   // One shared hover across the treemap, donut, and holdings table — hovering a
   // symbol in any of them lights it in the other two (the dashboard as one
   // organism, not three widgets). Only meaningful in the per-holding views.
@@ -118,6 +121,7 @@ export default function OverviewPage() {
     label: p.symbol,
     value: p.equity,
     intensity: p.returnPct,
+    group: dominantSector(p),
   }));
 
   const donutSlices = [
@@ -294,12 +298,22 @@ export default function OverviewPage() {
             eyebrow="Allocation map"
             title="Position sizing × performance"
             right={
-              <Legend
-                items={[
-                  { label: "loss", color: "color-mix(in srgb, var(--color-neg) 60%, transparent)" },
-                  { label: "gain", color: "color-mix(in srgb, var(--color-pos) 60%, transparent)" },
-                ]}
-              />
+              <div className="flex items-center gap-3">
+                <Legend
+                  items={[
+                    { label: "loss", color: "color-mix(in srgb, var(--color-neg) 60%, transparent)" },
+                    { label: "gain", color: "color-mix(in srgb, var(--color-pos) 60%, transparent)" },
+                  ]}
+                />
+                <Segmented
+                  value={mapView}
+                  onChange={setMapView}
+                  options={[
+                    { value: "holding", label: "Holdings" },
+                    { value: "sector", label: "Sector" },
+                  ]}
+                />
+              </div>
             }
             className="mb-4"
           />
@@ -309,6 +323,7 @@ export default function OverviewPage() {
               height={340}
               activeId={activeSymbol}
               onActiveChange={setActiveSymbol}
+              grouped={mapView === "sector"}
             />
           </ErrorBoundary>
         </Card>
@@ -545,6 +560,24 @@ function HeroDelta({
 /** Stable per-symbol accent so colors survive re-sorting. */
 function symbolColor(symbol: string): string {
   return PALETTE[symbolColorIndex(symbol, PALETTE.length)];
+}
+
+/**
+ * The single sector a holding is filed under in the treemap's sector mode (§59).
+ * A stock uses its own sector; a fund uses its largest look-through sector
+ * weight (one atomic cell can't span sectors the way the donut's fractional mix
+ * does). No fundamentals → "Unknown".
+ */
+function dominantSector(p: Position): string {
+  const f = p.fundamentals;
+  if (f?.fund) {
+    const entries = Object.entries(f.fund.sectorWeights);
+    if (entries.length > 0) {
+      const top = entries.reduce((a, b) => ((b[1] ?? 0) > (a[1] ?? 0) ? b : a));
+      return top[0];
+    }
+  }
+  return f?.sector ?? "Unknown";
 }
 
 /**

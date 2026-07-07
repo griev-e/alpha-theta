@@ -15,6 +15,11 @@ import { fmtUSD } from "@/lib/format";
 import { TxRow } from "./TxRow";
 import { AutoTagModal, type UncatItem } from "./AutoTagModal";
 import { TableSkeleton } from "@/components/ui/Skeleton";
+import {
+  TableGroupHeader,
+  TableDensityToggle,
+  useTableDensity,
+} from "@/components/ui/Table";
 
 const FILTERS: (Category | "All")[] = [
   "All",
@@ -43,6 +48,18 @@ function dayLabel(iso: string): string {
   return d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
 }
 
+/** "July 2026" for a sticky month-section header (§70). */
+function monthLabel(monthKey: string): string {
+  const d = new Date(`${monthKey}-01T00:00:00`);
+  if (Number.isNaN(d.getTime())) return monthKey;
+  return d.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+}
+
+/** Signed money string for a running section total, matching the day rows. */
+function netStr(n: number): string {
+  return `${n >= 0 ? "+" : "−"}${fmtUSD(Math.abs(n))}`;
+}
+
 export default function TransactionsPage() {
   const {
     ready,
@@ -57,6 +74,7 @@ export default function TransactionsPage() {
   const [query, setQuery] = useState("");
   const [cat, setCat] = useState<Category | "All">("All");
   const [autoTagOpen, setAutoTagOpen] = useState(false);
+  const [density, setDensity] = useTableDensity("theta");
 
   const transactions = useMemo(() => ledger?.transactions ?? [], [ledger]);
   const accounts = useMemo(() => ledger?.accounts ?? [], [ledger]);
@@ -103,15 +121,32 @@ export default function TransactionsPage() {
     });
   }, [transactions, query, cat, hiddenAcctSet, hiddenCatSet]);
 
-  // Group the visible rows into date sections (input is already newest-first).
-  const groups = useMemo(() => {
-    const map = new Map<string, Transaction[]>();
+  // Group the visible rows into month → day sections (§70). Input is already
+  // newest-first, so first-seen order gives newest months/days without sorting.
+  // Each month carries a running net so the sticky band summarizes the month
+  // that's scrolling; each day keeps the finer "Today / Yesterday" affordance.
+  const monthGroups = useMemo(() => {
+    const months = new Map<
+      string,
+      { total: number; days: Map<string, Transaction[]> }
+    >();
     for (const t of filtered) {
-      const arr = map.get(t.date);
-      if (arr) arr.push(t);
-      else map.set(t.date, [t]);
+      const monthKey = t.date.slice(0, 7); // YYYY-MM
+      let mo = months.get(monthKey);
+      if (!mo) {
+        mo = { total: 0, days: new Map() };
+        months.set(monthKey, mo);
+      }
+      mo.total += t.amount;
+      const day = mo.days.get(t.date);
+      if (day) day.push(t);
+      else mo.days.set(t.date, [t]);
     }
-    return [...map.entries()];
+    return [...months.entries()].map(([key, mo]) => ({
+      key,
+      total: mo.total,
+      days: [...mo.days.entries()],
+    }));
   }, [filtered]);
 
   if (!ready) return <TableSkeleton />;
@@ -203,6 +238,7 @@ export default function TransactionsPage() {
               onToggleCategory={toggleCategoryHidden}
               onReset={resetTransactionFilters}
             />
+            <TableDensityToggle value={density} onChange={setDensity} />
           </div>
           <div className="flex gap-1.5 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {FILTERS.map((c) => (
@@ -222,35 +258,50 @@ export default function TransactionsPage() {
         <div className="overflow-x-auto">
           <table className="w-full min-w-[640px] text-[13px]">
             <tbody>
-              {groups.map(([date, rows]) => {
-                const dayNet = rows.reduce((s, t) => s + t.amount, 0);
-                return (
-                  <Fragment key={date}>
-                    <tr className="border-b border-edge/60 bg-white/[0.015]">
-                      <td colSpan={4} className="px-6 py-2">
-                        <div className="flex items-center justify-between">
-                          <span className="text-[11px] font-medium uppercase tracking-[0.05em] text-faint">
-                            {dayLabel(date)}
-                          </span>
-                          <span className={`font-mono tnum text-[11px] ${dayNet >= 0 ? "text-pos/80" : "text-faint"}`}>
-                            {dayNet >= 0 ? "+" : "−"}{fmtUSD(Math.abs(dayNet))}
-                          </span>
-                        </div>
-                      </td>
-                    </tr>
-                    {rows.map((t) => (
-                      <TxRow
-                        key={t.id}
-                        t={t}
-                        i={rowIndex++}
-                        accountName={acctName(t.account)}
-                        onDelete={deleteTransaction}
-                        onChangeCategory={setTransactionCategory}
-                      />
-                    ))}
-                  </Fragment>
-                );
-              })}
+              {monthGroups.map((mo) => (
+                <Fragment key={mo.key}>
+                  {/* Sticky month band with a running net — pins while the
+                      month scrolls (§70), the day labels beneath stay light. */}
+                  <TableGroupHeader
+                    label={monthLabel(mo.key)}
+                    total={netStr(mo.total)}
+                    span={4}
+                    top="top-0"
+                  />
+                  {mo.days.map(([date, rows]) => {
+                    const dayNet = rows.reduce((s, t) => s + t.amount, 0);
+                    return (
+                      <Fragment key={date}>
+                        <tr className="border-b border-edge/60">
+                          <td colSpan={4} className="py-1.5 pl-8 pr-6">
+                            <div className="flex items-center justify-between">
+                              <span className="text-[10.5px] font-medium uppercase tracking-[0.05em] text-faint">
+                                {dayLabel(date)}
+                              </span>
+                              <span
+                                className={`font-mono tnum text-[10.5px] ${dayNet >= 0 ? "text-pos/70" : "text-faint"}`}
+                              >
+                                {netStr(dayNet)}
+                              </span>
+                            </div>
+                          </td>
+                        </tr>
+                        {rows.map((t) => (
+                          <TxRow
+                            key={t.id}
+                            t={t}
+                            i={rowIndex++}
+                            accountName={acctName(t.account)}
+                            onDelete={deleteTransaction}
+                            onChangeCategory={setTransactionCategory}
+                            density={density}
+                          />
+                        ))}
+                      </Fragment>
+                    );
+                  })}
+                </Fragment>
+              ))}
               {filtered.length === 0 && (
                 <tr>
                   <td className="px-6 py-10 text-center text-[13px] text-faint">No transactions match.</td>

@@ -8,6 +8,39 @@ export type PatchNote = {
 // Newest first. Add an entry here whenever a notable change ships.
 export const PATCH_NOTES: PatchNote[] = [
   {
+    version: "1.57",
+    date: "2026-07-07",
+    title: "The command palette learns verbs",
+    changes: [
+      "The ⌘K command palette now does more than navigate — it takes commands. In alpha, type \"cash 5000\" to set your cash position on the spot. In theta, type \"spent 12.50 coffee\" to log an expense, or \"income 500 freelance\" to log a deposit — booked to your default account, which the palette shows you before you confirm. Amounts understand $, commas, and k/m shorthand (\"cash 2.5k\"). A hint in the empty state points the way.",
+    ],
+  },
+  {
+    version: "1.56",
+    date: "2026-07-07",
+    title: "Overview allocation map: a sector view",
+    changes: [
+      "The Overview allocation map (the treemap) now has a Holdings / Sector toggle. In Sector view, your positions regroup under faint sector containers — Technology, Energy, Consumer Staples, and so on, each labelled with its total — so you can see how your book concentrates by sector at a glance, then flip back to the flat per-holding view. Cells spring smoothly between the two layouts. Each holding files under its dominant sector (a fund by its largest look-through weight).",
+    ],
+  },
+  {
+    version: "1.55",
+    date: "2026-07-07",
+    title: "theta Net Worth, as a trajectory",
+    changes: [
+      "theta's Net Worth page now leads with a stacked area chart of your net worth over time, split into the three things it's actually made of — liquid cash, invested assets, and what you owe — so you see not just the number but its shape. The net-worth line rides on top, and milestone crossings (net worth turning positive, a new all-time high in the window) are flagged right on the chart. Hovering any month breaks it into the three bands. The total always matches the headline figure; for months before your transaction record begins, the mix is estimated from today's shape and labelled as such.",
+    ],
+  },
+  {
+    version: "1.54",
+    date: "2026-07-07",
+    title: "One table system: sortable, sticky, and dense-able lists",
+    changes: [
+      "The app's list tables now share one implementation instead of each page re-spelling its own. The Dividends per-holding table is sortable on every column (click a header — income, yield, growth, payout, streak — to re-rank), its header stays pinned to the top as you scroll a long book, and a comfortable/compact toggle in the card's corner lets you tighten the rows. Your density choice is remembered per app.",
+      "theta's Transactions now groups by month with a sticky month band that shows that month's net as it scrolls past, sitting above the existing Today/Yesterday day labels — so a long ledger stays oriented — plus the same comfortable/compact density toggle.",
+    ],
+  },
+  {
     version: "1.53",
     date: "2026-07-05",
     title: "Design-system pass: keyboard focus, first-paint skeletons, and a unified button/nav system",
