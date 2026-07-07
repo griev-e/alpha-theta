@@ -1,5 +1,6 @@
 "use client";
 
+import { m, useReducedMotion } from "framer-motion";
 import { signOut } from "next-auth/react";
 import Link from "next/link";
 import { useState } from "react";
@@ -93,17 +94,59 @@ export function Sigil({ size = 26, className = "" }: { size?: number; className?
  * the sister app dimmed and lowercase as a quiet link, separated by a " / ".
  * Replaces the standalone α ⇄ Δ segmented control — the switch lives right
  * where the title already sits instead of a separate row.
+ *
+ * §41 performs the α/θ duality here — but restrained: rather than add serif
+ * glyphs next to the sidebar's existing serif Sigil (the signature is scarce
+ * by rule), the active app earns an accent underline and the wordmark plays a
+ * one-time accent aura when you enter the app ("the top of every day"). The
+ * duality is felt through emphasis and light, not a second serif.
  */
-export function AppTitle({ active }: { active: AppKind }) {
+export function AppTitle({
+  active,
+  accent = "var(--color-accent)",
+}: {
+  active: AppKind;
+  /** The active app's signature accent for the underline + entrance aura. */
+  accent?: string;
+}) {
+  const reduce = useReducedMotion();
   return (
-    <div className="flex items-center gap-1.5 text-[14px] font-medium leading-none">
+    <div className="relative flex items-center gap-1.5 text-[14px] font-medium leading-none">
+      {/* A soft accent wash that blooms once on app entry, then fades. */}
+      {!reduce && (
+        <m.span
+          aria-hidden
+          initial={{ opacity: 0.55, scale: 0.5 }}
+          animate={{ opacity: 0, scale: 1.5 }}
+          transition={{ duration: 1.2, ease: "easeOut" }}
+          className="pointer-events-none absolute -inset-x-3 -inset-y-3 rounded-full"
+          style={{
+            background: `radial-gradient(closest-side, ${accent}, transparent)`,
+            filter: "blur(7px)",
+          }}
+        />
+      )}
       {(["alpha", "theta"] as const).map((kind, i) => {
         const on = kind === active;
         return (
-          <span key={kind} className="flex items-center gap-1.5">
+          <span key={kind} className="relative flex items-center gap-1.5">
             {i > 0 && <span className="text-faint">/</span>}
             {on ? (
-              <span className="text-ink">{kind}</span>
+              <span className="relative text-ink">
+                {kind}
+                <m.span
+                  aria-hidden
+                  initial={reduce ? false : { scaleX: 0 }}
+                  animate={{ scaleX: 1 }}
+                  transition={{
+                    duration: 0.45,
+                    delay: 0.12,
+                    ease: [0.22, 1, 0.36, 1],
+                  }}
+                  className="absolute -bottom-1.5 left-0 h-[2px] w-full origin-left rounded-full"
+                  style={{ background: accent }}
+                />
+              </span>
             ) : (
               <Link
                 href={APP_HOME[kind]}
