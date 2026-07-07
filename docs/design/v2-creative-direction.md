@@ -128,18 +128,18 @@ verified in the code rather than re-built.
 
 Ranked by (perceived-quality lift × fidelity to identity) ÷ effort:
 
-1. **Command palette verbs** (§123) — arguments and actions ("cash 5000",
-   "compare NVDA AMD"), graduating the palette from navigation to command line.
-2. **Household view** (§121) — an aggregate read across the portfolio set,
+1. **Household view** (§121) — an aggregate read across the portfolio set,
    honest about non-active books being last-known.
 
-Three of the ambitious structural bets have now **shipped**: the table-system
+Most of the ambitious structural bets have now **shipped**: the table-system
 extraction (§65–67, 70, 72) — `components/ui/Table.tsx`, with Dividends and
 theta Transactions migrated; **theta's net worth as a trajectory** (§90) — a
 stacked liquid/invested/liability area chart with milestone flags replacing the
-flat account list; and **treemap sector mode** (§59) — a Holdings/Sector toggle
+flat account list; **treemap sector mode** (§59) — a Holdings/Sector toggle
 that nests the allocation-map cells under faint sector containers, morphing on
-regroup. The first-import moment (§119), the Overview session ribbon (§75), and
+regroup; and **command palette verbs** (§123) — a shell-owned verb parser so
+"cash 5000" (alpha) and "spent 12 coffee" (theta) act instead of navigate. The
+first-import moment (§119), the Overview session ribbon (§75), and
 the `<Money>` numeral formatter (§4) landed earlier in the Medium tier.
 
 ---
@@ -412,10 +412,16 @@ Effort: **QW** = quick win (≤ half a day) · **M** = medium (1–3 days) ·
 122. **The tape, complete.** The pulse strip and status center shipped; the
      tick wave (§26) and the session ribbon (§75) are the two pieces left
      before this is one "alive" release. **A** (remaining scope only)
-123. **Command palette verbs.** Arguments and actions: "cash 5000" sets
-     cash, "compare NVDA AMD" opens a research compare, "note AAPL
-     earnings" — the palette graduates from navigation to command line.
-     **A**
+123. **Command palette verbs.** ✓ SHIPPED — `CommandPalette` gained a
+     shell-owned `verbs(query)` parser whose results surface as action rows
+     above the filtered nav (transient, kept out of recents), with a `verbHint`
+     example in the no-match state. alpha parses `cash <amount>` → `setCash`;
+     theta parses `spent <amount> [merchant]` / `income <amount> [source]` →
+     `addTransaction` against the default account, shown in the row. Amounts go
+     through a shared `parseMoneyInput` ($ / commas / k·m suffixes). The
+     "compare"/"note" examples are deferred — they'd need a compare route and a
+     notes model that don't exist yet; the framework makes them a drop-in when
+     they do. **A**
 124. **A design gallery page.** `/design` (dev-only route): every primitive,
      chart, and state rendered live — the system made inspectable. **M**
 

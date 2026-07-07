@@ -8,6 +8,14 @@ export type PatchNote = {
 // Newest first. Add an entry here whenever a notable change ships.
 export const PATCH_NOTES: PatchNote[] = [
   {
+    version: "1.57",
+    date: "2026-07-07",
+    title: "The command palette learns verbs",
+    changes: [
+      "The ⌘K command palette now does more than navigate — it takes commands. In alpha, type \"cash 5000\" to set your cash position on the spot. In theta, type \"spent 12.50 coffee\" to log an expense, or \"income 500 freelance\" to log a deposit — booked to your default account, which the palette shows you before you confirm. Amounts understand $, commas, and k/m shorthand (\"cash 2.5k\"). A hint in the empty state points the way.",
+    ],
+  },
+  {
     version: "1.56",
     date: "2026-07-07",
     title: "Overview allocation map: a sector view",

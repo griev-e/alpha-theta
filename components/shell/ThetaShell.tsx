@@ -4,7 +4,7 @@ import { SyncBanner } from "@/components/ui/SyncBanner";
 import { m } from "framer-motion";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useMemo, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, type ReactNode } from "react";
 import { TopProgress } from "@/components/ui/TopProgress";
 import { PageAura } from "@/components/ui/PageAura";
 import { CommandPalette, type Command } from "./CommandPalette";
@@ -12,6 +12,8 @@ import { KeyboardMap } from "./KeyboardMap";
 import { FirstViewProvider, useRouteFirstView } from "@/lib/firstView";
 import { useTheta } from "@/lib/theta/store";
 import { detectRecurring, newSubscriptions, normalizeMerchant } from "@/lib/theta/detect";
+import { fmtUSD } from "@/lib/format";
+import { parseMoneyInput } from "@/lib/parseMoney";
 import { useSimplefinAutoSync } from "@/lib/theta/useSimplefinAutoSync";
 import { useSidebarWidth } from "@/lib/useSidebarWidth";
 import { SampleDataTag } from "@/components/ui/SampleDataTag";
@@ -61,7 +63,7 @@ function DemoTag({ className = "" }: { className?: string }) {
 
 export function ThetaShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
-  const { isSample, ready, ledger } = useTheta();
+  const { isSample, ready, ledger, addTransaction } = useTheta();
   useSimplefinAutoSync();
   const current = NAV.find((n) => n.href === pathname);
 
@@ -115,6 +117,60 @@ export function ThetaShell({ children }: { children: ReactNode }) {
     return [...nav, ...actions];
   }, [router]);
 
+  // Command-line verbs (§123): "spent 12.50 coffee" / "income 500 freelance"
+  // log a transaction against your default account without opening a form.
+  const paletteVerbs = useCallback(
+    (q: string): Command[] => {
+      const accounts = ledger?.accounts ?? [];
+      if (accounts.length === 0) return [];
+      const target =
+        accounts.find((a) => a.kind === "checking") ??
+        accounts.find((a) => a.balance >= 0) ??
+        accounts[0];
+      const today = new Date().toISOString().slice(0, 10);
+      const out: Command[] = [];
+      const build = (
+        re: RegExp,
+        sign: 1 | -1,
+        category: "Other" | "Income",
+        verb: string
+      ) => {
+        const m = q.match(re);
+        if (!m) return;
+        const amt = parseMoneyInput(m[1]);
+        if (amt === null || amt <= 0) return;
+        const merchant =
+          (m[2] ?? "").trim() || (sign < 0 ? "Quick expense" : "Quick income");
+        out.push({
+          id: `verb:${verb}:${amt}:${merchant}`,
+          transient: true,
+          group: "Action",
+          label: `Add ${sign < 0 ? "expense" : "income"} ${fmtUSD(amt)} · ${merchant}`,
+          hint: `→ ${target.name}`,
+          icon: (
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M10 4v12M4 10h12" />
+            </svg>
+          ),
+          run: () => {
+            addTransaction({
+              date: today,
+              merchant,
+              category,
+              account: target.id,
+              amount: sign * amt,
+            });
+            router.push("/theta/transactions");
+          },
+        });
+      };
+      build(/^(?:spent|spend)\s+(\S+)(?:\s+(.+))?$/i, -1, "Other", "spent");
+      build(/^(?:income|got|earned)\s+(\S+)(?:\s+(.+))?$/i, 1, "Income", "income");
+      return out;
+    },
+    [ledger, addTransaction, router]
+  );
+
   // Per-route tab title for theta's routes, parallel to AppShell's.
   useEffect(() => {
     const item = NAV.find((n) => n.href === pathname);
@@ -124,7 +180,7 @@ export function ThetaShell({ children }: { children: ReactNode }) {
   return (
     <div className="theta-scope min-h-screen lg:flex">
       <TopProgress accent="var(--color-vio)" />
-      <CommandPalette commands={commands} accent="var(--color-vio)" />
+      <CommandPalette commands={commands} accent="var(--color-vio)" verbs={paletteVerbs} verbHint="spent 12 coffee" />
       <KeyboardMap accent="var(--color-vio)" />
       <PageAura color="rgba(167,139,250,0.05)" />
       {/* Desktop sidebar */}

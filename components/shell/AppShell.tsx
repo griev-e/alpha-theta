@@ -4,7 +4,7 @@ import { SyncBanner } from "@/components/ui/SyncBanner";
 import { m } from "framer-motion";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { TopProgress } from "@/components/ui/TopProgress";
 import { PageAura } from "@/components/ui/PageAura";
 import { CommandPalette, type Command } from "./CommandPalette";
@@ -14,7 +14,8 @@ import { MarketPulse } from "./MarketPulse";
 import { StatusCenter } from "./StatusCenter";
 import { StatusDot } from "@/components/ui/StatusDot";
 import { FirstViewProvider, useRouteFirstView } from "@/lib/firstView";
-import { fmtUSDCompact } from "@/lib/format";
+import { fmtUSD, fmtUSDCompact } from "@/lib/format";
+import { parseMoneyInput } from "@/lib/parseMoney";
 import { SampleDataTag } from "@/components/ui/SampleDataTag";
 import { useToast } from "@/components/ui/Toast";
 import { usePortfolio, useLiveStatus, usePortfolioActions } from "@/lib/store";
@@ -150,7 +151,8 @@ export function AppShell({ children }: { children: ReactNode }) {
   const router = useRouter();
   const { portfolio, isDemo, ready, portfolios, activeId } = usePortfolio();
   const live = useLiveStatus();
-  const { refreshLive, loadDemo, selectPortfolio } = usePortfolioActions();
+  const { refreshLive, loadDemo, selectPortfolio, setCash } =
+    usePortfolioActions();
   const sidebar = useSidebarWidth("alpha.sidebarWidth.v1");
   const firstView = useRouteFirstView(pathname);
 
@@ -325,6 +327,39 @@ export function AppShell({ children }: { children: ReactNode }) {
     return [...nav, ...actions, ...ports];
   }, [router, refreshLive, loadDemo, selectPortfolio, portfolios, activeId, thetaHasData]);
 
+  // Command-line verbs (§123): typed lines that take an argument and act, not
+  // just navigate. "cash 5000" sets the active portfolio's cash on the spot.
+  const paletteVerbs = useCallback(
+    (q: string): Command[] => {
+      const out: Command[] = [];
+      const cash = q.match(/^cash\s+(.+)$/i);
+      if (cash) {
+        const amt = parseMoneyInput(cash[1]);
+        if (amt !== null && amt >= 0) {
+          out.push({
+            id: `verb:cash:${amt}`,
+            transient: true,
+            group: "Action",
+            label: `Set cash to ${fmtUSD(amt)}`,
+            hint: "set cash",
+            icon: (
+              <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="2.5" y="5" width="15" height="10" rx="2" />
+                <circle cx="10" cy="10" r="2.2" />
+              </svg>
+            ),
+            run: () => {
+              setCash(amt);
+              router.push("/");
+            },
+          });
+        }
+      }
+      return out;
+    },
+    [setCash, router]
+  );
+
   // Per-route document title, driven centrally off the nav list so every alpha
   // route reads "<Page> · alpha" in the browser tab without a metadata export
   // in each client page. theta owns its own title (ThetaShell), so bail there.
@@ -373,6 +408,8 @@ export function AppShell({ children }: { children: ReactNode }) {
         commands={commands}
         accent="var(--color-accent)"
         enableTickerSearch
+        verbs={paletteVerbs}
+        verbHint="cash 5000"
         chordHints={NAV_CHORDS.slice(0, 4).map((c) => ({
           keys: ["G", c.key.toUpperCase()],
           label: c.label,
