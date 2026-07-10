@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requestAllowed } from "@/lib/server/aiEndpoint";
 import { fetchFundamentalsPatch } from "@/lib/server/fundamentals";
 import { sanitizeSymbols } from "@/lib/server/yahoo";
 import type { FundamentalsPatch } from "@/lib/live/types";
@@ -27,6 +28,19 @@ export async function GET(req: NextRequest) {
   if (symbols.length === 0) {
     return NextResponse.json({ error: "symbols required" }, { status: 400 });
   }
+  const fresh = req.nextUrl.searchParams.get("fresh") === "1";
+  // The steady-state overlay is CDN + warm-cache absorbed, but each cold symbol
+  // costs Yahoo ~3 upstream calls (quoteSummary + chart + fundamentalsTimeSeries),
+  // and in open mode this route is unauthenticated. An attacker who varies the
+  // symbol set defeats both the CDN and warm caches, so cap per-IP churn — 20/min
+  // is far above any real book's poll cadence. `fresh=1` (manual refresh) punches
+  // through the caches straight to the provider, so throttle it tighter still.
+  if (fresh && !requestAllowed(req, "fundamentals-fresh", 6)) {
+    return NextResponse.json({ error: "rate_limited" }, { status: 429 });
+  }
+  if (!fresh && !requestAllowed(req, "fundamentals", 20)) {
+    return NextResponse.json({ error: "rate_limited" }, { status: 429 });
+  }
 
   const started = Date.now();
   const patches: Record<string, FundamentalsPatch> = {};
@@ -38,7 +52,9 @@ export async function GET(req: NextRequest) {
       break;
     }
     const chunk = symbols.slice(i, i + CONCURRENCY);
-    const results = await Promise.allSettled(chunk.map(fetchFundamentalsPatch));
+    const results = await Promise.allSettled(
+      chunk.map((s) => fetchFundamentalsPatch(s, fresh))
+    );
     results.forEach((r, j) => {
       if (r.status === "fulfilled" && r.value) patches[chunk[j]] = r.value;
     });
@@ -48,8 +64,9 @@ export async function GET(req: NextRequest) {
     { patches, asOf: new Date().toISOString(), ...(partial ? { partial } : {}) },
     {
       headers: {
-        // Never CDN-cache a partial overlay — the next poll should finish it.
-        "Cache-Control": partial
+        // Never CDN-cache a partial overlay (the next poll finishes it) or a
+        // forced refresh (it must reach the provider, not the CDN).
+        "Cache-Control": partial || fresh
           ? "no-store"
           : "public, s-maxage=43200, stale-while-revalidate=86400",
       },

@@ -343,33 +343,3 @@ export function netWorthMilestones(points: { net: number }[]): NetWorthMilestone
   }
   return out;
 }
-
-/**
- * A per-account balance sparkline reconstructed from its own transactions, so a
- * synced/imported account without a stored `trend` still shows a real trailing
- * shape. `points` monthly samples ending at the current balance.
- */
-export function accountTrend(
-  account: Account,
-  transactions: Transaction[],
-  points = 7,
-  now: Date = new Date()
-): number[] {
-  const own = transactions.filter((t) => t.account === account.id);
-  if (own.length === 0) return account.trend.length ? account.trend : [account.balance];
-  const sorted = [...own].sort((a, b) => a.date.localeCompare(b.date));
-  const sumAfter = (iso: string): number => {
-    let s = 0;
-    for (let i = sorted.length - 1; i >= 0; i--) {
-      if (sorted[i].date <= iso) break;
-      s += sorted[i].amount;
-    }
-    return s;
-  };
-  const out: number[] = [];
-  for (let back = points - 1; back >= 0; back--) {
-    const { key } = monthKey(now, back);
-    out.push(back === 0 ? account.balance : account.balance - sumAfter(endOfMonthISO(key)));
-  }
-  return out;
-}

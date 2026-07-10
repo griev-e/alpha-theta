@@ -8,6 +8,18 @@ export type PatchNote = {
 // Newest first. Add an entry here whenever a notable change ships.
 export const PATCH_NOTES: PatchNote[] = [
   {
+    version: "1.59",
+    date: "2026-07-10",
+    title: "Import CSVs into theta, a truthful refresh, and a hardening pass",
+    changes: [
+      "theta can now import transactions from a CSV. On the Import & Data page, upload an export from your bank or a spreadsheet — columns are matched by name, and rows are added to your ledger (existing transactions are never replaced, and exact duplicates are skipped). Uncategorized rows fall back to the keyword rules, and the AI pass can clean up the rest.",
+      "\"Refresh live data\" now actually refreshes fundamentals, not just prices: a manual refresh punches through the fundamentals cache too, so margins, beta, and analyst figures update right after an earnings release instead of lagging up to 12 hours.",
+      "Quality scoring got more honest. Metrics are now graded only over holdings whose underlying figure came from a live provider — a newly-listed name with no real data no longer contributes a fabricated neutral default to your composite; each metric carries its own live-coverage share.",
+      "The live total return now preserves the income and realized-gain component your broker folded into the imported figure across a live reprice, rather than silently collapsing it to price-return-on-cost.",
+      "Under the hood: tighter rate limits on the data endpoints, a bounded benchmark P/E derivation, several Monte Carlo / dividend-calendar / cash-flow-forecast edge-case fixes, and a round of memory-leak and accessibility cleanups.",
+    ],
+  },
+  {
     version: "1.58",
     date: "2026-07-07",
     title: "A household view across all your portfolios",

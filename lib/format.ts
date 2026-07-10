@@ -42,7 +42,9 @@ export function fmtUSD(v: number, whole = false): string {
 export function fmtUSDCompact(v: number): string {
   if (!Number.isFinite(v)) return "—";
   const abs = Math.abs(v);
-  const sign = v < 0 ? "-" : "";
+  // The true minus (U+2212), matching Intl's locale minus used elsewhere — the
+  // module contract forbids a hyphen for a negative figure.
+  const sign = v < 0 ? "−" : "";
   if (abs >= 1e12) return `${sign}$${(abs / 1e12).toFixed(2)}T`;
   if (abs >= 1e9) return `${sign}$${(abs / 1e9).toFixed(1)}B`;
   if (abs >= 1e6) return `${sign}$${(abs / 1e6).toFixed(1)}M`;

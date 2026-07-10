@@ -208,8 +208,12 @@ export function runMonteCarlo(inputs: MonteCarloInputs): MonteCarloResult {
     const hasPair = p + 1 < paths;
     let v0 = initialValue;
     let v1 = initialValue;
-    let hit0 = false;
-    let hit1 = false;
+    // "Ever reaches target" includes t=0: a book already at/above the target has
+    // trivially hit it, so a path that gaps down and never recovers still counts.
+    let hit0 = targetValue > 0 && initialValue >= targetValue;
+    let hit1 = hit0;
+    if (hit0) everHit++;
+    if (hasPair && hit1) everHit++;
     const sample0 = sampleMap.get(p);
     const sample1 = hasPair ? sampleMap.get(p + 1) : undefined;
 

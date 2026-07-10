@@ -65,11 +65,12 @@ export function sanitizeImplausibleFields<
  * since either can return an unstable computation for thinly-traded names.
  */
 export async function fetchFundamentalsPatch(
-  symbol: string
+  symbol: string,
+  force = false
 ): Promise<FundamentalsPatch | null> {
   const [yahooRaw, finnhubRaw] = await Promise.all([
-    fetchYahooPatch(symbol),
-    fetchFinnhubPatch(symbol),
+    fetchYahooPatch(symbol, force),
+    fetchFinnhubPatch(symbol, force),
   ]);
   const yahoo = yahooRaw ? sanitizeImplausibleFields(yahooRaw) : yahooRaw;
   const finnhub = finnhubRaw ? sanitizeImplausibleFields(finnhubRaw) : finnhubRaw;

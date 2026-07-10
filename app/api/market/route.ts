@@ -2,6 +2,11 @@ import { NextResponse } from "next/server";
 import { getRegimeReport } from "@/lib/server/marketData";
 
 export const dynamic = "force-dynamic";
+// A cold cache fans out ~23 symbols × ~960 calendar days through the Yahoo
+// queue (concurrency 6); on a slow provider day that can graze the default
+// function budget and 504 before the module cache is ever primed. Give the
+// cold build room so the first request after a cold start can complete.
+export const maxDuration = 60;
 
 /**
  * GET /api/market

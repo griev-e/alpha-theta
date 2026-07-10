@@ -128,6 +128,16 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
   const [set, setSet] = useState<PortfolioSet | null>(null);
   const [ready, setReady] = useState(false);
 
+  // Latest set, readable synchronously so a mutation computes the next state
+  // from the current value rather than the (possibly stale) render closure —
+  // otherwise two mutations dispatched in the same tick both start from the
+  // same base and the second silently discards the first (and, in server mode,
+  // 409s on its CAS write). Mirrors the theta store's `ledgerRef` pattern.
+  const setRef = useRef<PortfolioSet | null>(null);
+  useEffect(() => {
+    setRef.current = set;
+  }, [set]);
+
   // True once it's safe to write to the server: only after a successful hydrate.
   // A failed hydrate leaves this false so an edit can't overwrite the (possibly
   // non-empty) saved portfolio with the empty state we fall back to on failure.
@@ -197,6 +207,7 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
 
   const persist = useCallback(
     (next: PortfolioSet | null) => {
+      setRef.current = next; // keep current for rapid successive mutations
       setSet(next);
       if (serverMode) {
         // Skip the server write until a successful hydrate, so a failed load
@@ -216,18 +227,19 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
 
   const importHoldings = useCallback(
     (holdings: RawHolding[], cash: number | null, opts?: ImportOptions) => {
+      const cur = setRef.current;
       const asOf = new Date().toISOString();
-      if (!activePortfolio(set)) {
-        const p = makePortfolio(uniqueName(set, opts?.name || "Portfolio"));
+      if (!activePortfolio(cur)) {
+        const p = makePortfolio(uniqueName(cur, opts?.name || "Portfolio"));
         p.holdings = holdings;
         p.cash = cash ?? 0;
         p.asOf = asOf;
-        persist(addPortfolio(set, p));
+        persist(addPortfolio(cur, p));
         return;
       }
-      const active = activePortfolio(set)!;
+      const active = activePortfolio(cur)!;
       persist(
-        updateActive(set, {
+        updateActive(cur, {
           holdings,
           cash: cash ?? active.cash,
           asOf,
@@ -235,69 +247,75 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
         })
       );
     },
-    [persist, set]
+    [persist]
   );
 
   const loadDemo = useCallback(() => {
+    const cur = setRef.current;
     const { holdings } = parsePortfolioCSV(SAMPLE_CSV);
     const asOf = new Date().toISOString();
-    if (!activePortfolio(set)) {
-      const p = makePortfolio(uniqueName(set, "Demo"));
+    if (!activePortfolio(cur)) {
+      const p = makePortfolio(uniqueName(cur, "Demo"));
       p.holdings = holdings;
       p.cash = SAMPLE_CASH;
       p.asOf = asOf;
       p.isDemo = true;
-      persist(addPortfolio(set, p));
+      persist(addPortfolio(cur, p));
       return;
     }
     persist(
-      updateActive(set, {
+      updateActive(cur, {
         holdings,
         cash: SAMPLE_CASH,
         asOf,
         isDemo: true,
       })
     );
-  }, [persist, set]);
+  }, [persist]);
 
   const setCash = useCallback(
     (cash: number) => {
-      if (!activePortfolio(set)) return;
-      persist(updateActive(set, { cash }));
+      const cur = setRef.current;
+      if (!activePortfolio(cur)) return;
+      persist(updateActive(cur, { cash }));
     },
-    [persist, set]
+    [persist]
   );
 
   const createPortfolio = useCallback(
     (name?: string) => {
-      const p = makePortfolio(uniqueName(set, name || "Portfolio"));
-      persist(addPortfolio(set, p));
+      const cur = setRef.current;
+      const p = makePortfolio(uniqueName(cur, name || "Portfolio"));
+      persist(addPortfolio(cur, p));
     },
-    [persist, set]
+    [persist]
   );
 
   const renamePortfolio = useCallback(
     (id: string, name: string) => {
-      if (!set) return;
-      persist(renameInSet(set, id, name));
+      const cur = setRef.current;
+      if (!cur) return;
+      persist(renameInSet(cur, id, name));
     },
-    [persist, set]
+    [persist]
   );
 
   const deletePortfolio = useCallback(
     (id: string) => {
-      if (!set) return;
-      persist(removePortfolio(set, id));
+      const cur = setRef.current;
+      if (!cur) return;
+      persist(removePortfolio(cur, id));
     },
-    [persist, set]
+    [persist]
   );
 
   const selectPortfolio = useCallback(
     (id: string) => {
-      if (!set) return;
-      persist(selectInSet(set, id));
+      const cur = setRef.current;
+      if (!cur) return;
+      persist(selectInSet(cur, id));
     },
-    [persist, set]
+    [persist]
   );
 
   const active = useMemo(() => activePortfolio(set), [set]);

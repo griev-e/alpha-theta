@@ -64,6 +64,14 @@ describe("parsePortfolioCSV", () => {
     expect(cash).toBe(5000);
   });
 
+  it("reads a $0 cash row as zero, not falling through to the price column", () => {
+    // equity column is a legitimate 0; must not fall back to price via `||`.
+    const { cash } = parsePortfolioCSV(
+      `${HEADER}\nApple,AAPL,10,200,150,500,2000\nCash,CASH,1,1.00,1.00,0,0`
+    );
+    expect(cash).toBe(0);
+  });
+
   it("recognizes USD as a cash alias and sums multiple cash rows", () => {
     const { cash } = parsePortfolioCSV(
       `${HEADER}\nCash,USD,1,3000,3000,0,3000\nSweep,SWEEP,1,2000,2000,0,2000`
