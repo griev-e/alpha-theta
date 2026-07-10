@@ -1,17 +1,23 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { useTheta } from "@/lib/theta/store";
 import { SimplefinCard } from "@/components/theta/SimplefinCard";
 import type { CategorizeResponse } from "@/lib/theta/intelligence";
+import { parseTransactionsCSV, SAMPLE_CSV_TEXT, type ParsedTx } from "@/lib/theta/csv";
 import { PageSkeleton } from "@/components/ui/Skeleton";
 
 export default function ThetaImportPage() {
-  const { ready, ledger, isSample, loadSample, clear, setTransactionCategory } = useTheta();
+  const { ready, ledger, isSample, loadSample, clear, setTransactionCategory, importTransactions } =
+    useTheta();
   const [msg, setMsg] = useState<{ tone: "ok" | "err"; text: string } | null>(null);
   const [categorizing, setCategorizing] = useState(false);
+  const [staged, setStaged] = useState<{ txs: ParsedTx[]; skipped: number; name: string } | null>(
+    null
+  );
+  const fileRef = useRef<HTMLInputElement>(null);
 
   // One representative transaction id per uncategorized merchant — the set the
   // AI categorizer can clean up (everything still sitting in "Other"). Excluded
@@ -32,6 +38,40 @@ export default function ThetaImportPage() {
 
   if (!ready) return <PageSkeleton />;
   const accounts = ledger?.accounts ?? [];
+
+  async function stageFile(file: File) {
+    setMsg(null);
+    try {
+      const text = await file.text();
+      const { transactions, skipped } = parseTransactionsCSV(text, ledger?.accounts ?? []);
+      if (transactions.length === 0) {
+        setStaged(null);
+        setMsg({
+          tone: "err",
+          text: "No transactions found. Expected columns: date, merchant, amount (category and account optional).",
+        });
+        return;
+      }
+      setStaged({ txs: transactions, skipped, name: file.name });
+    } catch {
+      setStaged(null);
+      setMsg({ tone: "err", text: "Couldn't read that file. Make sure it's a CSV." });
+    }
+  }
+
+  function confirmImport() {
+    if (!staged) return;
+    importTransactions(staged.txs);
+    const n = staged.txs.length;
+    setMsg({
+      tone: "ok",
+      text: `Imported ${n} transaction${n === 1 ? "" : "s"}${
+        staged.skipped > 0 ? ` (${staged.skipped} row${staged.skipped === 1 ? "" : "s"} skipped)` : ""
+      }. Exact duplicates already in the ledger were merged, not doubled.`,
+    });
+    setStaged(null);
+    if (fileRef.current) fileRef.current.value = "";
+  }
 
   async function autoCategorize() {
     if (uncategorized.length === 0) return;
@@ -80,7 +120,7 @@ export default function ThetaImportPage() {
       <PageHeader
         eyebrow="System"
         title="Import & Data"
-        description="Connect a bank to sync balances and transactions automatically, or manage the sample ledger."
+        description="Import transactions from a CSV, connect a bank to sync automatically, or manage the sample ledger."
       />
 
       <div className="grid gap-5 lg:grid-cols-[1.4fr_1fr]">
@@ -88,6 +128,52 @@ export default function ThetaImportPage() {
           <SimplefinCard i={0} />
 
           <Card className="px-5 py-5" i={1}>
+            <CardHeader
+              eyebrow="Import"
+              title="Import transactions from CSV"
+              className="mb-3"
+            />
+            <p className="mb-3 text-[13px] leading-relaxed text-mute">
+              Upload a CSV exported from your bank or spreadsheet. Columns are
+              matched by name — <span className="text-ink">date</span>,{" "}
+              <span className="text-ink">merchant</span> (or description), and{" "}
+              <span className="text-ink">amount</span> are required;{" "}
+              <span className="text-ink">category</span> and{" "}
+              <span className="text-ink">account</span> are optional. Rows are{" "}
+              <span className="text-ink">added</span> to your ledger — existing
+              transactions are never replaced, and exact duplicates are skipped.
+            </p>
+            <div className="flex flex-wrap items-center gap-3">
+              <input
+                ref={fileRef}
+                type="file"
+                accept=".csv,text/csv"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) void stageFile(f);
+                }}
+                className="block max-w-full text-[12.5px] text-mute file:mr-3 file:cursor-pointer file:rounded-lg file:border file:border-edge file:bg-white/[0.03] file:px-3 file:py-1.5 file:text-[12.5px] file:font-medium file:text-ink hover:file:bg-white/[0.06]"
+              />
+              {staged && (
+                <button onClick={confirmImport} className="btn-primary">
+                  Import {staged.txs.length} transaction
+                  {staged.txs.length === 1 ? "" : "s"}
+                </button>
+              )}
+            </div>
+            {staged && (
+              <p className="mt-2 text-[12px] text-faint">
+                {staged.name} — {staged.txs.length} ready
+                {staged.skipped > 0 ? `, ${staged.skipped} unparseable` : ""}. Uncategorized
+                rows fall back to keyword rules; run the AI pass below for the rest.
+              </p>
+            )}
+            <p className="mt-2 text-[11.5px] leading-relaxed text-faint">
+              Example: <code className="text-mute">{SAMPLE_CSV_TEXT.split("\n")[0]}</code>
+            </p>
+          </Card>
+
+          <Card className="px-5 py-5" i={2}>
             <CardHeader
               eyebrow="Cleanup"
               title="Auto-categorize with AI"
@@ -115,7 +201,7 @@ export default function ThetaImportPage() {
           </Card>
         </div>
 
-        <Card className="px-5 py-5" i={2}>
+        <Card className="px-5 py-5" i={3}>
           <CardHeader eyebrow="Ledger" title="Your data" className="mb-4" />
           <div className="flex flex-col divide-y divide-edge/60 text-[13px]">
             <Stat2 label="Accounts" value={accounts.length} />

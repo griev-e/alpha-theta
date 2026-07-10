@@ -53,6 +53,13 @@ describe("runMonteCarlo", () => {
     expect(r.probTargetEver).toBe(0);
   });
 
+  it("counts a book already at/above target as having ever reached it (t=0)", () => {
+    // Starting value ≥ target: every path has trivially hit the target at t=0,
+    // even the ones that gap down and never recover — so probTargetEver = 1.
+    const r = runMonteCarlo({ ...baseInputs, targetValue: 50_000 });
+    expect(r.probTargetEver).toBe(1);
+  });
+
   it("accounts for every path in the terminal histogram", () => {
     const paths = 1500;
     const r = runMonteCarlo({ ...baseInputs, paths });

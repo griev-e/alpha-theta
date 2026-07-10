@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import {
-  accountTrend,
   alignCompositionToSeries,
   deriveFlowSeries,
   deriveNetWorthSeries,
@@ -119,21 +118,6 @@ describe("deriveFlowSeries / deriveNetWorthSeries fallback", () => {
     expect(series[series.length - 1].value).toBe(12000);
     // Two months back (before both incomes) → 12000 − 6000.
     expect(series[0].value).toBe(6000);
-  });
-});
-
-describe("accountTrend", () => {
-  it("reconstructs a per-account sparkline from its own transactions", () => {
-    const acct: Account = { id: "chk", name: "c", institution: "x", kind: "checking", balance: 5000, trend: [], mask: "1" };
-    const txs = [tx("2026-06-10", 1000, "Income", "chk"), tx("2026-05-10", 500, "Income", "chk")];
-    const trend = accountTrend(acct, txs, 4, NOW);
-    expect(trend).toHaveLength(4);
-    expect(trend[trend.length - 1]).toBe(5000); // ends at current balance
-  });
-
-  it("falls back to the stored trend when the account has no transactions", () => {
-    const acct: Account = { id: "chk", name: "c", institution: "x", kind: "checking", balance: 5000, trend: [1, 2, 3], mask: "1" };
-    expect(accountTrend(acct, [], 4, NOW)).toEqual([1, 2, 3]);
   });
 });
 

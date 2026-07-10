@@ -443,14 +443,16 @@ export function dividendReport(
     payers: [],
   }));
   for (const h of holdings) {
+    // No observed pay months → spread the cadence's payments evenly across the
+    // year (n payments land on months 12/n, 24/n, …, 12), so a semiannual payer
+    // reads [6, 12] and an annual payer [12], rather than bunching into H1.
+    const n = PAYMENTS_PER_YEAR[h.frequency];
     const months =
       h.payMonths.length > 0
         ? h.payMonths
-        : h.frequency === "none" || PAYMENTS_PER_YEAR[h.frequency] === 0
+        : h.frequency === "none" || n === 0
           ? [3, 6, 9, 12]
-          : h.frequency === "monthly"
-            ? Array.from({ length: 12 }, (_, i) => i + 1)
-            : [3, 6, 9, 12].slice(0, PAYMENTS_PER_YEAR[h.frequency]);
+          : Array.from({ length: n }, (_, k) => Math.round((12 / n) * (k + 1)));
     const perPayment = h.income / months.length;
     for (const m of months) {
       calendar[m - 1].income += perPayment;

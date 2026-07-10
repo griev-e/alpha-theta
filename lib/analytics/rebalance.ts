@@ -217,8 +217,10 @@ export function planRebalance(
   let sellTotal = 0;
   const orders: TradeOrder[] = portfolio.positions.map((p) => {
     const d = tradeBySymbol.get(p.symbol) ?? 0;
-    if (d > 0) buyTotal += d;
-    else if (d < 0) sellTotal += -d;
+    // Only count real trades — sub-EPS dust is reported as `hold`, so it must
+    // not leak into the buy/sell totals, turnover, or cash-deployed figures.
+    if (d > EPS) buyTotal += d;
+    else if (d < -EPS) sellTotal += -d;
     const newEquity = p.equity + d;
     return {
       symbol: p.symbol,

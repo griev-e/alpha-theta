@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requestAllowed } from "@/lib/server/aiEndpoint";
 import { fetchDividendProfiles } from "@/lib/server/dividends";
 import { sanitizeSymbols } from "@/lib/server/yahoo";
 
@@ -14,6 +15,12 @@ export async function GET(req: NextRequest) {
   const symbols = sanitizeSymbols(req.nextUrl.searchParams.get("symbols"));
   if (symbols.length === 0) {
     return NextResponse.json({ error: "symbols required" }, { status: 400 });
+  }
+  // Each symbol pulls 10y of dividend history; unauthenticated in open mode and
+  // symbol-set-varying defeats the cache, so cap per-IP churn (well above any
+  // real book's fetch cadence).
+  if (!requestAllowed(req, "dividends", 20)) {
+    return NextResponse.json({ error: "rate_limited" }, { status: 429 });
   }
   try {
     const profiles = await fetchDividendProfiles(symbols);

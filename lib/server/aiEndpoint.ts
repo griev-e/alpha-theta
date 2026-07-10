@@ -18,7 +18,13 @@ export class AiCache<T> {
   ) {}
   get(key: string): T | null {
     const hit = this.map.get(key);
-    if (hit && Date.now() - hit.at < this.ttlMs) return hit.data;
+    if (hit && Date.now() - hit.at < this.ttlMs) {
+      // Touch recency: re-insert at the newest position so eviction is LRU,
+      // not FIFO (Map preserves insertion order, and `set` moves the key).
+      this.map.delete(key);
+      this.map.set(key, hit);
+      return hit.data;
+    }
     return null;
   }
   set(key: string, data: T): void {

@@ -74,12 +74,13 @@ export function sectorFromIndustry(industry: string | undefined): Sector | undef
  * growth, P/E, dividend yield, 12m return).
  */
 export async function fetchFinnhubPatch(
-  symbol: string
+  symbol: string,
+  force = false
 ): Promise<Partial<FundamentalsPatch> | null> {
   if (!finnhubEnabled()) return null;
   const now = Date.now();
   const hit = cache.get(symbol);
-  if (hit && now - hit.at < TTL) return hit.data;
+  if (!force && hit && now - hit.at < TTL) return hit.data;
 
   const [profile, metrics] = await Promise.all([
     getJson(`/stock/profile2?symbol=${encodeURIComponent(symbol)}`),

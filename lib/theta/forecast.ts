@@ -50,6 +50,11 @@ export interface ForecastResult {
 const iso = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
+/** Calendar-day offset from `base` — DST-safe (ms arithmetic would drift a
+ *  calendar date by ±1h across a spring-forward / fall-back). */
+const addDays = (base: Date, n: number): Date =>
+  new Date(base.getFullYear(), base.getMonth(), base.getDate() + n);
+
 /** Step a date forward by one cadence period. */
 function stepCadence(d: Date, cadence: Recurring["cadence"]): Date {
   const n = new Date(d);
@@ -66,13 +71,14 @@ export function forecastCashFlow(inputs: ForecastInputs): ForecastResult {
   const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
   // Bucket recurring outflows onto their scheduled day-offsets in the window.
+  const windowEnd = addDays(start, days);
   const outflowByDay = new Map<number, number>();
   for (const r of inputs.recurring) {
     let when = new Date(`${r.nextDate}T00:00:00`);
     if (Number.isNaN(when.getTime())) continue;
     // Advance a past due-date up to the window start.
     while (when < start) when = stepCadence(when, r.cadence);
-    for (; when <= new Date(start.getTime() + days * DAY_MS); when = stepCadence(when, r.cadence)) {
+    for (; when <= windowEnd; when = stepCadence(when, r.cadence)) {
       const offset = Math.round((when.getTime() - start.getTime()) / DAY_MS);
       outflowByDay.set(offset, (outflowByDay.get(offset) ?? 0) + Math.abs(r.amount));
     }
@@ -93,7 +99,7 @@ export function forecastCashFlow(inputs: ForecastInputs): ForecastResult {
       balance += dailyBaseline;
       balance -= outflowByDay.get(day) ?? 0;
     }
-    const date = iso(new Date(start.getTime() + day * DAY_MS));
+    const date = iso(addDays(start, day));
     points.push({ date, balance });
     if (balance < minBalance) {
       minBalance = balance;

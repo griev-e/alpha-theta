@@ -66,3 +66,40 @@ describe("ThetaProvider — SimpleFIN account-kind persistence", () => {
     expect(acct?.balance).toBe(1150); // fresh balance still comes through
   });
 });
+
+describe("ThetaProvider — importTransactions merge semantics", () => {
+  const tx = (date: string, merchant: string, amount: number) => ({
+    date,
+    merchant,
+    amount,
+    category: "Other" as const,
+    account: "chk",
+  });
+
+  it("appends imported rows to existing history and skips exact duplicates", async () => {
+    const { result } = renderHook(() => useTheta(), { wrapper });
+    await waitFor(() => expect(result.current.ready).toBe(true));
+
+    act(() => {
+      result.current.clear(); // start from an empty ledger
+    });
+    act(() => {
+      result.current.addTransaction(tx("2026-06-01", "Existing Co", -10));
+    });
+    await waitFor(() => expect(result.current.ledger?.transactions).toHaveLength(1));
+
+    // Import two rows — one is an exact duplicate of the existing transaction.
+    act(() => {
+      result.current.importTransactions([
+        tx("2026-06-01", "Existing Co", -10), // duplicate → skipped
+        tx("2026-06-02", "New Co", -20), // new → added
+      ]);
+    });
+
+    const txs = result.current.ledger?.transactions ?? [];
+    expect(txs).toHaveLength(2); // existing kept, only the genuinely new row added
+    expect(txs.some((t) => t.merchant === "New Co")).toBe(true);
+    // The pre-existing transaction is never dropped.
+    expect(txs.filter((t) => t.merchant === "Existing Co")).toHaveLength(1);
+  });
+});

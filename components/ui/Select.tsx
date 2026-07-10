@@ -4,6 +4,7 @@ import { AnimatePresence, m } from "framer-motion";
 import {
   useCallback,
   useEffect,
+  useId,
   useLayoutEffect,
   useRef,
   useState,
@@ -40,6 +41,9 @@ export function Select<T extends string>({
 }) {
   const btnRef = useRef<HTMLButtonElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
+  // Stable id linking the combobox trigger to its listbox popover (required for
+  // a valid `role="combobox"` — screen readers need `aria-controls`).
+  const listboxId = useId();
   const [open, setOpen] = useState(false);
   const [coords, setCoords] = useState<Coords | null>(null);
   const [active, setActive] = useState(0);
@@ -138,6 +142,7 @@ export function Select<T extends string>({
         role="combobox"
         aria-haspopup="listbox"
         aria-expanded={open}
+        aria-controls={listboxId}
         aria-label={ariaLabel}
         onClick={() => (open ? setOpen(false) : openMenu())}
         onKeyDown={onKeyDown}
@@ -163,6 +168,7 @@ export function Select<T extends string>({
             {open && coords && (
               <m.div
                 ref={listRef}
+                id={listboxId}
                 role="listbox"
                 aria-label={ariaLabel}
                 initial={{ opacity: 0, y: coords.up ? 4 : -4 }}

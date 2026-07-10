@@ -83,9 +83,12 @@ export function parsePortfolioCSV(text: string): ParseResult {
       continue;
     }
 
-    // A cash row sets the cash position instead of becoming a holding.
+    // A cash row sets the cash position instead of becoming a holding. Prefer
+    // the equity column, falling back to price — but select by finiteness, not
+    // truthiness, so a legitimate $0 equity row doesn't fall through to price.
     if (CASH_SYMBOLS.has(symbol)) {
-      const cashVal = parseNumber(get("equity")) || parseNumber(get("price"));
+      const eq = parseNumber(get("equity"));
+      const cashVal = Number.isFinite(eq) ? eq : parseNumber(get("price"));
       if (Number.isFinite(cashVal)) cash = (cash ?? 0) + cashVal;
       continue;
     }

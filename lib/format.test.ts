@@ -36,7 +36,7 @@ describe("fmtUSDCompact", () => {
   });
 
   it("preserves the sign and brackets at each magnitude boundary", () => {
-    expect(fmtUSDCompact(-2.1e6)).toBe("-$2.1M");
+    expect(fmtUSDCompact(-2.1e6)).toBe("−$2.1M"); // U+2212, not a hyphen
     expect(fmtUSDCompact(1e12)).toBe("$1.00T");
     expect(fmtUSDCompact(1e9)).toBe("$1.0B");
     expect(fmtUSDCompact(999)).toBe("$999");

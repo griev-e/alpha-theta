@@ -45,8 +45,13 @@ function emptyTarget(symbol: string | null): ResearchTarget {
  */
 export function useResearchTarget(symbol: string | null): ResearchTarget {
   const [state, setState] = useState<ResearchTarget>(() => emptyTarget(symbol));
+  // Latest requested symbol, tracked so an in-flight fetch can bail when the
+  // symbol changes mid-flight. Written in an effect (not during render) so it's
+  // React-Compiler-safe; async guards compare against the newest value either way.
   const symRef = useRef(symbol);
-  symRef.current = symbol;
+  useEffect(() => {
+    symRef.current = symbol;
+  }, [symbol]);
 
   useEffect(() => {
     if (!symbol) {

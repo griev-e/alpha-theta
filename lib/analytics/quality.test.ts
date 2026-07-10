@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { holding, makePortfolio } from "../__tests__/factory";
+import { buildPortfolio } from "./build";
 import { ASSUMPTION_PRESETS, DEFAULT_ASSUMPTIONS } from "../data/assumptions";
 import { setAssumptions } from "../live/assumptions";
 import { CATEGORY_ORDER, type Grade, qualityReport } from "./quality";
@@ -60,6 +61,38 @@ describe("qualityReport", () => {
 
   it("reports full coverage for an all-known, fully-invested book", () => {
     expect(qualityReport(portfolio).coveragePct).toBeCloseTo(1, 6);
+  });
+
+  it("scores a metric neutral when its only input is a fabricated fallback", () => {
+    // A live patch supplying the critical fields but NOT roic ⇒ roic is a
+    // `fromPatch` neutral default. The roic metric must report 0 live coverage
+    // and score a neutral 50, rather than grading the invented value.
+    const p = buildPortfolio(
+      [holding({ symbol: "NEW", shares: 10, price: 100 })],
+      0,
+      "2026-06-10T00:00:00.000Z",
+      {
+        patches: {
+          NEW: {
+            symbol: "NEW",
+            asOf: "2026-06-10T00:00:00.000Z",
+            beta: 1.1,
+            volatility: 0.3,
+            sector: "Technology",
+          },
+        },
+      }
+    );
+    const roic = qualityReport(p).metrics.find((m) => m.key === "roic")!;
+    expect(roic.coverage).toBe(0);
+    expect(roic.score).toBe(50);
+  });
+
+  it("keeps full metric coverage when fundamentals carry no provenance", () => {
+    // The factory builds fundamentals without provenance (legacy/tests), which
+    // must be trusted as before — every metric fully covered.
+    const r = qualityReport(portfolio);
+    for (const m of r.metrics) expect(m.coverage).toBe(1);
   });
 
   it("scores a metric at 50 when it sits exactly on the benchmark", () => {

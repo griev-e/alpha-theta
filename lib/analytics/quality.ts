@@ -35,6 +35,14 @@ export interface QualityMetric {
   grade: Grade;
   /** 0–100 score used in the composite. */
   score: number;
+  /**
+   * Fraction of the covered (invested) weight whose input for this metric came
+   * from a live provider rather than a fabricated neutral default. 1 when every
+   * holding's value is live (or has no provenance, e.g. legacy/test fixtures);
+   * 0 when the metric is graded on nothing but placeholders — in which case it
+   * scores a neutral 50 rather than a confident grade built on invented data.
+   */
+  coverage: number;
   description: string;
 }
 
@@ -181,13 +189,51 @@ function buildMetricMeta(b: BenchmarkProfile): MetricMeta[] {
   ];
 }
 
-/** Build one scored metric from a raw value (Infinity → scored as 3× benchmark). */
-function scoreOne(meta: MetricMeta, raw: number): QualityMetric {
+/**
+ * Fundamentals fields whose provenance gates each quality metric — a metric is
+ * only scored over holdings where these fields are *live*, so a book of no-data
+ * tickers can't post a confident grade built on the neutral defaults `fromPatch`
+ * fabricates for a missing provider reading.
+ */
+const METRIC_PROV_FIELDS: Record<string, (keyof Fundamentals)[]> = {
+  revenueGrowth: ["revenueGrowth"],
+  epsGrowth: ["epsGrowth"],
+  fcfGrowth: ["fcfGrowth"],
+  roic: ["roic"],
+  operatingMargin: ["operatingMargin"],
+  grossMargin: ["grossMargin"],
+  leverage: ["debtToEquity"],
+  forwardPE: ["forwardPE"],
+  peg: ["forwardPE", "epsGrowth"],
+  fcfYield: ["fcfYield"],
+  dividendYield: ["dividendYield"],
+};
+
+/**
+ * Whether a metric's underlying value is trustworthy for a holding: true when
+ * provenance is absent (legacy blobs / test fixtures — trusted as before) or
+ * every gating field is *not* a fabricated fallback. A field explicitly marked
+ * `fallback` is a neutral default `fromPatch` invented, so it's excluded.
+ */
+function metricLive(f: Fundamentals, key: string): boolean {
+  const prov = f.provenance;
+  if (!prov) return true;
+  return (METRIC_PROV_FIELDS[key] ?? []).every((k) => prov.fields[k] !== "fallback");
+}
+
+/**
+ * Build one scored metric from a raw value (Infinity → scored as 3× benchmark).
+ * `coverage` is the share of weight backed by live data; 0 ⇒ the metric is
+ * graded on nothing but fabricated defaults, so it scores neutral.
+ */
+function scoreOne(meta: MetricMeta, raw: number, coverage = 1): QualityMetric {
   // A valuation multiple against a non-positive benchmark (e.g. PEG when the
   // index EPS-growth assumption is negative) has no meaningful ordering —
   // score it neutral instead of letting a nonsense yardstick move the grade.
-  // Same for a missing reading on a metric that opted into missingNeutral.
+  // Same for a missing reading on a metric that opted into missingNeutral, and
+  // for a metric with no live coverage at all (only fabricated defaults).
   const meaningless =
+    coverage <= 0 ||
     (meta.lowerIsBetter && meta.benchmark <= 0) ||
     (!!meta.missingNeutral && !Number.isFinite(raw));
   const forScoring = Number.isFinite(raw) ? raw : Math.abs(meta.benchmark) * 3;
@@ -205,6 +251,7 @@ function scoreOne(meta: MetricMeta, raw: number): QualityMetric {
     weight: meta.weight,
     grade: gradeFromScore(score),
     score,
+    coverage,
     description: meta.description,
   };
 }
@@ -261,47 +308,102 @@ export function qualityReport(portfolio: Portfolio): QualityReport {
   const META = buildMetricMeta(benchmark);
   const ps = portfolio.positions.filter((p) => p.fundamentals);
   const covered = ps.reduce((s, p) => s + p.equityWeight, 0);
-  const norm = covered > 0 ? covered : 1;
 
-  const wavg = (get: (f: Fundamentals) => number) =>
-    ps.reduce((s, p) => s + p.equityWeight * get(p.fundamentals!), 0) / norm;
+  // Live-weighted average for a metric: sums only over holdings whose input for
+  // that metric is live (not a fabricated fallback), renormalized to their own
+  // weight, and reports what share of the covered book that live subset is. A
+  // metric with no live coverage returns NaN + 0, scoring neutral downstream.
+  const aggLive = (
+    key: string,
+    get: (f: Fundamentals) => number
+  ): { value: number; coverage: number } => {
+    let w = 0;
+    let x = 0;
+    for (const p of ps) {
+      if (!metricLive(p.fundamentals!, key)) continue;
+      w += p.equityWeight;
+      x += p.equityWeight * get(p.fundamentals!);
+    }
+    return { value: w > 0 ? x / w : NaN, coverage: covered > 0 ? w / covered : 0 };
+  };
 
-  // Weighted harmonic mean P/E via aggregated earnings yield. Unprofitable
-  // holdings contribute zero earnings, which correctly inflates the multiple.
-  const earningsYield = wavg((f) => (f.forwardPE && f.forwardPE > 0 ? 1 / f.forwardPE : 0));
-  const forwardPE = earningsYield > 0 ? 1 / earningsYield : Infinity;
-  const epsGrowth = wavg((f) => f.epsGrowth);
+  // Weighted harmonic mean P/E via aggregated earnings yield, over the live
+  // subset. Unprofitable holdings contribute zero earnings, correctly inflating
+  // the multiple.
+  const peLive = (() => {
+    let w = 0;
+    let ey = 0;
+    for (const p of ps) {
+      if (!metricLive(p.fundamentals!, "forwardPE")) continue;
+      const f = p.fundamentals!;
+      w += p.equityWeight;
+      ey += p.equityWeight * (f.forwardPE && f.forwardPE > 0 ? 1 / f.forwardPE : 0);
+    }
+    const y = w > 0 ? ey / w : 0;
+    return { value: y > 0 ? 1 / y : Infinity, coverage: covered > 0 ? w / covered : 0 };
+  })();
+  const forwardPE = peLive.value;
+
+  const epsLive = aggLive("epsGrowth", (f) => f.epsGrowth);
+  const epsGrowth = epsLive.value;
   const peg =
-    epsGrowth > 0 && Number.isFinite(forwardPE) ? forwardPE / (epsGrowth * 100) : Infinity;
+    Number.isFinite(epsGrowth) && epsGrowth > 0 && Number.isFinite(forwardPE)
+      ? forwardPE / (epsGrowth * 100)
+      : Infinity;
+  // PEG needs both a live P/E and live growth.
+  const pegCoverage = Math.min(peLive.coverage, epsLive.coverage);
 
-  // Leverage aggregates only over names with a meaningful reading (non-null,
-  // non-financial), renormalized to their own weight — NaN when none qualify,
-  // which the metric's missingNeutral maps to a 50.
+  // Leverage aggregates only over names with a meaningful, live reading
+  // (non-null, non-financial, not a fabricated D/E), renormalized to their own
+  // weight — NaN when none qualify, which the metric's missingNeutral maps to 50.
   let levW = 0;
   let levSum = 0;
   for (const p of ps) {
-    const de = leverageOf(p.fundamentals!);
-    if (de === null) continue;
+    const f = p.fundamentals!;
+    const de = leverageOf(f);
+    if (de === null || !metricLive(f, "leverage")) continue;
     levW += p.equityWeight;
     levSum += p.equityWeight * de;
   }
   const leverage = levW > 0 ? levSum / levW : NaN;
+  const leverageCoverage = covered > 0 ? levW / covered : 0;
+
+  const revG = aggLive("revenueGrowth", (f) => f.revenueGrowth);
+  const fcfG = aggLive("fcfGrowth", (f) => f.fcfGrowth);
+  const roicA = aggLive("roic", (f) => f.roic);
+  const opM = aggLive("operatingMargin", (f) => f.operatingMargin);
+  const grM = aggLive("grossMargin", (f) => f.grossMargin);
+  const fcfY = aggLive("fcfYield", (f) => f.fcfYield);
+  const divY = aggLive("dividendYield", (f) => f.dividendYield);
 
   const rawAgg: Record<string, number> = {
-    revenueGrowth: wavg((f) => f.revenueGrowth),
+    revenueGrowth: revG.value,
     epsGrowth,
-    fcfGrowth: wavg((f) => f.fcfGrowth),
-    roic: wavg((f) => f.roic),
-    operatingMargin: wavg((f) => f.operatingMargin),
-    grossMargin: wavg((f) => f.grossMargin),
+    fcfGrowth: fcfG.value,
+    roic: roicA.value,
+    operatingMargin: opM.value,
+    grossMargin: grM.value,
     leverage,
     forwardPE,
     peg,
-    fcfYield: wavg((f) => f.fcfYield),
-    dividendYield: wavg((f) => f.dividendYield),
+    fcfYield: fcfY.value,
+    dividendYield: divY.value,
+  };
+  const covAgg: Record<string, number> = {
+    revenueGrowth: revG.coverage,
+    epsGrowth: epsLive.coverage,
+    fcfGrowth: fcfG.coverage,
+    roic: roicA.coverage,
+    operatingMargin: opM.coverage,
+    grossMargin: grM.coverage,
+    leverage: leverageCoverage,
+    forwardPE: peLive.coverage,
+    peg: pegCoverage,
+    fcfYield: fcfY.coverage,
+    dividendYield: divY.coverage,
   };
 
-  const metrics = META.map((m) => scoreOne(m, rawAgg[m.key]));
+  const metrics = META.map((m) => scoreOne(m, rawAgg[m.key], covAgg[m.key]));
   const composite = compositeOf(metrics);
   const categories = categoriesOf(metrics);
 
@@ -322,7 +424,11 @@ export function qualityReport(portfolio: Portfolio): QualityReport {
 
   const holdings: HoldingQuality[] = ps
     .map((p) => {
-      const ms = META.map((m) => scoreOne(m, holdingRaw(p.fundamentals!)[m.key]));
+      const f = p.fundamentals!;
+      const raw = holdingRaw(f);
+      const ms = META.map((m) =>
+        scoreOne(m, raw[m.key], metricLive(f, m.key) ? 1 : 0)
+      );
       const cats = categoriesOf(ms);
       const score = compositeOf(ms);
       return {

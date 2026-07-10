@@ -330,11 +330,12 @@ async function deriveStatementMetrics(
 }
 
 export async function fetchYahooPatch(
-  symbol: string
+  symbol: string,
+  force = false
 ): Promise<FundamentalsPatch | null> {
   const now = Date.now();
   const hit = fundCache.get(symbol);
-  if (hit && now - hit.at < FUND_TTL) return hit.data;
+  if (!force && hit && now - hit.at < FUND_TTL) return hit.data;
 
   let patch: FundamentalsPatch | null = null;
   try {
@@ -601,11 +602,22 @@ export async function fetchBenchmarkFields(
     const eh = s.topHoldings?.equityHoldings as
       | Record<string, unknown>
       | undefined;
-    // equityHoldings stores *yields* (earnings/price, cashflow/price), not ratios.
+    // equityHoldings *should* store yields (earnings/price, cashflow/price), not
+    // ratios — but Yahoo has historically flipped this field between the yield
+    // and the raw multiple. A yield is a small fraction, so only invert when the
+    // reading is plausibly one AND the resulting P/E lands in a sane band; a
+    // ratio-shaped value (e.g. 27) would otherwise invert to a nonsense ~0.04
+    // P/E that silently corrupts every downstream valuation score. Out-of-band
+    // ⇒ leave forwardPE unset and fall back to the static benchmark profile.
     const earnYield = num(eh?.priceToEarnings);
-    if (earnYield && earnYield > 0) out.forwardPE = 1 / earnYield;
+    if (earnYield && earnYield > 0.015 && earnYield < 0.2) {
+      out.forwardPE = 1 / earnYield; // P/E in ~[5, 66]
+    }
+    // NOTE: `priceToCashflow` is an *operating* cash-flow yield, not free cash
+    // flow, so this modestly overstates the benchmark's FCF yield (OCF > FCF).
+    // Kept as the closest keyless proxy; same plausibility guard as above.
     const cfYield = num(eh?.priceToCashflow);
-    if (cfYield && cfYield > 0) out.fcfYield = cfYield;
+    if (cfYield && cfYield > 0 && cfYield < 0.2) out.fcfYield = cfYield;
 
     const divYield = num(s.summaryDetail?.yield);
     if (divYield && divYield > 0) out.dividendYield = divYield;

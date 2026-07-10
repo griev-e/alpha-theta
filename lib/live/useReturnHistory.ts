@@ -27,6 +27,10 @@ export function useReturnHistory(symbols: string[]): number {
     if (!key) return;
     const missing = key.split(",").filter((s) => s && !attempted.current.has(s));
     if (missing.length === 0) return;
+    // Mark attempted up front (not after the batch resolves) so a re-render that
+    // changes `key` while this fetch is in flight doesn't re-request the same
+    // symbols. A failed fetch stays marked too, so it never loops.
+    for (const s of missing) attempted.current.add(s);
 
     let alive = true;
     void (async () => {
@@ -47,7 +51,6 @@ export function useReturnHistory(symbols: string[]): number {
 
       let primed = false;
       missing.forEach((symbol, i) => {
-        attempted.current.add(symbol); // mark attempted even on failure — no retry loop
         const points = series[i]?.points;
         if (points && points.length > 1) {
           // Key by the requested symbol, not the echoed one, so lookups by

@@ -74,12 +74,19 @@ export function buildPortfolio(
     if (!q) {
       return { ...h, isLivePrice: false, prevClose: null as number | null };
     }
+    const costBasis = h.shares * h.averageCost;
     const equity = h.shares * q.price;
+    // Preserve the income / realized component the broker folded into the
+    // imported total return (dividends received, closed-lot P&L): only the
+    // price-return part reprices, the rest carries forward. When the imported
+    // figure was already pure price-vs-cost P&L this offset is 0, so a live
+    // reprice is unchanged from before.
+    const importedIncome = h.totalReturn - (h.equity - costBasis);
     return {
       ...h,
       price: q.price,
       equity,
-      totalReturn: equity - h.shares * h.averageCost,
+      totalReturn: equity - costBasis + importedIncome,
       isLivePrice: true,
       prevClose: q.prevClose,
     };

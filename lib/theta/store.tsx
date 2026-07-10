@@ -48,6 +48,8 @@ interface ThetaStore {
 
   addTransaction: (tx: NewTransaction) => void;
   deleteTransaction: (id: string) => void;
+  /** Merge imported transactions into the ledger (append + dedup exact
+   *  duplicates), never replacing existing synced/manual history. */
   importTransactions: (txs: NewTransaction[]) => void;
   /** Merge a SimpleFIN sync into the ledger (dedup by stable id). */
   applySimplefinSync: (sync: { accounts: Account[]; transactions: Transaction[] }) => void;
@@ -294,12 +296,29 @@ export function ThetaProvider({ children }: { children: ReactNode }) {
 
   const importTransactions = useCallback(
     (txs: NewTransaction[]) =>
-      mutate((l) => ({
-        ...l,
-        transactions: txs
-          .map((t) => ({ ...t, id: uid("t") }))
-          .sort((a, b) => b.date.localeCompare(a.date)),
-      })),
+      mutate((l) => {
+        // Merge-append, never replace: a CSV import adds to the ledger's history
+        // rather than wiping synced/manual transactions. Exact duplicates
+        // (same date + merchant + amount + account) are skipped so re-importing
+        // the same file doesn't double every row.
+        const key = (t: NewTransaction) =>
+          `${t.date}|${t.merchant.trim().toLowerCase()}|${t.amount}|${t.account}`;
+        const seen = new Set(l.transactions.map(key));
+        const fresh: Transaction[] = [];
+        for (const t of txs) {
+          const k = key(t);
+          if (seen.has(k)) continue;
+          seen.add(k);
+          fresh.push({ ...t, id: uid("t") });
+        }
+        if (fresh.length === 0) return l;
+        return {
+          ...l,
+          transactions: [...fresh, ...l.transactions].sort((a, b) =>
+            b.date.localeCompare(a.date)
+          ),
+        };
+      }),
     [mutate]
   );
 
