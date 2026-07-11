@@ -167,10 +167,55 @@ describe("tameWicks", () => {
     expect(tamed[0]).toBe(bars[0]);
   });
 
-  it("leaves real (body-driven) moves alone", () => {
-    const bars = [bar(0), bar(1), bar(2), bar(3, { o: 100, c: 140, h: 141, l: 99.5 }), bar(4), bar(5)];
+  it("leaves a real repricing alone — the tape keeps trading there", () => {
+    // A genuine news candle: price jumps to ~140 and STAYS. The next bars
+    // trade at the new level, so the despike pass must not touch it.
+    const bars = [
+      bar(0),
+      bar(1),
+      bar(2),
+      bar(3, { o: 100, c: 140, h: 141, l: 99.5 }),
+      bar(4, { o: 140, c: 140.5, h: 141, l: 139.5 }),
+      bar(5, { o: 140.5, c: 140, h: 141, l: 139.5 }),
+    ];
     const tamed = tameWicks(bars, 10);
-    expect(tamed[3]).toBe(bars[3]); // big candle, small wick — untouched
+    expect(tamed[3]).toBe(bars[3]);
+    expect(tamed[4]).toBe(bars[4]);
+  });
+
+  it("despikes a one-sided phantom close the next bar never confirms", () => {
+    // The shape observed live: a zero-volume AH bar opens on the real tape
+    // (~100) but prints a close an envelope away (150); the next bar reopens
+    // right back at 100. A real breakout would keep trading at 150.
+    const bars = [bar(0), bar(1), bar(2), bar(3, { c: 150, h: 150, l: 60 }), bar(4), bar(5)];
+    const tamed = tameWicks(bars, 10);
+    expect(tamed[3].c).toBeLessThanOrEqual(120); // clamped to own open + cap
+    expect(tamed[3].o).toBe(100);
+    expect(tamed[3].h).toBeLessThanOrEqual(140);
+    expect(tamed[3].l).toBeGreaterThanOrEqual(80);
+    // A real into-the-gap close (coherent with its own open) is untouched
+    // even though the NEXT bar gaps: only the phantom shape trips the rule.
+    const gap = [
+      bar(0), bar(1), bar(2),
+      bar(3, { o: 130, c: 130.5, h: 131, l: 129.5 }),
+      bar(4, { o: 130.5, c: 131, h: 131.5, l: 130 }),
+      bar(5, { o: 131, c: 130.8, h: 131.2, l: 130.4 }),
+    ];
+    expect(tameWicks(gap, 10)[2]).toBe(gap[2]);
+  });
+
+  it("despikes an isolated phantom bar the tape snaps back from", () => {
+    // One bar prints a body at ~140 while both neighbors close at ~100 — a
+    // bad print, not a move (the tape never followed). It gets pulled back
+    // into the neighbors' envelope; surrounding bars pass through untouched.
+    const bars = [bar(0), bar(1), bar(2), bar(3, { o: 139, c: 140, h: 140.5, l: 138.5 }), bar(4), bar(5)];
+    const tamed = tameWicks(bars, 10);
+    // Median range 2 → cap 20; neighbors' mid = 100.5 → body clamped ≤ 120.5.
+    expect(tamed[3].o).toBeLessThanOrEqual(120.5);
+    expect(tamed[3].c).toBeLessThanOrEqual(120.5);
+    expect(tamed[3].h).toBeLessThanOrEqual(120.5 + 20);
+    expect(tamed[0]).toBe(bars[0]);
+    expect(tamed[4]).toBe(bars[4]);
   });
 
   it("passes short or flat series through unchanged", () => {

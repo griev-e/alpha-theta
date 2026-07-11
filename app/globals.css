@@ -528,6 +528,21 @@ textarea:focus-visible,
   }
 }
 
+/* The Edge Engine's idle hum — two faint dashed rings counter-rotating very
+   slowly around the conviction dial. Pure ambience; the applying component
+   already drops the class under reduced motion. */
+@keyframes engine-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.engine-spin-slow {
+  animation: engine-spin 70s linear infinite;
+}
+.engine-spin-slower {
+  animation: engine-spin 110s linear infinite reverse;
+}
+
 /* Goal-completion shimmer — a single mint bloom the instant a savings goal
    crosses 100%, fired once per goal ever (persisted). Earned theater, not
    confetti. */

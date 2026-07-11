@@ -154,12 +154,25 @@ export function typicalPrice(b: Bar): number {
 }
 
 /**
- * Bad-print hygiene for intraday bars. Keyless feeds occasionally carry a
- * rogue extended-hours tick that stretches one bar's wick far outside any
- * plausible range, blowing out the chart's scale and the derived levels. A
- * wick extending more than `k`× the series' median bar range beyond the body
- * is clamped to that envelope — bodies (open/close) are never altered, so
- * real moves survive and only the un-tradable spike is tamed.
+ * Bad-print hygiene for intraday bars — three passes over the same `k`× the
+ * series' median bar range envelope. Keyless feeds print rogue
+ * extended-hours ticks that blow out the chart's scale and the derived
+ * levels; each pass removes one observed phantom shape while real moves
+ * stay untouchable by construction:
+ *
+ *  1. **Wick clamp** — a wick extending more than the envelope beyond the
+ *     body is cut to it (bodies untouched, real candles survive).
+ *  2. **Endpoint despike** — a bar whose close sits an envelope away from
+ *     BOTH its own open and the next bar's tape is a phantom print, not a
+ *     move: a real breakout close is confirmed by the next bar trading
+ *     there, and a real into-the-gap close is coherent with its own open.
+ *     The phantom endpoint is pulled back to its own bar's envelope (opens
+ *     mirror the same rule against the previous bar).
+ *  3. **Body despike** — a bar whose ENTIRE body sits beyond the envelope
+ *     from the median close of its ±3-bar neighborhood (a wholly-displaced
+ *     phantom, sometimes a short cluster of them) is pulled back to the
+ *     neighborhood envelope. Real transition bars keep one side anchored,
+ *     so they never trip the min-distance test.
  */
 export function tameWicks(bars: Bar[], k = 10): Bar[] {
   if (bars.length < 5) return bars;
@@ -171,12 +184,75 @@ export function tameWicks(bars: Bar[], k = 10): Bar[] {
   const med = ranges[Math.floor(ranges.length / 2)];
   if (!(med > 0)) return bars;
   const cap = k * med;
-  return bars.map((b) => {
+  const clampTo = (v: number, anchor: number): number =>
+    Math.min(anchor + cap, Math.max(anchor - cap, v));
+
+  let changed = false;
+  const out = bars.map((b) => {
     const top = Math.max(b.o, b.c);
     const bot = Math.min(b.o, b.c);
     if (b.h - top <= cap && bot - b.l <= cap) return b;
+    changed = true;
     return { ...b, h: Math.min(b.h, top + cap), l: Math.max(b.l, bot - cap) };
   });
+
+  // Pass 2: one-sided phantom endpoints.
+  const far = (a: number, b: number): boolean => Math.abs(a - b) > cap;
+  for (let i = 0; i < out.length; i++) {
+    const b = out[i];
+    let { o, c } = b;
+    const next = out[i + 1];
+    const prev = out[i - 1];
+    if (next && far(c, o) && far(c, next.o) && far(c, next.c)) c = clampTo(c, o);
+    if (prev && far(o, c) && far(o, prev.c) && far(o, prev.o)) o = clampTo(o, c);
+    if (o !== b.o || c !== b.c) {
+      // The extreme printed alongside a phantom endpoint is equally
+      // untrusted — allow only an ordinary wick beyond the repaired body.
+      out[i] = {
+        ...b,
+        o,
+        c,
+        h: Math.min(b.h, Math.max(o, c) + med),
+        l: Math.max(b.l, Math.min(o, c) - med),
+      };
+      changed = true;
+    }
+  }
+
+  // Pass 3: wholly-displaced bodies. A bar must sit an envelope away from
+  // the median close on EACH side independently — a real regime shift always
+  // agrees with one side (the level it left or the one it reached), so only
+  // a bar the tape on both sides disowns can fire.
+  const closes = out.map((b) => b.c);
+  const sideMedian = (from: number, to: number): number | null => {
+    const vals: number[] = [];
+    for (let j = Math.max(0, from); j <= Math.min(out.length - 1, to); j++) vals.push(closes[j]);
+    if (vals.length < 2) return null;
+    vals.sort((a, b) => a - b);
+    return vals.length % 2 === 1
+      ? vals[(vals.length - 1) / 2]
+      : (vals[vals.length / 2 - 1] + vals[vals.length / 2]) / 2;
+  };
+  for (let i = 1; i < out.length - 1; i++) {
+    const before = sideMedian(i - 3, i - 1);
+    const after = sideMedian(i + 1, i + 3);
+    if (before === null || after === null) continue;
+    const b = out[i];
+    const minDist = (ref: number) => Math.min(Math.abs(b.o - ref), Math.abs(b.c - ref));
+    if (minDist(before) <= cap || minDist(after) <= cap) continue;
+    const ref = (before + after) / 2;
+    const o = clampTo(b.o, ref);
+    const c = clampTo(b.c, ref);
+    out[i] = {
+      ...b,
+      o,
+      c,
+      h: Math.min(b.h, Math.max(o, c) + cap),
+      l: Math.max(b.l, Math.min(o, c) - cap),
+    };
+    changed = true;
+  }
+  return changed ? out : bars;
 }
 
 export interface VwapResult {

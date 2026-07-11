@@ -1,15 +1,18 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { RangeSlider } from "@/components/ui/RangeSlider";
 import { Segmented } from "@/components/ui/Segmented";
 import { SkeletonBlock } from "@/components/ui/Skeleton";
 import { Money } from "@/components/ui/Money";
 import { CandleChart, type ChartLevel, type ChartOverlays } from "@/components/vega/CandleChart";
 import { IndicatorPane, type IndicatorKind } from "@/components/vega/IndicatorPane";
+import { AlertPopover } from "@/components/vega/AlertPopover";
 import { ChangePct, RvolText, ScanTag } from "@/components/vega/bits";
 import { fmtNum } from "@/lib/format";
+import { armedAlerts } from "@/lib/vega/alerts";
 import { atr, bollinger, ema, rsi, sessionVwap, tameWicks } from "@/lib/vega/indicators";
 import {
   floorPivots,
@@ -19,12 +22,27 @@ import {
   priorDayFromIntraday,
 } from "@/lib/vega/levels";
 import { volumeProfile } from "@/lib/vega/profile";
-import { lastSessions, latestSession, regularBars } from "@/lib/vega/session";
+import { lastSessions, latestSession, regularBars, splitSessions } from "@/lib/vega/session";
 import { scanQuote } from "@/lib/vega/scan";
 import { useVega } from "@/lib/vega/store";
-import type { Interval } from "@/lib/vega/types";
+import type { Bar, Interval } from "@/lib/vega/types";
 import { useIntraday } from "@/lib/vega/useIntraday";
 import { useVegaQuotes } from "@/lib/vega/useVegaQuotes";
+
+/** Frozen tape for bar replay: the full fetched span (levels need the prior
+ *  session) plus the display window, both captured the moment replay starts
+ *  so live polls can't shift the scrubber underfoot. */
+interface ReplayState {
+  all: Bar[];
+  win: Bar[];
+  cursor: number;
+  playing: boolean;
+  speed: number;
+}
+
+const REPLAY_SPEEDS = [1, 2, 4, 8];
+/** Bars advanced per second at 1× — one bar every ~400ms reads as a tape. */
+const REPLAY_BASE_HZ = 2.5;
 
 type OverlayKey = "vwap" | "ema" | "bb" | "levels" | "profile";
 
@@ -43,7 +61,7 @@ const OVERLAY_LABEL: Record<OverlayKey, string> = {
  * plus an RSI/MACD pane. All indicator math is the pure lib/vega engine.
  */
 export default function ChartPage() {
-  const { state, ready, setFocus, addToWatchlist } = useVega();
+  const { state, ready, setFocus, addToWatchlist, addAlert, deleteAlert } = useVega();
   const [interval, setInterval] = useState<Interval>("5m");
   const [indicator, setIndicator] = useState<IndicatorKind | "off">("rsi");
   const [on, setOn] = useState<Record<OverlayKey, boolean>>({
@@ -54,6 +72,7 @@ export default function ChartPage() {
     profile: true,
   });
   const [symbolInput, setSymbolInput] = useState("");
+  const [replay, setReplay] = useState<ReplayState | null>(null);
 
   const symbol = state.focus;
   const { series, loading, empty, degraded } = useIntraday(ready ? symbol : "", interval);
@@ -62,13 +81,56 @@ export default function ChartPage() {
 
   // Bad-print hygiene first (rogue extended-hours ticks), then window the
   // display to a fixed session count per interval so candles stay readable.
-  const allBars = useMemo(() => tameWicks(series?.bars ?? []), [series]);
-  const bars = useMemo(() => {
-    if (interval === "1m") return lastSessions(allBars, 1);
-    if (interval === "5m") return lastSessions(allBars, 2);
-    if (interval === "15m") return lastSessions(allBars, 5);
-    return allBars;
-  }, [allBars, interval]);
+  const liveAll = useMemo(() => tameWicks(series?.bars ?? []), [series]);
+  const liveWin = useMemo(() => {
+    if (interval === "1m") return lastSessions(liveAll, 1);
+    if (interval === "5m") return lastSessions(liveAll, 2);
+    if (interval === "15m") return lastSessions(liveAll, 5);
+    return liveAll;
+  }, [liveAll, interval]);
+
+  // Replay mode swaps in the frozen tape, cut at the cursor. Levels/profile
+  // read the frozen FULL span cut at the same timestamp, so the prior day
+  // stays known while nothing from later in the session leaks back.
+  const replaying = replay !== null;
+  const bars = useMemo(
+    () => (replay ? replay.win.slice(0, replay.cursor + 1) : liveWin),
+    [replay, liveWin]
+  );
+  const allBars = useMemo(() => {
+    if (!replay) return liveAll;
+    const cutoff = replay.win[replay.cursor]?.t ?? "";
+    return replay.all.filter((b) => b.t <= cutoff);
+  }, [replay, liveAll]);
+
+  // Drive the transport: advance the cursor while playing, pause at the end.
+  useEffect(() => {
+    if (!replay || !replay.playing) return;
+    const stepMs = 1000 / (REPLAY_BASE_HZ * replay.speed);
+    const id = window.setInterval(() => {
+      setReplay((r) => {
+        if (!r || !r.playing) return r;
+        if (r.cursor >= r.win.length - 1) return { ...r, playing: false };
+        return { ...r, cursor: r.cursor + 1 };
+      });
+    }, stepMs);
+    return () => window.clearInterval(id);
+  }, [replay]);
+
+  // A new symbol or timeframe is a new tape — drop any replay in progress.
+  useEffect(() => setReplay(null), [symbol, interval]);
+
+  const startReplay = () => {
+    if (liveWin.length < 20) return;
+    // Rewind to the latest session's first bar (or 1/4 in on daily bars).
+    const sessions = splitSessions(liveWin);
+    const lastLen = sessions[sessions.length - 1]?.length ?? 0;
+    const start =
+      interval === "1d"
+        ? Math.floor(liveWin.length * 0.25)
+        : Math.max(5, liveWin.length - lastLen);
+    setReplay({ all: liveAll, win: liveWin, cursor: start, playing: true, speed: 2 });
+  };
 
   const computed = useMemo(() => {
     if (bars.length === 0) return null;
@@ -142,6 +204,21 @@ export default function ChartPage() {
     [quote, asOf]
   );
 
+  // Armed alert levels ride on the chart as flagged lines.
+  const myAlerts = useMemo(() => armedAlerts(state.alerts, symbol), [state.alerts, symbol]);
+  const levelList = useMemo<ChartLevel[]>(
+    () => [
+      ...(computed?.levels ?? []),
+      ...myAlerts.map((a) => ({
+        label: `⚑${a.dir === "above" ? "↑" : "↓"}`,
+        price: a.price,
+        color: "var(--color-warn)",
+        dash: "7 3",
+      })),
+    ],
+    [computed, myAlerts]
+  );
+
   const focusSymbol = (raw: string) => {
     const sym = raw.trim().toUpperCase();
     if (!sym) return;
@@ -204,14 +281,23 @@ export default function ChartPage() {
           ) : (
             <SkeletonBlock className="h-6 w-64" />
           )}
-          {!state.watchlist.includes(symbol) && (
-            <button
-              onClick={() => addToWatchlist(symbol)}
-              className="btn-secondary ml-auto h-7 px-2.5 text-[12px]"
-            >
-              + Watch
-            </button>
-          )}
+          <span className="ml-auto flex items-center gap-2">
+            <AlertPopover
+              symbol={symbol}
+              currentPrice={quote?.price ?? null}
+              alerts={myAlerts}
+              onAdd={addAlert}
+              onDelete={deleteAlert}
+            />
+            {!state.watchlist.includes(symbol) && (
+              <button
+                onClick={() => addToWatchlist(symbol)}
+                className="btn-secondary h-7 px-2.5 text-[12px]"
+              >
+                + Watch
+              </button>
+            )}
+          </span>
         </div>
       </Card>
 
@@ -252,8 +338,68 @@ export default function ChartPage() {
                 { value: "off", label: "—" },
               ]}
             />
+            <button
+              onClick={() => (replaying ? setReplay(null) : startReplay())}
+              aria-pressed={replaying}
+              disabled={!replaying && liveWin.length < 20}
+              className={`h-7 rounded-md border px-2.5 font-mono text-[10.5px] uppercase tracking-[0.14em] transition-colors disabled:opacity-40 ${
+                replaying
+                  ? "border-gold/60 bg-gold/10 text-gold"
+                  : "border-edge text-faint hover:text-ink"
+              }`}
+            >
+              {replaying ? "Exit replay" : "Replay"}
+            </button>
           </div>
         </div>
+
+        {/* Replay transport — scrub the frozen tape bar by bar. */}
+        {replay && (
+          <div className="mx-5 mt-3 flex flex-wrap items-center gap-3 rounded-lg border border-gold/25 bg-gold/[0.04] px-3 py-2">
+            <span className="flex items-center gap-1.5 font-mono text-[9.5px] uppercase tracking-[0.2em] text-gold">
+              <span className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-gold" />
+              Replay
+            </span>
+            <button
+              onClick={() =>
+                setReplay((r) =>
+                  r
+                    ? {
+                        ...r,
+                        // Replaying past the end restarts the tape.
+                        cursor: r.cursor >= r.win.length - 1 ? Math.max(5, r.win.length - (splitSessions(r.win).at(-1)?.length ?? 0)) : r.cursor,
+                        playing: !r.playing,
+                      }
+                    : r
+                )
+              }
+              aria-label={replay.playing ? "Pause replay" : "Play replay"}
+              className="btn-secondary h-7 w-7 p-0"
+            >
+              {replay.playing ? (
+                <svg width="12" height="12" viewBox="0 0 10 10" className="text-ink" fill="currentColor"><rect x="1" y="1" width="3" height="8" rx="0.5" /><rect x="6" y="1" width="3" height="8" rx="0.5" /></svg>
+              ) : (
+                <svg width="12" height="12" viewBox="0 0 10 10" className="text-ink" fill="currentColor"><path d="M2 1 L9 5 L2 9 Z" /></svg>
+              )}
+            </button>
+            <Segmented
+              value={String(replay.speed)}
+              onChange={(v) => setReplay((r) => (r ? { ...r, speed: Number(v) } : r))}
+              options={REPLAY_SPEEDS.map((s) => ({ value: String(s), label: `${s}×` }))}
+            />
+            <RangeSlider
+              min={5}
+              max={Math.max(6, replay.win.length - 1)}
+              value={replay.cursor}
+              onChange={(v) => setReplay((r) => (r ? { ...r, cursor: Math.round(v), playing: false } : r))}
+              format={(v) => `bar ${Math.round(v) + 1}/${replay.win.length}`}
+              className="min-w-[140px] flex-1"
+            />
+            <span className="font-mono tnum text-[10.5px] text-faint">
+              {replay.cursor + 1}/{replay.win.length}
+            </span>
+          </div>
+        )}
 
         <div className="px-2 pb-3 pt-2">
           {loading && bars.length === 0 ? (
@@ -278,9 +424,9 @@ export default function ChartPage() {
                 bars={bars}
                 interval={interval}
                 overlays={computed?.overlays ?? {}}
-                levels={computed?.levels ?? []}
+                levels={levelList}
                 profile={computed?.profile ?? null}
-                live={interval !== "1d"}
+                live={interval !== "1d" && !replaying}
                 height={430}
               />
               {indicator !== "off" && (

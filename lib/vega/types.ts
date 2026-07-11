@@ -107,6 +107,25 @@ export const SETUPS = [
   "Other",
 ] as const;
 
+/* ── Price alerts ────────────────────────────────────────────────────── */
+
+/** A client-side price alert — armed against the 30s quote poll, no server
+ *  state. Fires once on a true cross, then stays visible until dismissed. */
+export interface PriceAlert {
+  id: string;
+  symbol: string;
+  price: number;
+  /** Which cross arms it: price moving up through the level, or down. */
+  dir: "above" | "below";
+  note?: string;
+  createdAt: string;
+  /** Set when the level was crossed; a fired alert never re-arms. */
+  firedAt?: string | null;
+}
+
+/** Alert count cap — enough for a day's plan, small enough to stay scannable. */
+export const ALERTS_MAX = 40;
+
 /* ── Persisted state ─────────────────────────────────────────────────── */
 
 export interface VegaSettings {
@@ -150,21 +169,23 @@ export const INTERNALS_SYMBOLS = ["SPY", "QQQ", "IWM", "DIA", "^VIX", "^TNX"] as
 export const WATCHLIST_MAX = 24;
 
 export interface VegaState {
-  v: 1;
+  v: 2;
   watchlist: string[];
   /** The symbol the cockpit + chart terminal are focused on. */
   focus: string;
   trades: Trade[];
+  alerts: PriceAlert[];
   settings: VegaSettings;
   /** The bundled sample journal is loaded (vs. the user's own trades). */
   isSample?: boolean;
 }
 
 export const EMPTY_VEGA_STATE: VegaState = {
-  v: 1,
+  v: 2,
   watchlist: [...DEFAULT_WATCHLIST],
   focus: "SPY",
   trades: [],
+  alerts: [],
   settings: DEFAULT_SETTINGS,
 };
 
@@ -193,10 +214,26 @@ function migrateTrade(raw: unknown): Trade | null {
   };
 }
 
+function migrateAlert(raw: unknown): PriceAlert | null {
+  const a = raw as Partial<PriceAlert> | null;
+  if (!a || !isStr(a.id) || !isStr(a.symbol) || !isStr(a.createdAt)) return null;
+  if (!isNum(a.price) || a.price <= 0) return null;
+  return {
+    id: a.id,
+    symbol: a.symbol.toUpperCase(),
+    price: a.price,
+    dir: a.dir === "below" ? "below" : "above",
+    note: isStr(a.note) ? a.note : undefined,
+    createdAt: a.createdAt,
+    firedAt: isStr(a.firedAt) ? a.firedAt : null,
+  };
+}
+
 /**
  * Parse + repair a persisted vega blob. Unknown shapes return null (caller
  * falls back to the empty state); partially-valid blobs keep what's usable so
- * a bad trade row never voids the whole journal.
+ * a bad trade row never voids the whole journal. v1 blobs (pre-alerts) are
+ * upgraded transparently.
  */
 export function migrateVegaState(raw: unknown): VegaState | null {
   const s = raw as Partial<VegaState> | null;
@@ -230,11 +267,18 @@ export function migrateVegaState(raw: unknown): VegaState | null {
         : DEFAULT_SETTINGS.orMinutes,
   };
   const focus = isStr(s.focus) ? s.focus.toUpperCase() : watchlist[0] ?? "SPY";
+  const alerts = Array.isArray(s.alerts)
+    ? s.alerts
+        .map(migrateAlert)
+        .filter((a): a is PriceAlert => a !== null)
+        .slice(0, ALERTS_MAX)
+    : [];
   return {
-    v: 1,
+    v: 2,
     watchlist: watchlist.length > 0 ? watchlist : [...DEFAULT_WATCHLIST],
     focus,
     trades,
+    alerts,
     settings,
     isSample: s.isSample === true ? true : undefined,
   };

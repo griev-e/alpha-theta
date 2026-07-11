@@ -20,15 +20,18 @@ import { MobileNavStrip, SidebarNav, SidebarCollapseButton } from "./SidebarNav"
 import {
   IconCandles,
   IconCockpit,
+  IconEngine,
   IconJournal,
   IconPerformance,
   IconScanner,
   IconShield,
 } from "./vegaIcons";
+import { useAlertEngine } from "@/lib/vega/useAlertEngine";
 
 const NAV = [
   { href: "/vega", label: "Cockpit", icon: IconCockpit, group: "Trade" },
   { href: "/vega/chart", label: "Chart", icon: IconCandles, group: "Trade" },
+  { href: "/vega/engine", label: "Edge Engine", icon: IconEngine, group: "Trade" },
   { href: "/vega/scanner", label: "Scanner", icon: IconScanner, group: "Trade" },
   { href: "/vega/journal", label: "Journal", icon: IconJournal, group: "Performance" },
   { href: "/vega/analytics", label: "Analytics", icon: IconPerformance, group: "Performance" },
@@ -67,6 +70,8 @@ function SessionBadge() {
 export function VegaShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const { isSample, ready, state, setFocus, addToWatchlist } = useVega();
+  // The live alert sweep — mounted once here so alerts ring on every page.
+  useAlertEngine();
   const current = NAV.find((n) => n.href === pathname);
   const showSample = ready && isSample;
   const sidebar = useSidebarWidth("vega.sidebarWidth.v1");

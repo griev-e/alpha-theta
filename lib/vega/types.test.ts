@@ -60,6 +60,27 @@ describe("migrateVegaState", () => {
     expect(s.settings).toEqual(DEFAULT_SETTINGS); // out-of-band values reset
   });
 
+  it("upgrades a v1 blob (no alerts) to v2 with an empty alert list", () => {
+    const s = migrateVegaState({ v: 1, watchlist: ["SPY"], focus: "SPY", trades: [] })!;
+    expect(s.v).toBe(2);
+    expect(s.alerts).toEqual([]);
+  });
+
+  it("repairs alerts: bad rows drop, direction defaults, cap applies", () => {
+    const s = migrateVegaState({
+      v: 2,
+      alerts: [
+        { id: "a1", symbol: "nvda", price: 120, dir: "below", createdAt: "2026-01-16T14:00:00Z" },
+        { id: "a2", symbol: "SPY", price: 500, dir: "sideways", createdAt: "2026-01-16T14:00:00Z", firedAt: "2026-01-16T15:00:00Z" },
+        { id: "bad", symbol: "SPY", price: -5, createdAt: "2026-01-16T14:00:00Z" },
+        "garbage",
+      ],
+    })!;
+    expect(s.alerts).toHaveLength(2);
+    expect(s.alerts[0]).toMatchObject({ symbol: "NVDA", dir: "below", firedAt: null });
+    expect(s.alerts[1]).toMatchObject({ dir: "above", firedAt: "2026-01-16T15:00:00Z" });
+  });
+
   it("caps the watchlist and falls back to the defaults when empty", () => {
     const long = migrateVegaState({
       watchlist: Array.from({ length: 60 }, (_, i) => `S${i}`),

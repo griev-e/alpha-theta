@@ -76,6 +76,16 @@ export const IconShield = () => (
   </svg>
 );
 
+/** The Edge Engine — a turbine hub with a needle mid-sweep. */
+export const IconEngine = () => (
+  <svg {...base}>
+    <circle cx="10" cy="10" r="7.2" strokeDasharray="2.4 2.6" opacity="0.55" />
+    <circle cx="10" cy="10" r="4.2" />
+    <path d="M10 10 L12.6 6.6" />
+    <circle cx="10" cy="10" r="1.1" fill="currentColor" stroke="none" />
+  </svg>
+);
+
 /** Levels — stacked horizontal price lines with a tick. */
 export const IconLevels = () => (
   <svg {...base}>

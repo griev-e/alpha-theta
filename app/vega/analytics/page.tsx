@@ -1,13 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { EmptyPanel } from "@/components/ui/EmptyState";
 import { Meter } from "@/components/ui/Meter";
+import { Segmented } from "@/components/ui/Segmented";
 import { EquityCurve } from "@/components/vega/EquityCurve";
+import { SimFan } from "@/components/vega/SimFan";
 import { fmtNum, fmtUSD } from "@/lib/format";
+import { useAsyncCompute } from "@/lib/useAsyncCompute";
 import {
   closedTrades,
   entryHourKey,
@@ -18,6 +21,7 @@ import {
   type GroupStat,
 } from "@/lib/vega/journal";
 import { kellyFraction } from "@/lib/vega/risk";
+import { SIM_MIN_SAMPLES, simulateTrading } from "@/lib/vega/simulate";
 import { useVega } from "@/lib/vega/store";
 
 /**
@@ -67,6 +71,16 @@ export default function AnalyticsPage() {
 
   const kelly =
     stats !== null ? kellyFraction(stats.winRate, stats.avgWin, stats.avgLoss) : null;
+
+  // The expectancy simulator — bootstrap the trader's own R distribution
+  // into alternate futures. Ruin = a drawdown worth 20% of the account at
+  // the configured per-trade risk.
+  const [horizon, setHorizon] = useState<"25" | "50" | "100">("50");
+  const ddLimitR = Math.max(2, Math.round(20 / state.settings.riskPct));
+  const { value: sim } = useAsyncCompute(
+    () => simulateTrading(rs, { horizon: Number(horizon), ddLimitR }),
+    [rs, horizon, ddLimitR]
+  );
 
   if (ready && (!stats || stats.count === 0)) {
     return (
@@ -188,9 +202,80 @@ export default function AnalyticsPage() {
         </div>
       </Card>
 
+      {/* The expectancy simulator */}
+      <Card i={5} className="mt-4 p-5">
+        <CardHeader
+          eyebrow="Bootstrap Monte Carlo"
+          title={`If you keep trading this edge — the next ${horizon} trades`}
+          right={
+            <Segmented
+              value={horizon}
+              onChange={setHorizon}
+              options={[
+                { value: "25", label: "25" },
+                { value: "50", label: "50" },
+                { value: "100", label: "100" },
+              ]}
+            />
+          }
+        />
+        {sim ? (
+          <>
+            <div className="mt-2">
+              <SimFan result={sim} />
+            </div>
+            <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-4">
+              {[
+                {
+                  label: "P(finish ahead)",
+                  value: `${Math.round(sim.pPositive * 100)}%`,
+                  tone: sim.pPositive >= 0.5 ? "text-pos" : "text-neg",
+                  sub: `after ${sim.horizon} trades`,
+                },
+                {
+                  label: "Risk of ruin",
+                  value: `${Math.round(sim.riskOfRuin * 100)}%`,
+                  tone: sim.riskOfRuin <= 0.05 ? "text-pos" : sim.riskOfRuin <= 0.2 ? "text-warn" : "text-neg",
+                  sub: `odds of a −${sim.ddLimitR}R drawdown (≈20% of account at ${fmtNum(state.settings.riskPct, 1)}% risk)`,
+                },
+                {
+                  label: "Typical worst stretch",
+                  value: `${fmtNum(sim.medianMaxDrawdown, 1)}R`,
+                  tone: "text-neg",
+                  sub: "median max drawdown across paths",
+                },
+                {
+                  label: "Expectancy",
+                  value: `${sim.expectancy >= 0 ? "+" : ""}${fmtNum(sim.expectancy, 2)}R`,
+                  tone: sim.expectancy >= 0 ? "text-pos" : "text-neg",
+                  sub: `bootstrapped from ${sim.samples} closed R-trades`,
+                },
+              ].map((t) => (
+                <div key={t.label} className="rounded-lg border border-edge/70 bg-white/[0.015] px-3.5 py-3">
+                  <div className="eyebrow">{t.label}</div>
+                  <div className={`mt-1 font-mono tnum text-[17px] ${t.tone}`}>{t.value}</div>
+                  <div className="mt-0.5 text-[10.5px] leading-snug text-faint">{t.sub}</div>
+                </div>
+              ))}
+            </div>
+            <p className="mt-3 max-w-3xl text-[11px] leading-relaxed text-faint">
+              {sim.paths.toLocaleString()} sequences resampled (with replacement) from your own
+              closed R-multiples — no return model assumed, the journal IS the distribution.
+              Deterministic per journal. A small sample bootstraps a small truth: treat the bands
+              as sequence risk on the edge you&apos;ve shown, not a forecast.
+            </p>
+          </>
+        ) : (
+          <p className="mt-3 text-[12.5px] text-faint">
+            Needs at least {SIM_MIN_SAMPLES} closed trades with stops logged ({rs.length} so far) —
+            the R distribution is the simulator&apos;s only input, so it won&apos;t invent one.
+          </p>
+        )}
+      </Card>
+
       <div className="mt-4 grid gap-4 lg:grid-cols-2">
         {/* R distribution */}
-        <Card i={5} className="p-5">
+        <Card i={6} className="p-5">
           <CardHeader eyebrow={`${rs.length} trades with a stop`} title="R-multiple distribution" />
           {rHist.length === 0 ? (
             <p className="mt-3 text-[12.5px] text-faint">
@@ -224,19 +309,19 @@ export default function AnalyticsPage() {
         </Card>
 
         {/* By hour */}
-        <Card i={6} className="p-5">
+        <Card i={7} className="p-5">
           <CardHeader eyebrow="Entry hour, local time" title="When the edge shows up" />
           <GroupList rows={byHour} />
         </Card>
 
         {/* By setup */}
-        <Card i={7} className="p-5">
+        <Card i={8} className="p-5">
           <CardHeader eyebrow="Playbook" title="P&L by setup" />
           <GroupList rows={bySetup} />
         </Card>
 
         {/* By symbol */}
-        <Card i={8} className="p-5">
+        <Card i={9} className="p-5">
           <CardHeader eyebrow="Tickers" title="P&L by symbol" />
           <GroupList rows={bySymbol.slice(0, 8)} />
         </Card>

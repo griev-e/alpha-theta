@@ -12,6 +12,7 @@ import { Table, type TableColumn } from "@/components/ui/Table";
 import { Money } from "@/components/ui/Money";
 import { ChangePct, InternalsChip, RangeBar, RvolText, ScanTag, ScoreChip } from "@/components/vega/bits";
 import { fmtPct, fmtUSD } from "@/lib/format";
+import { armedAlerts, firedAlerts } from "@/lib/vega/alerts";
 import { dayRisk } from "@/lib/vega/risk";
 import { rankScans, scanQuote, type ScanRow } from "@/lib/vega/scan";
 import { useVega } from "@/lib/vega/store";
@@ -24,8 +25,10 @@ import { useVegaQuotes } from "@/lib/vega/useVegaQuotes";
  * daily-loss circuit breaker reads the journal. Zero per-symbol fan-out.
  */
 export default function CockpitPage() {
-  const { state, ready, setFocus } = useVega();
+  const { state, ready, setFocus, deleteAlert } = useVega();
   const router = useRouter();
+  const armed = useMemo(() => armedAlerts(state.alerts), [state.alerts]);
+  const fired = useMemo(() => firedAlerts(state.alerts), [state.alerts]);
   const symbols = useMemo(
     () => [...new Set([...state.watchlist, ...INTERNALS_SYMBOLS, state.focus])],
     [state.watchlist, state.focus]
@@ -231,9 +234,14 @@ export default function CockpitPage() {
                     <dd className="tnum text-neg">{focusQuote.dayLow?.toFixed(2) ?? "—"}</dd>
                   </div>
                 </dl>
-                <Link href="/vega/chart" className="btn-primary mt-4 w-full">
-                  Open chart
-                </Link>
+                <div className="mt-4 grid grid-cols-2 gap-2">
+                  <Link href="/vega/chart" className="btn-primary">
+                    Open chart
+                  </Link>
+                  <Link href="/vega/engine" className="btn-secondary">
+                    Edge Engine
+                  </Link>
+                </div>
               </div>
             ) : (
               <div className="mt-3 space-y-2">
@@ -282,8 +290,79 @@ export default function CockpitPage() {
             </p>
           </Card>
 
-          {/* Movers */}
+          {/* Alerts */}
           <Card i={4} className="p-5">
+            <CardHeader
+              eyebrow="Alerts"
+              title="Armed levels"
+              right={
+                <Link href="/vega/chart" className="text-[12px] text-faint hover:text-ink">
+                  Arm on chart →
+                </Link>
+              }
+            />
+            {armed.length === 0 && fired.length === 0 ? (
+              <p className="mt-3 text-[12px] leading-relaxed text-faint">
+                No alerts armed. Set a level from the chart&apos;s Alert button — it rings here,
+                as a toast, and (if allowed) a browser notification when price crosses.
+              </p>
+            ) : (
+              <ul className="mt-3 space-y-1.5">
+                {fired.slice(0, 2).map((a) => (
+                  <li key={a.id} className="flex items-center gap-2 rounded-md border border-gold/30 bg-gold/[0.05] px-2 py-1 font-mono text-[11px]">
+                    <span className="text-gold">⚑</span>
+                    <button
+                      onClick={() => {
+                        setFocus(a.symbol);
+                        router.push("/vega/chart");
+                      }}
+                      className="text-ink hover:text-gold"
+                    >
+                      {a.symbol}
+                    </button>
+                    <span className="tnum text-mute">crossed {a.dir} {a.price.toFixed(2)}</span>
+                    <button
+                      onClick={() => deleteAlert(a.id)}
+                      aria-label="Dismiss fired alert"
+                      className="btn-ghost ml-auto h-5 w-5 shrink-0"
+                    >
+                      <svg width="9" height="9" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+                        <path d="M5 5 L15 15 M15 5 L5 15" />
+                      </svg>
+                    </button>
+                  </li>
+                ))}
+                {armed.slice(0, 4).map((a) => (
+                  <li key={a.id} className="flex items-center gap-2 px-2 py-0.5 font-mono text-[11px]">
+                    <span className="text-faint">{a.dir === "above" ? "↑" : "↓"}</span>
+                    <button
+                      onClick={() => {
+                        setFocus(a.symbol);
+                        router.push("/vega/chart");
+                      }}
+                      className="text-mute hover:text-ink"
+                    >
+                      {a.symbol}
+                    </button>
+                    <span className="tnum text-faint">{a.price.toFixed(2)}</span>
+                    {a.note && <span className="truncate text-[10px] text-faint">{a.note}</span>}
+                    <button
+                      onClick={() => deleteAlert(a.id)}
+                      aria-label={`Remove ${a.symbol} alert`}
+                      className="btn-ghost danger ml-auto h-5 w-5 shrink-0"
+                    >
+                      <svg width="9" height="9" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+                        <path d="M5 5 L15 15 M15 5 L5 15" />
+                      </svg>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Card>
+
+          {/* Movers */}
+          <Card i={5} className="p-5">
             <CardHeader eyebrow="Watchlist" title="Movers" />
             <ul className="mt-3 space-y-2">
               {[...scans]

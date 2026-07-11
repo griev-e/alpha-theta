@@ -13,10 +13,12 @@ import {
 import { useAuth } from "@/components/auth/AuthProvider";
 import { makeSampleTrades } from "./sample";
 import {
+  ALERTS_MAX,
   EMPTY_VEGA_STATE,
   migrateVegaState,
   WATCHLIST_MAX,
   type NewTrade,
+  type PriceAlert,
   type Trade,
   type VegaSettings,
   type VegaState,
@@ -52,6 +54,11 @@ interface VegaStore {
   deleteTrade: (id: string) => void;
   /** Merge imported trades (skip exact duplicates), never replacing history. */
   importTrades: (ts: NewTrade[]) => void;
+
+  addAlert: (a: Omit<PriceAlert, "id" | "createdAt" | "firedAt">) => void;
+  deleteAlert: (id: string) => void;
+  /** Persist the swept alert list (sweepAlerts stamps fired ones). */
+  applyAlertSweep: (next: PriceAlert[]) => void;
 
   setSettings: (patch: Partial<VegaSettings>) => void;
 
@@ -211,6 +218,35 @@ export function VegaProvider({ children }: { children: ReactNode }) {
     [mutate]
   );
 
+  const addAlert = useCallback(
+    (a: Omit<PriceAlert, "id" | "createdAt" | "firedAt">) =>
+      mutate((s) => ({
+        ...s,
+        alerts: [
+          ...s.alerts,
+          {
+            ...a,
+            symbol: cleanSymbol(a.symbol),
+            id: uid(),
+            createdAt: new Date().toISOString(),
+            firedAt: null,
+          },
+        ].slice(-ALERTS_MAX),
+      })),
+    [mutate]
+  );
+
+  const deleteAlert = useCallback(
+    (id: string) =>
+      mutate((s) => ({ ...s, alerts: s.alerts.filter((a) => a.id !== id) })),
+    [mutate]
+  );
+
+  const applyAlertSweep = useCallback(
+    (next: PriceAlert[]) => mutate((s) => ({ ...s, alerts: next })),
+    [mutate]
+  );
+
   const setSettings = useCallback(
     (patch: Partial<VegaSettings>) =>
       mutate((s) => ({ ...s, settings: { ...s.settings, ...patch } })),
@@ -242,6 +278,9 @@ export function VegaProvider({ children }: { children: ReactNode }) {
       updateTrade,
       deleteTrade,
       importTrades,
+      addAlert,
+      deleteAlert,
+      applyAlertSweep,
       setSettings,
       loadSampleJournal,
       clearJournal,
@@ -251,6 +290,7 @@ export function VegaProvider({ children }: { children: ReactNode }) {
       ready, state,
       setFocus, addToWatchlist, removeFromWatchlist,
       addTrade, updateTrade, deleteTrade, importTrades,
+      addAlert, deleteAlert, applyAlertSweep,
       setSettings, loadSampleJournal, clearJournal, clearAll,
     ]
   );

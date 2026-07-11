@@ -8,6 +8,7 @@ import { StatusDot } from "@/components/ui/StatusDot";
 import { Table, type TableColumn } from "@/components/ui/Table";
 import { Money } from "@/components/ui/Money";
 import { ChangePct, RangeBar, RvolText, ScanTag, ScoreChip } from "@/components/vega/bits";
+import { ScanMap } from "@/components/vega/ScanMap";
 import { rankScans, scanQuote, type ScanRow } from "@/lib/vega/scan";
 import { useVega } from "@/lib/vega/store";
 import { WATCHLIST_MAX } from "@/lib/vega/types";
@@ -190,7 +191,28 @@ export default function ScannerPage() {
         }
       />
 
-      <Card i={0} className="overflow-hidden">
+      {/* The battle map — gap × rvol, sized by heat. Same data as the board,
+          zero extra provider calls. */}
+      <Card i={0} className="mb-4 overflow-hidden p-5 pb-2">
+        <CardHeader
+          eyebrow="Positioning"
+          title="Gap × volume map"
+          right={
+            <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-faint">
+              size = heat · color = off the open
+            </span>
+          }
+        />
+        <ScanMap
+          rows={scans}
+          onSelect={(sym) => {
+            setFocus(sym);
+            router.push("/vega/chart");
+          }}
+        />
+      </Card>
+
+      <Card i={1} className="overflow-hidden">
         <CardHeader
           eyebrow={`${state.watchlist.length} of ${WATCHLIST_MAX} symbols`}
           title="The board"

@@ -8,6 +8,19 @@ export type PatchNote = {
 // Newest first. Add an entry here whenever a notable change ships.
 export const PATCH_NOTES: PatchNote[] = [
   {
+    version: "1.61",
+    date: "2026-07-11",
+    title: "vega build two — the Edge Engine, bar replay, alerts, and the expectancy simulator",
+    changes: [
+      "The Edge Engine (/vega/engine): a live intraday signal engine in the spirit of alpha's regime engine. Eight layers — trend structure, VWAP posture, momentum, volume pressure, range & levels, relative strength vs SPY, gap behavior, and a contrarian extension guard — each built from 2–3 concrete signals ranked against their own trailing distribution (percentiles, no hand-tuned thresholds). Layer weights are earned from data coverage and internal agreement; the composite renders on a spring-loaded conviction dial with a confidence arc, ranked drivers and counter-signals, expandable layer internals, and a session ribbon replaying how the read evolved bar by bar with no lookahead.",
+      "Bar replay on the chart terminal: freeze the tape and scrub it like film — play/pause, 1–8× speed, and a bar-by-bar slider. Every overlay, level, and indicator recomputes as-of the cursor (the frozen full span is cut at the cursor's timestamp, so yesterday's levels stay known while nothing from later in the session leaks back).",
+      "Price alerts, client-side: arm a cross-above/below level from the chart's Alert button; armed levels draw on the chart as flagged lines, ride the existing 30s quote poll (true-cross semantics — a reload or an already-crossed level never fires), and ring as a toast plus an optional browser notification. The cockpit lists what's armed and what fired.",
+      "The scanner grew a battle map: every watched symbol placed by overnight gap × relative volume, sized by cross-sectional heat, colored by its move off the open, with the two guides that matter drawn in — flat open and a 1× average tape. Bubbles glide on springs as each poll re-ranks the board; click one to chart it.",
+      "The expectancy simulator on Analytics: a bootstrap Monte Carlo over your own closed R-multiples — 2,000 resampled futures of the next 25/50/100 trades, drawn as quantile fans in R, with the odds of finishing ahead, the risk of hitting a ruin-grade drawdown (≈20% of the account at your configured per-trade risk), and the median worst stretch. No return model assumed: the journal is the distribution, and it says so.",
+      "All of it costs the provider nothing new: the engine and replay reuse the chart's existing bar fetch, the map reuses the scanner's quote batch, alerts ride the same poll, and the simulator is pure client-side math.",
+    ],
+  },
+  {
     version: "1.60",
     date: "2026-07-11",
     title: "vega — a day trading terminal joins the portal",

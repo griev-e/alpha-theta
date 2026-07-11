@@ -95,6 +95,7 @@ for (const [path, marker] of THETA_PAGES) {
 const VEGA_PAGES: [string, string | RegExp][] = [
   ["/vega", /Cockpit/i],
   ["/vega/chart", /Chart terminal/i],
+  ["/vega/engine", /Edge Engine/i],
   ["/vega/scanner", /Scanner/i],
   ["/vega/journal", /Journal/i],
   ["/vega/analytics", /Analytics/i],
