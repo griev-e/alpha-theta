@@ -285,7 +285,9 @@ export default function ThetaDashboard() {
           className="px-6 pt-5 mb-1"
         />
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[640px] text-[13px]">
+          {/* TxRow hides its category column below sm, so the wide floor only
+              kicks in from sm up — the amount + date stay on-screen on a phone. */}
+          <table className="w-full min-w-0 text-[13px] sm:min-w-[640px]">
             <tbody>
               {recentTransactions.map((t, i) => (
                 <TxRow

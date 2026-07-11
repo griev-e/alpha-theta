@@ -126,7 +126,7 @@ export default function ImportPage() {
       />
 
       <div className="grid gap-5 xl:grid-cols-[1.4fr_1fr]">
-        <div className="space-y-5">
+        <div className="min-w-0 space-y-5">
           {/* Dropzone */}
           <Card className="px-6 py-6" i={0}>
             <CardHeader eyebrow="Import" title="Load a portfolio CSV" className="mb-4" />
@@ -377,7 +377,7 @@ export default function ImportPage() {
         </div>
 
         {/* Right rail */}
-        <div className="space-y-5">
+        <div className="min-w-0 space-y-5">
           <Card className="px-6 py-5" i={1}>
             <div className="mb-4 flex items-center justify-between">
               <CardHeader eyebrow="Portfolios" title="Your portfolios" />

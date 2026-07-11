@@ -256,7 +256,10 @@ export default function TransactionsPage() {
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[640px] text-[13px]">
+          {/* The category column is hidden below sm, so the wide min-width only
+              applies from sm up — on a phone the table fits the viewport and the
+              amount + date stay on-screen instead of behind a horizontal scroll. */}
+          <table className="w-full min-w-0 text-[13px] sm:min-w-[640px]">
             <tbody>
               {monthGroups.map((mo) => (
                 <Fragment key={mo.key}>
