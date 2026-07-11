@@ -8,6 +8,19 @@ export type PatchNote = {
 // Newest first. Add an entry here whenever a notable change ships.
 export const PATCH_NOTES: PatchNote[] = [
   {
+    version: "1.60",
+    date: "2026-07-11",
+    title: "vega — a day trading terminal joins the portal",
+    changes: [
+      "The portal is now three doors: alpha (portfolio analytics), theta (personal finance), and vega — a gold-accented day trading terminal at /vega, reachable from the lock screen, the app-title switcher, and the ⌘K palette.",
+      "Chart terminal: intraday candlesticks (1m/5m/15m/daily, pre/post included) with session-anchored VWAP ±σ bands, EMA 9/20, Bollinger bands, an RSI/MACD pane, session boundaries, a crosshair OHLCV readout, and a live last-price tape line. Key levels draw themselves — prior-day high/low/close, floor-trader pivots, the opening range, premarket range — plus the day's volume profile with its point of control.",
+      "Cockpit & scanner: one batched quote poll powers a market-internals tape (SPY/QQQ/IWM/DIA/VIX/10Y), watchlist breadth, and a momentum board that ranks gap, relative volume, range, and move-off-the-open as percentiles within the set you're watching — the regime engine's no-magic-thresholds principle, applied cross-sectionally.",
+      "Journal & analytics: log entries, exits, stops and setups (or import a broker CSV; export any time), and the performance layer computes itself — a P&L calendar, equity curve with drawdown, win rate, profit factor, expectancy, R-multiple distribution, and per-setup / per-symbol / time-of-day breakdowns. A bundled sample journal (clearly badged) previews the machinery.",
+      "Risk manager: position sizing off the stop with a scale-out R ladder, a daily-loss circuit breaker fed by the day's realized journal P&L, and a half-Kelly check derived from your actual win rate and payoff.",
+      "Provider-friendly by construction: the whole watchlist quotes in one batched request per 30s poll, the chart is one call per minute for the focused symbol only, and every layer is cached server-side and at the CDN — no per-symbol fan-out anywhere.",
+    ],
+  },
+  {
     version: "1.59",
     date: "2026-07-10",
     title: "Import CSVs into theta, a truthful refresh, and a hardening pass",

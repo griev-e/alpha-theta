@@ -9,18 +9,20 @@ import { useAuth } from "@/components/auth/AuthProvider";
 /**
  * Shared brand primitives for the two-app portal.
  *
- * `alpha` (portfolio analytics) and `theta` (personal finance) are sister
- * surfaces that share one dark, institutional aesthetic. Their wordmarks are
- * the Greek letters set in the same serif so they read as a family; each app
- * carries a single signature accent — mint for alpha, iris for theta — used
- * sparingly the way the rest of the UI uses color.
+ * `alpha` (portfolio analytics), `theta` (personal finance) and `vega` (day
+ * trading) are sister surfaces that share one dark, institutional aesthetic.
+ * Their wordmarks are the Greek letters set in the same serif so they read as
+ * a family; each app carries a single signature accent — brand red for alpha,
+ * iris for theta, gold for vega — used sparingly the way the rest of the UI
+ * uses color.
  */
 
-export type AppKind = "alpha" | "theta";
+export type AppKind = "alpha" | "theta" | "vega";
 
 export const APP_HOME: Record<AppKind, string> = {
   alpha: "/",
   theta: "/theta",
+  vega: "/vega",
 };
 
 export const APP_META: Record<
@@ -47,6 +49,13 @@ export const APP_META: Record<
     tagline: "personal finance",
     definition: "a measure of time's impact on value",
   },
+  vega: {
+    glyph: "ν",
+    name: "vega",
+    phonetic: "/VĀ′gə/",
+    tagline: "day trading terminal",
+    definition: "a measure of sensitivity to volatility",
+  },
 };
 
 /** The cursive serif glyph that anchors each app. Fills with `currentColor`
@@ -62,21 +71,27 @@ export function Mark({
   className?: string;
 }) {
   // α sits a touch high; θ is a round lowercase form sized a hair smaller to
-  // balance against α at the same box. Because both glyphs are vertically
-  // centered (dominant-baseline central), the smaller θ would otherwise carry a
-  // higher baseline than α — so it's nudged further down to sit on α's line.
-  const isAlpha = kind === "alpha";
+  // balance against α at the same box; ν is the narrowest of the three, so it
+  // holds α's size but rides θ's baseline nudge. Because the glyphs are
+  // vertically centered (dominant-baseline central), the smaller forms would
+  // otherwise carry a higher baseline than α — each is nudged onto α's line.
+  const GLYPH_FIT: Record<AppKind, { y: number; fontSize: number }> = {
+    alpha: { y: 12.8, fontSize: 30 },
+    theta: { y: 15, fontSize: 26 },
+    vega: { y: 14, fontSize: 28 },
+  };
+  const fit = GLYPH_FIT[kind];
   return (
     <svg width={size} height={size} viewBox="0 0 32 32" aria-hidden className={`text-white ${className}`}>
       <text
         x="16"
-        y={isAlpha ? 12.8 : 15}
+        y={fit.y}
         textAnchor="middle"
         dominantBaseline="central"
         fill="currentColor"
         fontFamily="Georgia, 'Times New Roman', serif"
         fontStyle="italic"
-        fontSize={isAlpha ? 30 : 26}
+        fontSize={fit.fontSize}
       >
         {APP_META[kind].glyph}
       </text>
@@ -126,7 +141,7 @@ export function AppTitle({
           }}
         />
       )}
-      {(["alpha", "theta"] as const).map((kind, i) => {
+      {(["alpha", "theta", "vega"] as const).map((kind, i) => {
         const on = kind === active;
         return (
           <span key={kind} className="relative flex items-center gap-1.5">

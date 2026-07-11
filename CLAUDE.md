@@ -508,6 +508,56 @@ with alpha, but otherwise has its own state, shell, and analytics:
   favicon at `app/theta/icon.svg`) so the two apps feel distinct even though
   they're one deployment.
 
+### vega — the day trading terminal (`app/vega/*`)
+
+vega is the third portal app (gold accent, `--color-gold`, `.vega-scope`),
+behind its own routes (`/vega` cockpit, `/vega/chart`, `/vega/scanner`,
+`/vega/journal`, `/vega/analytics`, `/vega/risk`, `/vega/import`). Same
+delegation pattern as theta: `AppShell` detects the `/vega` prefix and renders
+`VegaProvider` + `components/shell/VegaShell.tsx` (nav groups Trade /
+Performance / System, icons in `components/shell/vegaIcons.tsx` — add new vega
+routes there). The lock-screen portal, `AppTitle` switcher and both other
+apps' ⌘K palettes know all three apps via `components/shell/brand.tsx`
+(`AppKind`).
+
+- **State** — `lib/vega/store.tsx` (`VegaProvider`/`useVega`): watchlist,
+  focus symbol, trade journal, and risk settings in one localStorage blob
+  (`vega.state.v1`, migrated/repaired by `migrateVegaState` in
+  `lib/vega/types.ts`). Deliberately browser-local even in accounts mode — no
+  `user_state` schema change — but the storage key is suffixed with the
+  signed-in userId so journals stay isolated on a shared machine. The sample
+  journal (`lib/vega/sample.ts`) is flagged `isSample` and badged.
+- **Data plumbing** — two vega-specific proxies over `lib/server/intraday.ts`
+  (which has its own `sanitizeVegaSymbols` that keeps `^`/`=` so index and
+  futures tickers survive): `/api/vega/quotes` returns rich day-trading quotes
+  (day OHLC, volume, 10d/3m averages, 52w range, extended hours) for up to 40
+  symbols in ONE batched Yahoo call, 30s-cached; `/api/vega/intraday` returns
+  OHLCV bars for one symbol (`1m|5m|15m|1d`, pre/post included intraday),
+  55s-cached. Client hooks `lib/vega/useVegaQuotes.ts` (30s poll) and
+  `useIntraday.ts` (60s poll, focused symbol only) are visibility-gated.
+  **Never add per-symbol fan-out** — the batch endpoint is what keeps vega
+  inside the keyless provider's tolerance (the watchlist cap `WATCHLIST_MAX`
+  exists for the same reason).
+- **Pure analytics (`lib/vega/*`, all unit-tested)** — `indicators.ts` (SMA/
+  EMA/RSI/MACD/Bollinger/ATR + session-anchored VWAP with volume-weighted σ
+  bands), `session.ts` (ET session math over bar timestamps — the VWAP anchor,
+  opening range and "minutes into the session" all derive from it),
+  `levels.ts` (floor pivots, prior-day H/L/C, opening/premarket range, swing
+  S/R clustering), `profile.ts` (volume profile: POC + 70% value area),
+  `scan.ts` (gap/RVOL/range metrics + the cross-sectional heat score —
+  percentiles within the scanned set, the regime engine's no-hand-tuned-
+  thresholds principle), `journal.ts` (P&L, R-multiples, equity curve/
+  drawdown, streaks, groupings), `risk.ts` (stop-based position sizing, Kelly,
+  the daily-loss circuit breaker), `csv.ts` (forgiving journal CSV round-trip
+  over the shared `csvCore` splitter).
+- **Components** — vega-only UI lives in `components/vega/*`: the flagship
+  `CandleChart.tsx` (candles + volume lane + overlays + levels + in-plot
+  volume profile + crosshair readout; exports `CHART_PAD` so
+  `IndicatorPane.tsx` aligns bar-for-bar beneath it), `EquityCurve.tsx`,
+  `PnlCalendar.tsx`, and `bits.tsx` (change/RVOL/range/score/tag chips).
+  Shared primitives still come from `components/ui/*`; charts stay hand-built
+  SVG.
+
 ## Conventions
 
 - **Path alias:** `@/*` maps to the repo root (e.g. `@/lib/store`).

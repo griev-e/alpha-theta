@@ -87,6 +87,68 @@ for (const [path, marker] of THETA_PAGES) {
 }
 
 /**
+ * vega's routes. vega ships with a default watchlist and empty journal, so
+ * every page renders without seeding; the journal/analytics pages exercise
+ * their empty states, and the cockpit/chart/scanner must degrade gracefully
+ * with the live quote/bar feed unreachable.
+ */
+const VEGA_PAGES: [string, string | RegExp][] = [
+  ["/vega", /Cockpit/i],
+  ["/vega/chart", /Chart terminal/i],
+  ["/vega/scanner", /Scanner/i],
+  ["/vega/journal", /Journal/i],
+  ["/vega/analytics", /Analytics/i],
+  ["/vega/risk", /Risk/i],
+  ["/vega/import", /Import/i],
+];
+
+for (const [path, marker] of VEGA_PAGES) {
+  test(`renders ${path}`, async ({ page }) => {
+    await page.goto(path);
+    await expect(page.locator("main")).toBeVisible();
+    await expect(page.locator("body")).toContainText(marker, { timeout: 15_000 });
+    await expect(page.locator("body")).not.toContainText("Application error");
+  });
+}
+
+/**
+ * vega with the sample journal loaded — the data-full render path for the
+ * calendar, equity curve, R distribution and breakdowns (the empty-state
+ * default above never reaches them). Trades are seeded through the store's
+ * own persisted shape.
+ */
+test("renders /vega/analytics with a seeded journal", async ({ page }) => {
+  await page.addInitScript(() => {
+    const trades = Array.from({ length: 6 }, (_, i) => ({
+      id: `e2e_${i}`,
+      symbol: i % 2 === 0 ? "NVDA" : "SPY",
+      side: i % 3 === 0 ? "short" : "long",
+      qty: 50,
+      entry: 100,
+      exit: i % 2 === 0 ? 102 : 99,
+      stop: 98.5,
+      entryAt: new Date(Date.now() - (i + 1) * 86_400_000).toISOString(),
+      exitAt: new Date(Date.now() - (i + 1) * 86_400_000 + 3_600_000).toISOString(),
+      setup: "ORB",
+    }));
+    localStorage.setItem(
+      "vega.state.v1",
+      JSON.stringify({
+        v: 1,
+        watchlist: ["SPY", "NVDA"],
+        focus: "NVDA",
+        trades,
+        settings: { accountSize: 25000, riskPct: 1, dailyLossPct: 3, orMinutes: 15 },
+      })
+    );
+  });
+  await page.goto("/vega/analytics");
+  await expect(page.locator("main")).toBeVisible();
+  await expect(page.locator("body")).toContainText(/Equity curve/i, { timeout: 15_000 });
+  await expect(page.locator("body")).not.toContainText("Application error");
+});
+
+/**
  * The empty book is the render corner most likely to throw — analytics that
  * reduce/divide over holdings meet a zero-length portfolio, not the well-formed
  * one above. The default suite always seeds three holdings, so it never hits

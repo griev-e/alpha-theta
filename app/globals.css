@@ -23,6 +23,10 @@
   --color-warn: #fbbf24;
   --color-vio: #a78bfa;
   --color-sky: #7dd3fc;
+  /* vega's signature accent — a trading-desk yellow, deliberately its own
+     token rather than reusing --color-warn (amber means "act" in the status
+     grammar; gold means "you're in vega"). */
+  --color-gold: #facc15;
 
   /* Neutral slate used for chart tracks/gridlines (donut/gauge/ring rails,
      scatter/radar/fan-chart gridlines). One hue, mixed to whatever opacity
@@ -118,6 +122,8 @@
   --color-pos-bright: #6ee7b7;
   --color-neg-dim: color-mix(in srgb, #fb7185 40%, transparent);
   --color-neg-bright: #fda4af;
+  --color-gold-dim: color-mix(in srgb, #facc15 40%, transparent);
+  --color-gold-bright: #fde047;
 
   /* Ambient hero washes — named so the glow blobs (Overview/theta hero, lock
      screen) stop restating rgba tuples. Felt, not seen; kept low. */
@@ -125,6 +131,7 @@
   --wash-neg: rgba(251, 113, 133, 0.1);
   --wash-vio: rgba(167, 139, 250, 0.09);
   --wash-mint: rgba(94, 234, 212, 0.1);
+  --wash-gold: rgba(250, 204, 21, 0.08);
 }
 
 /* ── Type scale reference ──────────────────────────────────────────────
@@ -165,6 +172,9 @@ html {
 }
 .theta-scope {
   --accent-focus: var(--color-vio);
+}
+.vega-scope {
+  --accent-focus: var(--color-gold);
 }
 
 /* Unlock entrance overlay — driven by a render-blocking script in layout.tsx
