@@ -9,11 +9,12 @@ import { APP_HOME, APP_META, type AppKind, Mark } from "@/components/shell/brand
 const SERIF = '"Palatino Linotype", "Book Antiqua", Palatino, serif';
 
 // Signature accent (raw RGB) per app — alpha's brand red (--color-accent in
-// globals.css) and theta's iris. Drives the hover bloom, the field theming
-// and the unlock choreography tint.
+// globals.css), theta's iris, vega's gold. Drives the hover bloom, the field
+// theming and the unlock choreography tint.
 const ACCENT_RGB: Record<AppKind, string> = {
   alpha: "196,43,43",
   theta: "167,139,250",
+  vega: "250,204,21",
 };
 
 /**
@@ -106,7 +107,7 @@ export default function LockPage() {
             mode === "auth"
               ? `radial-gradient(circle at 50% 42%, rgba(${accent},0.07), transparent 60%)`
               : hovered
-                ? `radial-gradient(circle at ${hovered === "alpha" ? "32%" : "68%"} 45%, rgba(${ACCENT_RGB[hovered]},0.07), transparent 55%)`
+                ? `radial-gradient(circle at ${hovered === "alpha" ? "22%" : hovered === "theta" ? "50%" : "78%"} 45%, rgba(${ACCENT_RGB[hovered]},0.07), transparent 55%)`
                 : "radial-gradient(circle at 50% 45%, rgba(255,255,255,0.02), transparent 60%)",
         }}
         transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
@@ -116,7 +117,7 @@ export default function LockPage() {
         {mode === "portal" ? (
           <m.div
             key="portal"
-            className="relative z-30 w-full max-w-3xl"
+            className="relative z-30 w-full max-w-5xl"
             initial={{ opacity: 0 }}
             animate={{ opacity: unlocked ? 0 : 1 }}
             exit={{ opacity: 0, y: -10 }}
@@ -131,24 +132,21 @@ export default function LockPage() {
                 from={-32}
               />
 
-              {/* the divider — the " | " in α | θ */}
-              <m.div
-                aria-hidden
-                initial={{ opacity: 0, scaleY: 0.3 }}
-                animate={{ opacity: 1, scaleY: 1 }}
-                transition={{ delay: 0.25, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-                className="mx-auto my-2 hidden h-48 w-px bg-gradient-to-b from-transparent via-edge2 to-transparent md:block"
-              />
-              <m.div
-                aria-hidden
-                initial={{ opacity: 0, scaleX: 0.3 }}
-                animate={{ opacity: 1, scaleX: 1 }}
-                transition={{ delay: 0.25, duration: 0.6 }}
-                className="mx-auto my-2 h-px w-32 bg-gradient-to-r from-transparent via-edge2 to-transparent md:hidden"
-              />
+              {/* the dividers — the " | " in α | θ | ν */}
+              <PortalDivider />
 
               <PortalChoice
                 kind="theta"
+                hovered={hovered}
+                onHover={setHovered}
+                onChoose={choose}
+                from={0}
+              />
+
+              <PortalDivider />
+
+              <PortalChoice
+                kind="vega"
                 hovered={hovered}
                 onHover={setHovered}
                 onChoose={choose}
@@ -337,7 +335,29 @@ export default function LockPage() {
   );
 }
 
-/** One half of the portal: the giant glyph, its name, and a hover bloom. */
+/** The " | " between portal doors — vertical on desktop, horizontal stacked. */
+function PortalDivider() {
+  return (
+    <>
+      <m.div
+        aria-hidden
+        initial={{ opacity: 0, scaleY: 0.3 }}
+        animate={{ opacity: 1, scaleY: 1 }}
+        transition={{ delay: 0.25, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+        className="mx-auto my-2 hidden h-48 w-px bg-gradient-to-b from-transparent via-edge2 to-transparent md:block"
+      />
+      <m.div
+        aria-hidden
+        initial={{ opacity: 0, scaleX: 0.3 }}
+        animate={{ opacity: 1, scaleX: 1 }}
+        transition={{ delay: 0.25, duration: 0.6 }}
+        className="mx-auto my-2 h-px w-32 bg-gradient-to-r from-transparent via-edge2 to-transparent md:hidden"
+      />
+    </>
+  );
+}
+
+/** One door of the portal: the giant glyph, its name, and a hover bloom. */
 function PortalChoice({
   kind,
   hovered,

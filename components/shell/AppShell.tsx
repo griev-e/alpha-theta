@@ -27,6 +27,8 @@ import { PortfolioSwitcher } from "./PortfolioSwitcher";
 import { MobileNavStrip, SidebarNav, SidebarCollapseButton } from "./SidebarNav";
 import { PATCH_NOTES } from "@/lib/data/patchNotes";
 import { ThetaShell } from "./ThetaShell";
+import { VegaShell } from "./VegaShell";
+import { VegaProvider } from "@/lib/vega/store";
 import {
   IconBenchmark,
   IconDiscover,
@@ -175,7 +177,12 @@ export function AppShell({ children }: { children: ReactNode }) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.metaKey || e.ctrlKey || e.altKey) return;
-      if (pathname === "/lock" || pathname === "/report" || pathname.startsWith("/theta"))
+      if (
+        pathname === "/lock" ||
+        pathname === "/report" ||
+        pathname.startsWith("/theta") ||
+        pathname.startsWith("/vega")
+      )
         return;
       const t = e.target as HTMLElement | null;
       if (
@@ -295,6 +302,13 @@ export function AppShell({ children }: { children: ReactNode }) {
         keywords: "personal finance money theta",
         run: () => router.push("/theta"),
       },
+      {
+        id: "act:vega",
+        label: "Switch to vega",
+        group: "Actions",
+        keywords: "day trading terminal chart scanner vega",
+        run: () => router.push("/vega"),
+      },
       // Deep-links into the sister app, but only when it actually has data —
       // the portal as one product, not a dead switch.
       ...(thetaHasData
@@ -365,6 +379,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   // in each client page. theta owns its own title (ThetaShell), so bail there.
   useEffect(() => {
     if (pathname === "/theta" || pathname.startsWith("/theta/")) return;
+    if (pathname === "/vega" || pathname.startsWith("/vega/")) return;
     const item = NAV.find((n) => n.href === pathname);
     const label =
       pathname === "/report"
@@ -398,6 +413,16 @@ export function AppShell({ children }: { children: ReactNode }) {
           <ThetaShell>{children}</ThetaShell>
         </ThetaAssumptionsProvider>
       </ThetaProvider>
+    );
+  }
+
+  // vega — the day trading terminal — likewise carries its own shell, accent
+  // and store; the provider only mounts on these routes.
+  if (pathname === "/vega" || pathname.startsWith("/vega/")) {
+    return (
+      <VegaProvider>
+        <VegaShell>{children}</VegaShell>
+      </VegaProvider>
     );
   }
 

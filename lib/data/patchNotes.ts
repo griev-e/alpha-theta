@@ -8,6 +8,33 @@ export type PatchNote = {
 // Newest first. Add an entry here whenever a notable change ships.
 export const PATCH_NOTES: PatchNote[] = [
   {
+    version: "1.61",
+    date: "2026-07-11",
+    title: "vega build two — the Edge Engine, bar replay, alerts, and the expectancy simulator",
+    changes: [
+      "The Edge Engine (/vega/engine): a live intraday signal engine in the spirit of alpha's regime engine. Eight layers — trend structure, VWAP posture, momentum, volume pressure, range & levels, relative strength vs SPY, gap behavior, and a contrarian extension guard — each built from 2–3 concrete signals ranked against their own trailing distribution (percentiles, no hand-tuned thresholds). Layer weights are earned from data coverage and internal agreement; the composite renders on a spring-loaded conviction dial with a confidence arc, ranked drivers and counter-signals, expandable layer internals, and a session ribbon replaying how the read evolved bar by bar with no lookahead.",
+      "Bar replay on the chart terminal: freeze the tape and scrub it like film — play/pause, 1–8× speed, and a bar-by-bar slider. Every overlay, level, and indicator recomputes as-of the cursor (the frozen full span is cut at the cursor's timestamp, so yesterday's levels stay known while nothing from later in the session leaks back).",
+      "Price alerts, client-side: arm a cross-above/below level from the chart's Alert button; armed levels draw on the chart as flagged lines, ride the existing 30s quote poll (true-cross semantics — a reload or an already-crossed level never fires), and ring as a toast plus an optional browser notification. The cockpit lists what's armed and what fired.",
+      "The scanner grew a battle map: every watched symbol placed by overnight gap × relative volume, sized by cross-sectional heat, colored by its move off the open, with the two guides that matter drawn in — flat open and a 1× average tape. Bubbles glide on springs as each poll re-ranks the board; click one to chart it.",
+      "The expectancy simulator on Analytics: a bootstrap Monte Carlo over your own closed R-multiples — 2,000 resampled futures of the next 25/50/100 trades, drawn as quantile fans in R, with the odds of finishing ahead, the risk of hitting a ruin-grade drawdown (≈20% of the account at your configured per-trade risk), and the median worst stretch. No return model assumed: the journal is the distribution, and it says so.",
+      "All of it costs the provider nothing new: the engine and replay reuse the chart's existing bar fetch, the map reuses the scanner's quote batch, alerts ride the same poll, and the simulator is pure client-side math.",
+      "Hardened by a full correction & optimization pass: the daily-loss circuit breaker and P&L calendar now agree on the trader's local day (a 20:30 ET exit no longer slips into tomorrow), back-dated journal entries take an explicit exit time, premarket scanner rows stop wearing yesterday's volume as a 16× RVOL, a provider hiccup serves the last good chart instead of five minutes of false 'no data', an outage can't trigger request fan-out, bad-print repair only ever touches zero-volume bars (real climaxes are structurally exempt), alerts can't fire on stale prices or arm with an unknowable direction, and the engine's percentile ranking got ~100× cheaper while unchanged data skips recompute entirely.",
+    ],
+  },
+  {
+    version: "1.60",
+    date: "2026-07-11",
+    title: "vega — a day trading terminal joins the portal",
+    changes: [
+      "The portal is now three doors: alpha (portfolio analytics), theta (personal finance), and vega — a gold-accented day trading terminal at /vega, reachable from the lock screen, the app-title switcher, and the ⌘K palette.",
+      "Chart terminal: intraday candlesticks (1m/5m/15m/daily, pre/post included) with session-anchored VWAP ±σ bands, EMA 9/20, Bollinger bands, an RSI/MACD pane, session boundaries, a crosshair OHLCV readout, and a live last-price tape line. Key levels draw themselves — prior-day high/low/close, floor-trader pivots, the opening range, premarket range — plus the day's volume profile with its point of control.",
+      "Cockpit & scanner: one batched quote poll powers a market-internals tape (SPY/QQQ/IWM/DIA/VIX/10Y), watchlist breadth, and a momentum board that ranks gap, relative volume, range, and move-off-the-open as percentiles within the set you're watching — the regime engine's no-magic-thresholds principle, applied cross-sectionally.",
+      "Journal & analytics: log entries, exits, stops and setups (or import a broker CSV; export any time), and the performance layer computes itself — a P&L calendar, equity curve with drawdown, win rate, profit factor, expectancy, R-multiple distribution, and per-setup / per-symbol / time-of-day breakdowns. A bundled sample journal (clearly badged) previews the machinery.",
+      "Risk manager: position sizing off the stop with a scale-out R ladder, a daily-loss circuit breaker fed by the day's realized journal P&L, and a half-Kelly check derived from your actual win rate and payoff.",
+      "Provider-friendly by construction: the whole watchlist quotes in one batched request per 30s poll, the chart is one call per minute for the focused symbol only, and every layer is cached server-side and at the CDN — no per-symbol fan-out anywhere.",
+    ],
+  },
+  {
     version: "1.59",
     date: "2026-07-10",
     title: "Import CSVs into theta, a truthful refresh, and a hardening pass",
