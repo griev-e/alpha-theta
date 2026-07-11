@@ -7,31 +7,13 @@ import { useElementWidth } from "@/lib/useElementWidth";
 import { fmtNum } from "@/lib/format";
 import { macd as macdCalc, rsi as rsiCalc } from "@/lib/vega/indicators";
 import type { Bar } from "@/lib/vega/types";
-import { CHART_PAD } from "./CandleChart";
+import { CHART_PAD, seriesPath } from "./CandleChart";
 
 export type IndicatorKind = "rsi" | "macd";
 
 const POS = "var(--color-pos)";
 const NEG = "var(--color-neg)";
 
-function linePath(
-  s: (number | null)[],
-  x: (i: number) => number,
-  y: (v: number) => number
-): string {
-  let d = "";
-  let pen = false;
-  for (let i = 0; i < s.length; i++) {
-    const v = s[i];
-    if (v === null) {
-      pen = false;
-      continue;
-    }
-    d += `${pen ? "L" : "M"}${x(i).toFixed(2)},${y(v).toFixed(2)}`;
-    pen = true;
-  }
-  return d;
-}
 
 /**
  * The oscillator pane under the candle chart — RSI (with its 30/70 zone) or
@@ -109,7 +91,7 @@ export function IndicatorPane({
           initial={reduce ? false : { pathLength: 0 }}
           animate={{ pathLength: 1 }}
           transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
-          d={linePath(data.rsi, x, y)}
+          d={seriesPath(data.rsi, x, y)}
           fill="none"
           stroke="var(--color-gold)"
           strokeWidth="1.4"
@@ -158,7 +140,7 @@ export function IndicatorPane({
           initial={reduce ? false : { pathLength: 0 }}
           animate={{ pathLength: 1 }}
           transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
-          d={linePath(data.macd.macd, x, y)}
+          d={seriesPath(data.macd.macd, x, y)}
           fill="none"
           stroke="var(--color-sky)"
           strokeWidth="1.3"
@@ -167,7 +149,7 @@ export function IndicatorPane({
           initial={reduce ? false : { pathLength: 0 }}
           animate={{ pathLength: 1 }}
           transition={{ duration: 0.7, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
-          d={linePath(data.macd.signal, x, y)}
+          d={seriesPath(data.macd.signal, x, y)}
           fill="none"
           stroke="var(--color-vio)"
           strokeWidth="1.2"

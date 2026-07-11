@@ -52,6 +52,18 @@ export function fmtUSDCompact(v: number): string {
   return `${sign}$${abs.toFixed(0)}`;
 }
 
+/** Compact plain number: 1.2B, 41.5M, 412K — the share/volume ladder
+ *  (whole-K, like exchange volume readouts). Em dash for non-finite. */
+export function fmtCompact(v: number): string {
+  if (!Number.isFinite(v)) return "—";
+  const abs = Math.abs(v);
+  const sign = v < 0 ? "−" : "";
+  if (abs >= 1e9) return `${sign}${(abs / 1e9).toFixed(1)}B`;
+  if (abs >= 1e6) return `${sign}${(abs / 1e6).toFixed(1)}M`;
+  if (abs >= 1e3) return `${sign}${(abs / 1e3).toFixed(0)}K`;
+  return `${sign}${Math.round(abs)}`;
+}
+
 /**
  * Split a formatted currency string into a loud middle and the quiet furniture
  * around it — the leading symbol/sign (`$`, `−$`, `+$`) and the trailing cents

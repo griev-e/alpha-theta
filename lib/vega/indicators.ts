@@ -154,11 +154,13 @@ export function typicalPrice(b: Bar): number {
 }
 
 /**
- * Bad-print hygiene for intraday bars — three passes over the same `k`× the
+ * Bad-print repair for intraday bars — three passes over the same `k`× the
  * series' median bar range envelope. Keyless feeds print rogue
  * extended-hours ticks that blow out the chart's scale and the derived
  * levels; each pass removes one observed phantom shape while real moves
- * stay untouchable by construction:
+ * stay untouchable by construction. (Named for what it does now — passes 2
+ * and 3 repair BODIES, not just wicks, so every close-sensitive consumer
+ * can see that at the call site.)
  *
  *  1. **Wick clamp** — a wick extending more than the envelope beyond the
  *     body is cut to it (bodies untouched, real candles survive).
@@ -173,8 +175,15 @@ export function typicalPrice(b: Bar): number {
  *     phantom, sometimes a short cluster of them) is pulled back to the
  *     neighborhood envelope. Real transition bars keep one side anchored,
  *     so they never trip the min-distance test.
+ *
+ * Passes 2 and 3 only touch **zero-volume bars**: every phantom observed on
+ * the live feed printed v=0, while a real climax, squeeze, or gap-and-go bar
+ * always carries volume — so volume-backed moves are structurally exempt
+ * from body repair. (Extended-hours bars report v=0 systematically, which is
+ * exactly where the phantoms live; a real zero-volume AH repricing survives
+ * because the following AH tape confirms it.)
  */
-export function tameWicks(bars: Bar[], k = 10): Bar[] {
+export function repairBars(bars: Bar[], k = 10): Bar[] {
   if (bars.length < 5) return bars;
   const ranges = bars
     .map((b) => b.h - b.l)
@@ -196,10 +205,11 @@ export function tameWicks(bars: Bar[], k = 10): Bar[] {
     return { ...b, h: Math.min(b.h, top + cap), l: Math.max(b.l, bot - cap) };
   });
 
-  // Pass 2: one-sided phantom endpoints.
+  // Pass 2: one-sided phantom endpoints (zero-volume bars only).
   const far = (a: number, b: number): boolean => Math.abs(a - b) > cap;
   for (let i = 0; i < out.length; i++) {
     const b = out[i];
+    if (b.v > 0) continue; // volume-backed prints are real by construction
     let { o, c } = b;
     const next = out[i + 1];
     const prev = out[i - 1];
@@ -234,10 +244,11 @@ export function tameWicks(bars: Bar[], k = 10): Bar[] {
       : (vals[vals.length / 2 - 1] + vals[vals.length / 2]) / 2;
   };
   for (let i = 1; i < out.length - 1; i++) {
+    const b = out[i];
+    if (b.v > 0) continue; // volume-backed prints are real by construction
     const before = sideMedian(i - 3, i - 1);
     const after = sideMedian(i + 1, i + 3);
     if (before === null || after === null) continue;
-    const b = out[i];
     const minDist = (ref: number) => Math.min(Math.abs(b.o - ref), Math.abs(b.c - ref));
     if (minDist(before) <= cap || minDist(after) <= cap) continue;
     const ref = (before + after) / 2;

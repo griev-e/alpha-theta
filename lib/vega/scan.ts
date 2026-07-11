@@ -36,34 +36,48 @@ export interface ScanRow {
 
 /**
  * Fraction of the regular session elapsed at `nowIso`, used to pro-rate RVOL.
- * Premarket gets a small floor (volume is real but the denominator would
- * otherwise be ~0); after the close the day is complete.
+ * Only REGULAR pro-rates; PRE/POST/CLOSED treat the referenced session's
+ * volume as final. (During PRE the provider's day fields still describe the
+ * PRIOR session — see scanQuote, which nulls the intraday metrics then — so
+ * a premarket floor here would divide yesterday's full volume by ~0.)
  */
 export function sessionElapsedFraction(
   state: VegaQuote["marketState"],
   nowIso: string
 ): number {
-  if (state === "PRE") return 0.06;
   if (state === "REGULAR") {
     return Math.min(1, Math.max(0.04, minutesSinceOpen(nowIso) / RTH_MINUTES));
   }
-  return 1; // POST / CLOSED — the session's volume is final
+  return 1; // PRE / POST / CLOSED — the referenced session's volume is final
 }
 
 const pct = (a: number, b: number): number | null =>
   b > 0 && Number.isFinite(a / b - 1) ? a / b - 1 : null;
 
-/** Per-symbol metrics from one quote. Pure; `nowIso` is an explicit input. */
+/** Per-symbol metrics from one quote. Pure; `nowIso` is an explicit input.
+ *
+ * Premarket honesty: before the open, the provider's day fields (open, high,
+ * low, volume) still describe the PRIOR session, so the intraday metrics
+ * would be yesterday's dressed up as today's — and RVOL would divide a full
+ * prior day by a sliver of elapsed session. In PRE the gap becomes the LIVE
+ * premarket gap (extended price vs the last regular close) and the
+ * session-bound metrics go null rather than stale. */
 export function scanQuote(q: VegaQuote, nowIso: string): Omit<ScanRow, "score"> {
-  const gapPct =
-    q.open !== null && q.prevClose !== null ? pct(q.open, q.prevClose) : null;
+  const pre = q.marketState === "PRE";
+  const gapPct = pre
+    ? q.regularPrice !== null
+      ? pct(q.price, q.regularPrice)
+      : null
+    : q.open !== null && q.prevClose !== null
+      ? pct(q.open, q.prevClose)
+      : null;
   const avg = q.avgVolume10d ?? q.avgVolume3m;
   const rvol =
-    q.volume !== null && avg !== null && avg > 0
+    !pre && q.volume !== null && avg !== null && avg > 0
       ? q.volume / (avg * sessionElapsedFraction(q.marketState, nowIso))
       : null;
   const range =
-    q.dayHigh !== null && q.dayLow !== null && q.dayHigh >= q.dayLow
+    !pre && q.dayHigh !== null && q.dayLow !== null && q.dayHigh >= q.dayLow
       ? q.dayHigh - q.dayLow
       : null;
   const rangePct = range !== null && q.price > 0 ? range / q.price : null;
@@ -74,7 +88,7 @@ export function scanQuote(q: VegaQuote, nowIso: string): Omit<ScanRow, "score"> 
     range !== null && range > 0 && q.dayLow !== null
       ? Math.min(1, Math.max(0, (inDay - q.dayLow) / range))
       : null;
-  const fromOpenPct = q.open !== null ? pct(inDay, q.open) : null;
+  const fromOpenPct = !pre && q.open !== null ? pct(inDay, q.open) : null;
 
   const tags: string[] = [];
   if (gapPct !== null && Math.abs(gapPct) >= 0.02)

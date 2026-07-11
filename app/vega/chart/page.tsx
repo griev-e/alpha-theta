@@ -10,22 +10,24 @@ import { Money } from "@/components/ui/Money";
 import { CandleChart, type ChartLevel, type ChartOverlays } from "@/components/vega/CandleChart";
 import { IndicatorPane, type IndicatorKind } from "@/components/vega/IndicatorPane";
 import { AlertPopover } from "@/components/vega/AlertPopover";
+import { SymbolForm } from "@/components/vega/SymbolForm";
 import { ChangePct, RvolText, ScanTag } from "@/components/vega/bits";
 import { fmtNum } from "@/lib/format";
 import { armedAlerts } from "@/lib/vega/alerts";
-import { atr, bollinger, ema, rsi, sessionVwap, tameWicks } from "@/lib/vega/indicators";
+import { atr, bollinger, ema, rsi, sessionVwap } from "@/lib/vega/indicators";
 import {
   floorPivots,
   openingRange,
   premarketRange,
   priorDayFromDaily,
   priorDayFromIntraday,
+  swingLevels,
 } from "@/lib/vega/levels";
 import { volumeProfile } from "@/lib/vega/profile";
-import { lastSessions, latestSession, regularBars, splitSessions } from "@/lib/vega/session";
+import { displayWindow, latestSession, regularBars, replayStart } from "@/lib/vega/session";
 import { scanQuote } from "@/lib/vega/scan";
 import { useVega } from "@/lib/vega/store";
-import type { Bar, Interval } from "@/lib/vega/types";
+import { ALERTS_MAX, type Bar, type Interval } from "@/lib/vega/types";
 import { useIntraday } from "@/lib/vega/useIntraday";
 import { useVegaQuotes } from "@/lib/vega/useVegaQuotes";
 
@@ -71,7 +73,6 @@ export default function ChartPage() {
     levels: true,
     profile: true,
   });
-  const [symbolInput, setSymbolInput] = useState("");
   const [replay, setReplay] = useState<ReplayState | null>(null);
 
   const symbol = state.focus;
@@ -79,15 +80,10 @@ export default function ChartPage() {
   const { quotes, asOf } = useVegaQuotes(ready ? [symbol] : []);
   const quote = quotes[symbol];
 
-  // Bad-print hygiene first (rogue extended-hours ticks), then window the
-  // display to a fixed session count per interval so candles stay readable.
-  const liveAll = useMemo(() => tameWicks(series?.bars ?? []), [series]);
-  const liveWin = useMemo(() => {
-    if (interval === "1m") return lastSessions(liveAll, 1);
-    if (interval === "5m") return lastSessions(liveAll, 2);
-    if (interval === "15m") return lastSessions(liveAll, 5);
-    return liveAll;
-  }, [liveAll, interval]);
+  // Bars arrive already repaired by useIntraday; window the display to a
+  // fixed session count per interval so candles stay readable.
+  const liveAll = useMemo(() => series?.bars ?? [], [series]);
+  const liveWin = useMemo(() => displayWindow(liveAll, interval), [liveAll, interval]);
 
   // Replay mode swaps in the frozen tape, cut at the cursor. Levels/profile
   // read the frozen FULL span cut at the same timestamp, so the prior day
@@ -104,9 +100,14 @@ export default function ChartPage() {
   }, [replay, liveAll]);
 
   // Drive the transport: advance the cursor while playing, pause at the end.
+  // Deps are playing/speed only — depending on the whole replay object would
+  // tear down and recreate the interval on every tick, resetting its phase
+  // and gating effective speed on render latency.
+  const replayPlaying = replay?.playing ?? false;
+  const replaySpeed = replay?.speed ?? 1;
   useEffect(() => {
-    if (!replay || !replay.playing) return;
-    const stepMs = 1000 / (REPLAY_BASE_HZ * replay.speed);
+    if (!replayPlaying) return;
+    const stepMs = 1000 / (REPLAY_BASE_HZ * replaySpeed);
     const id = window.setInterval(() => {
       setReplay((r) => {
         if (!r || !r.playing) return r;
@@ -115,21 +116,20 @@ export default function ChartPage() {
       });
     }, stepMs);
     return () => window.clearInterval(id);
-  }, [replay]);
+  }, [replayPlaying, replaySpeed]);
 
   // A new symbol or timeframe is a new tape — drop any replay in progress.
   useEffect(() => setReplay(null), [symbol, interval]);
 
   const startReplay = () => {
     if (liveWin.length < 20) return;
-    // Rewind to the latest session's first bar (or 1/4 in on daily bars).
-    const sessions = splitSessions(liveWin);
-    const lastLen = sessions[sessions.length - 1]?.length ?? 0;
-    const start =
-      interval === "1d"
-        ? Math.floor(liveWin.length * 0.25)
-        : Math.max(5, liveWin.length - lastLen);
-    setReplay({ all: liveAll, win: liveWin, cursor: start, playing: true, speed: 2 });
+    setReplay({
+      all: liveAll,
+      win: liveWin,
+      cursor: replayStart(liveWin, interval),
+      playing: true,
+      speed: 2,
+    });
   };
 
   const computed = useMemo(() => {
@@ -180,6 +180,16 @@ export default function ChartPage() {
             { label: "PM↓", price: pre.low, color: "var(--color-vio)", dash: "1 4" }
           );
         }
+        // Data-derived swing S/R — the strongest clustered swing points of
+        // the regular-hours tape, ranked by touches.
+        for (const sw of swingLevels(regularBars(allBars), 3, 3)) {
+          levels.push({
+            label: `SR${sw.touches > 1 ? `·${sw.touches}` : ""}`,
+            price: sw.price,
+            color: "var(--color-track)",
+            dash: "3 5",
+          });
+        }
       }
     }
 
@@ -219,39 +229,13 @@ export default function ChartPage() {
     [computed, myAlerts]
   );
 
-  const focusSymbol = (raw: string) => {
-    const sym = raw.trim().toUpperCase();
-    if (!sym) return;
-    setFocus(sym);
-    setSymbolInput("");
-  };
-
   return (
     <>
       <PageHeader
         eyebrow="Trade"
         title={`${symbol} · Chart terminal`}
         description="Candles with session VWAP bands, EMAs, key levels and the day's volume profile — the full pre-market markup, drawn live."
-        right={
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              focusSymbol(symbolInput);
-            }}
-            className="flex items-center gap-2"
-          >
-            <input
-              value={symbolInput}
-              onChange={(e) => setSymbolInput(e.target.value)}
-              placeholder="Symbol…"
-              aria-label="Focus a symbol"
-              className="field h-8 w-28 uppercase"
-            />
-            <button type="submit" className="btn-secondary h-8">
-              Chart
-            </button>
-          </form>
-        }
+        right={<SymbolForm onSubmit={setFocus} buttonLabel="Chart" />}
       />
 
       {/* Quote strip */}
@@ -288,6 +272,9 @@ export default function ChartPage() {
               alerts={myAlerts}
               onAdd={addAlert}
               onDelete={deleteAlert}
+              capReached={
+                state.alerts.length >= ALERTS_MAX && state.alerts.every((a) => !a.firedAt)
+              }
             />
             {!state.watchlist.includes(symbol) && (
               <button
@@ -367,7 +354,7 @@ export default function ChartPage() {
                     ? {
                         ...r,
                         // Replaying past the end restarts the tape.
-                        cursor: r.cursor >= r.win.length - 1 ? Math.max(5, r.win.length - (splitSessions(r.win).at(-1)?.length ?? 0)) : r.cursor,
+                        cursor: r.cursor >= r.win.length - 1 ? replayStart(r.win, interval) : r.cursor,
                         playing: !r.playing,
                       }
                     : r

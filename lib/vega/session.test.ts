@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
+  displayWindow,
   etStamp,
   inRegularHours,
   latestSession,
   minutesSinceOpen,
   regularBars,
+  replayStart,
   RTH_MINUTES,
   sessionKey,
   splitSessions,
@@ -70,5 +72,46 @@ describe("session grouping", () => {
     expect(latestSession(bars)).toHaveLength(2);
     expect(latestSession([])).toHaveLength(0);
     expect(regularBars(bars)).toHaveLength(2); // the two 09:30 bars
+  });
+});
+
+describe("displayWindow / replayStart", () => {
+  // Two ET sessions of three bars each (14:30Z = 09:30 ET in January).
+  const twoDays = [
+    bar("2026-01-15T14:30:00Z"), bar("2026-01-15T14:35:00Z"), bar("2026-01-15T14:40:00Z"),
+    bar("2026-01-16T14:30:00Z"), bar("2026-01-16T14:35:00Z"), bar("2026-01-16T14:40:00Z"),
+  ];
+
+  it("windows by session count per interval", () => {
+    expect(displayWindow(twoDays, "1m")).toHaveLength(3);
+    expect(displayWindow(twoDays, "5m")).toHaveLength(6);
+    expect(displayWindow(twoDays, "1d")).toBe(twoDays); // daily shows the span
+  });
+
+  it("rewinds intraday replay to the latest session's first bar", () => {
+    // Two sessions of eight bars: the latest session starts at index 8,
+    // comfortably past the small indicator-warmup floor.
+    const bars = [
+      ...Array.from({ length: 8 }, (_, i) => bar(`2026-01-15T${String(14 + Math.floor((30 + i * 5) / 60)).padStart(2, "0")}:${String((30 + i * 5) % 60).padStart(2, "0")}:00Z`)),
+      ...Array.from({ length: 8 }, (_, i) => bar(`2026-01-16T${String(14 + Math.floor((30 + i * 5) / 60)).padStart(2, "0")}:${String((30 + i * 5) % 60).padStart(2, "0")}:00Z`)),
+    ];
+    expect(replayStart(bars, "5m")).toBe(8);
+    // A single-session window (the 1m tape) floors a few bars in so the
+    // indicators have warmup, never past the end.
+    const oneSession = bars.slice(8);
+    const start = replayStart(oneSession, "1m");
+    expect(start).toBeGreaterThan(0);
+    expect(start).toBeLessThan(oneSession.length - 1);
+  });
+
+  it("rewinds daily replay a quarter in — never to the final bar", () => {
+    const daily = Array.from({ length: 40 }, (_, i) =>
+      bar(`2026-0${1 + Math.floor(i / 28)}-${String((i % 28) + 1).padStart(2, "0")}T14:30:00Z`)
+    );
+    const start = replayStart(daily, "1d");
+    expect(start).toBe(10);
+    expect(start).toBeLessThan(daily.length - 1); // play-after-finish must have room
+    // Tiny daily tapes still leave at least one bar to play.
+    expect(replayStart(daily.slice(0, 3), "1d")).toBeLessThan(2);
   });
 });

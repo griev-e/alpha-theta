@@ -6,7 +6,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { Meter } from "@/components/ui/Meter";
 import { Segmented } from "@/components/ui/Segmented";
 import { fmtNum, fmtUSD } from "@/lib/format";
-import { journalStats } from "@/lib/vega/journal";
+import { journalStats, localDayKey } from "@/lib/vega/journal";
 import { dayRisk, kellyFraction, positionSize } from "@/lib/vega/risk";
 import { useVega } from "@/lib/vega/store";
 import type { TradeSide } from "@/lib/vega/types";
@@ -45,7 +45,7 @@ export default function RiskPage() {
   }, [entry, stop, target, side, settings]);
 
   const today = new Date();
-  const todayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+  const todayKey = localDayKey(today.toISOString());
   const risk = dayRisk(state.trades, settings, todayKey);
   const stats = useMemo(() => journalStats(state.trades), [state.trades]);
   const kelly = stats ? kellyFraction(stats.winRate, stats.avgWin, stats.avgLoss) : null;

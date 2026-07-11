@@ -13,6 +13,7 @@ import { Money } from "@/components/ui/Money";
 import { ChangePct, InternalsChip, RangeBar, RvolText, ScanTag, ScoreChip } from "@/components/vega/bits";
 import { fmtPct, fmtUSD } from "@/lib/format";
 import { armedAlerts, firedAlerts } from "@/lib/vega/alerts";
+import { localDayKey } from "@/lib/vega/journal";
 import { dayRisk } from "@/lib/vega/risk";
 import { rankScans, scanQuote, type ScanRow } from "@/lib/vega/scan";
 import { useVega } from "@/lib/vega/store";
@@ -52,7 +53,7 @@ export default function CockpitPage() {
   }, [scans]);
 
   const today = new Date();
-  const todayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+  const todayKey = localDayKey(today.toISOString());
   const risk = dayRisk(state.trades, state.settings, todayKey);
 
   const columns = useMemo<TableColumn<ScanRow>[]>(

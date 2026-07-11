@@ -168,6 +168,10 @@ export const INTERNALS_SYMBOLS = ["SPY", "QQQ", "IWM", "DIA", "^VIX", "^TNX"] as
  *  cap keeps that call (and the scanner math) comfortably bounded. */
 export const WATCHLIST_MAX = 24;
 
+/** The Edge Engine's relative-strength benchmark. Lives here with the other
+ *  symbol constants so every surface that assembles engine input agrees. */
+export const ENGINE_BENCHMARK = "SPY";
+
 export interface VegaState {
   v: 2;
   watchlist: string[];
@@ -271,7 +275,7 @@ export function migrateVegaState(raw: unknown): VegaState | null {
     ? s.alerts
         .map(migrateAlert)
         .filter((a): a is PriceAlert => a !== null)
-        .slice(0, ALERTS_MAX)
+        .slice(-ALERTS_MAX) // over-cap blobs keep the most recent, like the store
     : [];
   return {
     v: 2,

@@ -43,7 +43,17 @@ export function useAlertEngine(): void {
       cur,
       new Date().toISOString()
     );
-    prevRef.current = { ...prev, ...cur };
+    // Merge, then PRUNE to the symbols still armed: once a symbol leaves the
+    // poll set its price would freeze here, and hours later a newly-armed
+    // alert on it would compare against that fossil and fire spuriously.
+    // Dropping the key means a re-armed symbol starts with no prev — the
+    // true-cross rule then waits for a real cross, as documented.
+    const merged: PriceMap = { ...prev, ...cur };
+    const pruned: PriceMap = {};
+    for (const s of armedSymbols) {
+      if (merged[s] !== undefined) pruned[s] = merged[s];
+    }
+    prevRef.current = pruned;
     if (fired.length === 0) return;
     applyAlertSweep(next);
     for (const a of fired) {
@@ -57,7 +67,7 @@ export function useAlertEngine(): void {
         /* notifications unsupported — the toast already fired */
       }
     }
-  }, [quotes, applyAlertSweep, toast]);
+  }, [quotes, armedSymbols, applyAlertSweep, toast]);
 }
 
 /** Ask for browser-notification permission off a user gesture (arming an

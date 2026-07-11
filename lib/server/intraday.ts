@@ -93,19 +93,28 @@ export function toBars(rows: unknown[]): Bar[] {
   return out;
 }
 
-/** OHLCV bars for one symbol at one interval. Null when Yahoo has nothing. */
+export interface IntradayFetch {
+  series: IntradaySeries | null;
+  /** True when the provider call FAILED (transient error) — distinct from a
+   *  conclusive "no bars for this symbol". On failure the last good series
+   *  (if any) is served stale so a hiccup never wipes a working chart. */
+  error: boolean;
+}
+
+/** OHLCV bars for one symbol at one interval. `series: null, error: false`
+ *  means the provider conclusively has nothing (negative-cached); a thrown
+ *  provider call reports `error: true` and is never cached as fact. */
 export async function fetchIntraday(
   symbol: string,
   interval: Interval
-): Promise<IntradaySeries | null> {
+): Promise<IntradayFetch> {
   const cfg = INTERVAL_CFG[interval];
   const key = `${symbol}:${interval}`;
   const now = Date.now();
   const hit = seriesCache.get(key);
   const ttl = hit?.data === null ? NEG_TTL : cfg.ttl;
-  if (hit && now - hit.at < ttl) return hit.data;
+  if (hit && now - hit.at < ttl) return { series: hit.data, error: false };
 
-  let series: IntradaySeries | null = null;
   try {
     const result = await yf.chart(symbol, {
       period1: new Date(now - cfg.days * 86_400_000),
@@ -113,20 +122,17 @@ export async function fetchIntraday(
       includePrePost: cfg.prePost,
     });
     const bars = toBars(result.quotes as unknown[]);
-    if (bars.length >= 2) {
-      series = {
-        symbol,
-        interval,
-        currency: str(result.meta?.currency) ?? "USD",
-        bars,
-      };
-    }
+    const series: IntradaySeries | null =
+      bars.length >= 2
+        ? { symbol, interval, currency: str(result.meta?.currency) ?? "USD", bars }
+        : null; // a successful fetch with nothing usable IS conclusive
+    seriesCache.set(key, { at: now, data: series });
+    return { series, error: false };
   } catch {
-    series = null; // unknown symbol or provider drift — caller degrades
+    // Transient provider failure: serve whatever we last knew (stale beats
+    // blank) and never negative-cache an outage as "symbol has no data".
+    return { series: hit?.data ?? null, error: true };
   }
-
-  seriesCache.set(key, { at: now, data: series });
-  return series;
 }
 
 const MARKET_STATE: Record<string, VegaMarketState> = {
@@ -210,10 +216,19 @@ const quoteCache = new Map<string, { at: number; data: VegaQuote | null }>();
 const QUOTE_TTL = 25_000; // a shade under the client's 30s poll
 const QUOTE_NEG_TTL = 10 * 60_000;
 
+/** After a fallback round where EVERY per-symbol call also failed (a provider
+ *  outage, not a poison-pill symbol), suppress the fan-out for this window so
+ *  an outage costs one batch call per poll instead of one-plus-forty. */
+const SINGLES_COOLDOWN = 2 * 60_000;
+let singlesSuppressedUntil = 0;
+
 /**
  * Batched rich quotes. Mirrors `fetchQuotes`' partial-failure hygiene: a
  * poison-pill symbol falls back to per-symbol fetches, and conclusive misses
  * are negative-cached so they back off instead of re-failing every poll.
+ * A total outage (batch AND every single failing) trips a cooldown that
+ * skips the fallback — the anti-fan-out rule holds hardest when the
+ * provider is already struggling.
  */
 export async function fetchVegaQuotes(
   symbols: string[]
@@ -246,8 +261,10 @@ export async function fetchVegaQuotes(
       const list = Array.isArray(results) ? results : [results];
       for (const q of list) ingest(q);
     } catch {
+      if (now < singlesSuppressedUntil) return out; // outage cooldown — no fan-out
       const singles = await Promise.allSettled(missing.map((s) => yf.quote(s)));
       batchOk = singles.some((r) => r.status === "fulfilled");
+      if (!batchOk) singlesSuppressedUntil = now + SINGLES_COOLDOWN;
       singles.forEach((r) => {
         if (r.status === "fulfilled") ingest(r.value);
       });

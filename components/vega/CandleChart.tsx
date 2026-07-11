@@ -5,7 +5,7 @@ import { useId, useMemo, useState } from "react";
 import { AxisX, AxisY, type AxisTick } from "@/components/charts/Axis";
 import { ChartTooltip } from "@/components/charts/ChartTooltip";
 import { useElementWidth } from "@/lib/useElementWidth";
-import { fmtNum } from "@/lib/format";
+import { fmtCompact, fmtNum } from "@/lib/format";
 import type { BollingerResult, Series, VwapResult } from "@/lib/vega/indicators";
 import { etStamp, sessionKey } from "@/lib/vega/session";
 import type { VolumeProfile } from "@/lib/vega/profile";
@@ -63,9 +63,6 @@ function niceTicks(lo: number, hi: number, count = 5): number[] {
 const fmtPrice = (v: number): string =>
   v >= 1000 ? v.toFixed(0) : v >= 10 ? v.toFixed(2) : v.toFixed(3);
 
-const fmtVol = (v: number): string =>
-  v >= 1e9 ? `${(v / 1e9).toFixed(1)}B` : v >= 1e6 ? `${(v / 1e6).toFixed(1)}M` : v >= 1e3 ? `${(v / 1e3).toFixed(0)}K` : String(Math.round(v));
-
 const ET_DAY = new Intl.DateTimeFormat("en-US", {
   timeZone: "America/New_York",
   weekday: "short",
@@ -86,8 +83,9 @@ function timeLabel(iso: string, interval: Interval, withDay = false): string {
   return withDay ? `${ET_DAY.format(new Date(iso))} ${t}` : t;
 }
 
-/** Map a nullable overlay series to an SVG path over defined stretches. */
-function seriesPath(
+/** Map a nullable overlay series to an SVG path over defined stretches.
+ *  Exported: IndicatorPane shares it so the two panes can't drift apart. */
+export function seriesPath(
   s: Series,
   x: (i: number) => number,
   y: (v: number) => number
@@ -104,6 +102,37 @@ function seriesPath(
     pen = true;
   }
   return d;
+}
+
+/** One candle's wick + body — shared by the memoized field and the hovered
+ *  candle redrawn at full opacity above the dimmed group. */
+function candleMark(
+  b: Bar,
+  i: number,
+  x: (i: number) => number,
+  y: (v: number) => number,
+  bodyW: number
+) {
+  const up = b.c >= b.o;
+  const color = up ? POS : NEG;
+  const cx = x(i);
+  const top = y(Math.max(b.o, b.c));
+  const bot = y(Math.min(b.o, b.c));
+  return (
+    <g key={i}>
+      <line x1={cx} x2={cx} y1={y(b.h)} y2={y(b.l)} stroke={color} strokeWidth="1" strokeOpacity="0.9" />
+      <rect
+        x={cx - bodyW / 2}
+        y={top}
+        width={bodyW}
+        height={Math.max(1, bot - top)}
+        fill={up ? color : "transparent"}
+        stroke={color}
+        strokeWidth="1"
+        fillOpacity={up ? 0.85 : 1}
+      />
+    </g>
+  );
 }
 
 export function CandleChart({
@@ -192,12 +221,44 @@ export function CandleChart({
     return out;
   }, [bars, interval]);
 
+  // Heavy mark arrays are memoized on the DATA, not the crosshair: hover
+  // renders reuse the same element references so React bails out of
+  // reconciling hundreds of candles/volume bars per mousemove/replay tick.
+  const draw = !reduce;
+  const bodyW = scale ? Math.max(1, Math.min(11, scale.step * 0.66)) : 1;
+  const candleField = useMemo(
+    () => (scale ? bars.map((b, i) => candleMark(b, i, scale.x, scale.y, bodyW)) : null),
+    [bars, scale, bodyW]
+  );
+  const volumeField = useMemo(() => {
+    if (!scale) return null;
+    const { x: vx, vy: vvy } = scale;
+    return bars.map((b, i) => (
+      <m.rect
+        key={`v${i}`}
+        initial={draw ? { scaleY: 0 } : false}
+        animate={{ scaleY: 1 }}
+        style={{ transformOrigin: `${vx(i)}px ${volTop + volH}px` }}
+        transition={{ duration: 0.5, delay: Math.min(0.5, i * 0.002), ease: [0.22, 1, 0.36, 1] }}
+        x={vx(i) - bodyW / 2}
+        y={vvy(b.v)}
+        width={bodyW}
+        height={Math.max(0, volTop + volH - vvy(b.v))}
+        fill={b.c >= b.o ? POS : NEG}
+        fillOpacity="0.28"
+      />
+    ));
+  }, [bars, scale, bodyW, draw, volTop, volH]);
+  const profileMax = useMemo(
+    () => (profile ? Math.max(...profile.bins.map((q) => q.volume), 0) : 0),
+    [profile]
+  );
+
   if (!scale || n === 0) {
     return <div ref={wrapRef} style={{ height }} className="w-full" />;
   }
 
   const { lo, hi, step, x, y, vy } = scale;
-  const bodyW = Math.max(1, Math.min(11, step * 0.66));
   const last = bars[n - 1];
   const lastUp = last.c >= last.o;
   const priceTicks: AxisTick[] = niceTicks(lo, hi).map((v) => ({
@@ -225,8 +286,6 @@ export function CandleChart({
     }
     return up + back + "Z";
   };
-
-  const draw = reduce ? false : true;
 
   return (
     <div ref={wrapRef} className="relative w-full select-none" style={{ height }}>
@@ -287,8 +346,8 @@ export function CandleChart({
             <g>
               {profile.bins.map((b, i) => {
                 if (!inRange(b.price)) return null;
-                const w = profile.totalVolume > 0
-                  ? (b.volume / Math.max(...profile.bins.map((q) => q.volume))) * plotW * 0.2
+                const w = profile.totalVolume > 0 && profileMax > 0
+                  ? (b.volume / profileMax) * plotW * 0.2
                   : 0;
                 const binH = Math.max(1, (profile.binSize / (hi - lo)) * priceH - 1);
                 return (
@@ -343,34 +402,19 @@ export function CandleChart({
             />
           )}
 
-          {/* Candles — the field wipes in left→right once. */}
+          {/* Candles — the field wipes in left→right once. The marks are a
+              memoized element array and dimming is a single group opacity
+              (hovered candle redrawn on top), so crosshair movement never
+              rebuilds or re-reconciles hundreds of bars. */}
           <m.g
             initial={draw ? { clipPath: "inset(0 100% 0 0)" } : false}
             animate={{ clipPath: "inset(0 0% 0 0)" }}
             transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
           >
-            {bars.map((b, i) => {
-              const up = b.c >= b.o;
-              const color = up ? POS : NEG;
-              const cx = x(i);
-              const top = y(Math.max(b.o, b.c));
-              const bot = y(Math.min(b.o, b.c));
-              return (
-                <g key={i} opacity={hover === null || hover === i ? 1 : 0.55}>
-                  <line x1={cx} x2={cx} y1={y(b.h)} y2={y(b.l)} stroke={color} strokeWidth="1" strokeOpacity="0.9" />
-                  <rect
-                    x={cx - bodyW / 2}
-                    y={top}
-                    width={bodyW}
-                    height={Math.max(1, bot - top)}
-                    fill={up ? color : "transparent"}
-                    stroke={color}
-                    strokeWidth="1"
-                    fillOpacity={up ? 0.85 : 1}
-                  />
-                </g>
-              );
-            })}
+            <g opacity={hover === null ? 1 : 0.55} style={{ transition: "opacity 120ms" }}>
+              {candleField}
+            </g>
+            {hoverBar && hover !== null && candleMark(hoverBar, hover, x, y, bodyW)}
           </m.g>
 
           {/* Overlay lines — each draws in. */}
@@ -410,25 +454,19 @@ export function CandleChart({
             />
           )}
 
-          {/* Volume lane */}
-          {bars.map((b, i) => {
-            const up = b.c >= b.o;
-            return (
-              <m.rect
-                key={`v${i}`}
-                initial={draw ? { scaleY: 0 } : false}
-                animate={{ scaleY: 1 }}
-                style={{ transformOrigin: `${x(i)}px ${volTop + volH}px` }}
-                transition={{ duration: 0.5, delay: Math.min(0.5, i * 0.002), ease: [0.22, 1, 0.36, 1] }}
-                x={x(i) - bodyW / 2}
-                y={vy(b.v)}
-                width={bodyW}
-                height={Math.max(0, volTop + volH - vy(b.v))}
-                fill={up ? POS : NEG}
-                fillOpacity={hover === i ? 0.65 : 0.28}
-              />
-            );
-          })}
+          {/* Volume lane — memoized; the hovered bar gets a brighter overlay. */}
+          {volumeField}
+          {hoverBar && hover !== null && (
+            <rect
+              x={x(hover) - bodyW / 2}
+              y={vy(hoverBar.v)}
+              width={bodyW}
+              height={Math.max(0, volTop + volH - vy(hoverBar.v))}
+              fill={hoverBar.c >= hoverBar.o ? POS : NEG}
+              fillOpacity="0.65"
+              pointerEvents="none"
+            />
+          )}
         </g>
 
         {/* Key levels — drawn over the clip so their tags can sit in the axis gutter. */}
@@ -556,7 +594,7 @@ export function CandleChart({
               <span>C <span className={hoverBar.c >= hoverBar.o ? "text-pos" : "text-neg"}>{fmtPrice(hoverBar.c)}</span></span>
             </div>
             <div className="tnum text-faint">
-              Vol {fmtVol(hoverBar.v)}
+              Vol {fmtCompact(hoverBar.v)}
               {hover > 0 && (
                 <span className={`ml-2 ${hoverBar.c >= bars[hover - 1].c ? "text-pos" : "text-neg"}`}>
                   {fmtNum(((hoverBar.c - bars[hover - 1].c) / bars[hover - 1].c) * 100, 2)}%

@@ -18,6 +18,7 @@ export function AlertPopover({
   alerts,
   onAdd,
   onDelete,
+  capReached = false,
 }: {
   symbol: string;
   currentPrice: number | null;
@@ -25,6 +26,8 @@ export function AlertPopover({
   alerts: PriceAlert[];
   onAdd: (a: { symbol: string; price: number; dir: "above" | "below"; note?: string }) => void;
   onDelete: (id: string) => void;
+  /** True when the global alert list is full of armed alerts (store refuses adds). */
+  capReached?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [price, setPrice] = useState("");
@@ -51,12 +54,15 @@ export function AlertPopover({
   const parsed = Number.parseFloat(price);
   const valid = Number.isFinite(parsed) && parsed > 0;
   // Direction derives from where the level sits vs the market — an alert at
-  // 105 with the tape at 100 is a cross-above by construction.
+  // 105 with the tape at 100 is a cross-above by construction. Without a
+  // live quote there is no reference to derive it from, so arming waits
+  // (guessing "above" would silently invert a below-market stop alert).
   const dir: "above" | "below" =
     valid && currentPrice !== null && parsed < currentPrice ? "below" : "above";
+  const canArm = valid && currentPrice !== null && !capReached;
 
   const arm = () => {
-    if (!valid) return;
+    if (!canArm) return;
     onAdd({ symbol, price: parsed, dir, note: note.trim() || undefined });
     requestAlertPermission();
     setPrice("");
@@ -114,15 +120,23 @@ export function AlertPopover({
                 aria-label="Alert note"
                 className="field h-8 flex-1"
               />
-              <button type="submit" disabled={!valid} className="btn-secondary h-8 shrink-0 disabled:opacity-40">
+              <button type="submit" disabled={!canArm} className="btn-secondary h-8 shrink-0 disabled:opacity-40">
                 Arm
               </button>
             </form>
-            {valid && (
+            {capReached ? (
+              <p className="mt-1.5 font-mono text-[10px] text-warn">
+                alert cap reached — remove one to arm another
+              </p>
+            ) : valid && currentPrice === null ? (
+              <p className="mt-1.5 font-mono text-[10px] text-faint">
+                waiting for a live quote to set the cross direction…
+              </p>
+            ) : valid ? (
               <p className="mt-1.5 font-mono text-[10px] text-faint">
                 fires when {symbol} crosses {dir} {parsed.toFixed(2)}
               </p>
-            )}
+            ) : null}
 
             {alerts.length > 0 && (
               <div className="mt-3 space-y-1 border-t border-edge pt-2.5">

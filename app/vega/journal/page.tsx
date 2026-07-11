@@ -30,6 +30,8 @@ interface TradeFormState {
   fees: string;
   setup: string;
   entryAt: string;
+  /** When the round trip closed (datetime-local); used when exit is set. */
+  exitAt: string;
   notes: string;
 }
 
@@ -66,6 +68,7 @@ export default function JournalPage() {
     fees: "",
     setup: "ORB",
     entryAt: nowLocal(),
+    exitAt: nowLocal(),
     notes: "",
   });
   const [closePrices, setClosePrices] = useState<Record<string, string>>({});
@@ -104,11 +107,18 @@ export default function JournalPage() {
       target: num(form.target),
       fees: form.fees ? Number(form.fees.replace(/[$,\s]/g, "")) || undefined : undefined,
       entryAt: new Date(form.entryAt).toISOString(),
-      exitAt: exit !== undefined ? new Date().toISOString() : null,
+      // A back-dated round trip exits when the user says it did — stamping
+      // "now" would file yesterday's loss under today's circuit breaker.
+      exitAt:
+        exit !== undefined
+          ? new Date(
+              form.exitAt && form.exitAt >= form.entryAt ? form.exitAt : form.entryAt
+            ).toISOString()
+          : null,
       setup: form.setup || undefined,
       notes: form.notes.trim() || undefined,
     });
-    setForm((f) => ({ ...f, symbol: "", qty: "", entry: "", exit: "", stop: "", target: "", notes: "", entryAt: nowLocal() }));
+    setForm((f) => ({ ...f, symbol: "", qty: "", entry: "", exit: "", stop: "", target: "", notes: "", entryAt: nowLocal(), exitAt: nowLocal() }));
     toast(`Logged ${symbol}`);
   };
 
@@ -440,6 +450,18 @@ function TradeForm({
             value={form.entryAt}
             onChange={(e) => setForm((f) => ({ ...f, entryAt: e.target.value }))}
             className="field h-8"
+          />
+        </label>
+        <label className="block col-span-2">
+          <span className="eyebrow mb-1 block">Exited at</span>
+          <input
+            type="datetime-local"
+            value={form.exitAt}
+            min={form.entryAt}
+            onChange={(e) => setForm((f) => ({ ...f, exitAt: e.target.value }))}
+            disabled={!form.exit.trim()}
+            aria-label="Exited at (used when an exit price is set)"
+            className="field h-8 disabled:opacity-40"
           />
         </label>
         {field("notes", "Notes", "What was the read?", "col-span-2 md:col-span-3")}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { atr, bollinger, ema, macd, rsi, sessionVwap, sma, tameWicks, typicalPrice } from "./indicators";
+import { atr, bollinger, ema, macd, rsi, sessionVwap, sma, repairBars, typicalPrice } from "./indicators";
 import type { Bar } from "./types";
 
 describe("sma / ema", () => {
@@ -144,7 +144,7 @@ describe("sessionVwap", () => {
   });
 });
 
-describe("tameWicks", () => {
+describe("repairBars", () => {
   const bar = (i: number, over: Partial<Bar> = {}): Bar => ({
     t: `2026-01-15T14:${String(30 + i).padStart(2, "0")}:00Z`,
     o: 100,
@@ -157,7 +157,7 @@ describe("tameWicks", () => {
 
   it("clamps a rogue wick but never touches the body", () => {
     const bars = [bar(0), bar(1), bar(2), bar(3, { h: 160, l: 40 }), bar(4), bar(5)];
-    const tamed = tameWicks(bars, 10);
+    const tamed = repairBars(bars, 10);
     // Median range is 2 → wicks capped at body ± 20.
     expect(tamed[3].h).toBe(100.5 + 20);
     expect(tamed[3].l).toBe(100 - 20);
@@ -178,17 +178,17 @@ describe("tameWicks", () => {
       bar(4, { o: 140, c: 140.5, h: 141, l: 139.5 }),
       bar(5, { o: 140.5, c: 140, h: 141, l: 139.5 }),
     ];
-    const tamed = tameWicks(bars, 10);
+    const tamed = repairBars(bars, 10);
     expect(tamed[3]).toBe(bars[3]);
     expect(tamed[4]).toBe(bars[4]);
   });
 
   it("despikes a one-sided phantom close the next bar never confirms", () => {
-    // The shape observed live: a zero-volume AH bar opens on the real tape
+    // The shape observed live: a ZERO-VOLUME AH bar opens on the real tape
     // (~100) but prints a close an envelope away (150); the next bar reopens
     // right back at 100. A real breakout would keep trading at 150.
-    const bars = [bar(0), bar(1), bar(2), bar(3, { c: 150, h: 150, l: 60 }), bar(4), bar(5)];
-    const tamed = tameWicks(bars, 10);
+    const bars = [bar(0), bar(1), bar(2), bar(3, { c: 150, h: 150, l: 60, v: 0 }), bar(4), bar(5)];
+    const tamed = repairBars(bars, 10);
     expect(tamed[3].c).toBeLessThanOrEqual(120); // clamped to own open + cap
     expect(tamed[3].o).toBe(100);
     expect(tamed[3].h).toBeLessThanOrEqual(140);
@@ -201,15 +201,15 @@ describe("tameWicks", () => {
       bar(4, { o: 130.5, c: 131, h: 131.5, l: 130 }),
       bar(5, { o: 131, c: 130.8, h: 131.2, l: 130.4 }),
     ];
-    expect(tameWicks(gap, 10)[2]).toBe(gap[2]);
+    expect(repairBars(gap, 10)[2]).toBe(gap[2]);
   });
 
   it("despikes an isolated phantom bar the tape snaps back from", () => {
-    // One bar prints a body at ~140 while both neighbors close at ~100 — a
-    // bad print, not a move (the tape never followed). It gets pulled back
-    // into the neighbors' envelope; surrounding bars pass through untouched.
-    const bars = [bar(0), bar(1), bar(2), bar(3, { o: 139, c: 140, h: 140.5, l: 138.5 }), bar(4), bar(5)];
-    const tamed = tameWicks(bars, 10);
+    // One ZERO-VOLUME bar prints a body at ~140 while both neighbors close at
+    // ~100 — a bad print, not a move (the tape never followed). It gets pulled
+    // back into the neighbors' envelope; surrounding bars pass untouched.
+    const bars = [bar(0), bar(1), bar(2), bar(3, { o: 139, c: 140, h: 140.5, l: 138.5, v: 0 }), bar(4), bar(5)];
+    const tamed = repairBars(bars, 10);
     // Median range 2 → cap 20; neighbors' mid = 100.5 → body clamped ≤ 120.5.
     expect(tamed[3].o).toBeLessThanOrEqual(120.5);
     expect(tamed[3].c).toBeLessThanOrEqual(120.5);
@@ -218,10 +218,22 @@ describe("tameWicks", () => {
     expect(tamed[4]).toBe(bars[4]);
   });
 
+  it("never rewrites a volume-backed bar — real climaxes are exempt", () => {
+    // The SAME shapes as the phantom tests, but the prints carry volume: a
+    // real one-bar climax that fully retraces, and a real unconfirmed
+    // breakout close. Body repair is gated to v=0 bars, so both survive
+    // untouched (the wick clamp may still trim a wick, which is why the
+    // fixtures keep wicks inside the envelope).
+    const climax = [bar(0), bar(1), bar(2), bar(3, { o: 139, c: 140, h: 140.5, l: 138.5, v: 500_000 }), bar(4), bar(5)];
+    expect(repairBars(climax, 10)[3]).toBe(climax[3]);
+    const breakout = [bar(0), bar(1), bar(2), bar(3, { o: 100, c: 118, h: 119, l: 99.5, v: 800_000 }), bar(4), bar(5)];
+    expect(repairBars(breakout, 10)[3]).toBe(breakout[3]);
+  });
+
   it("passes short or flat series through unchanged", () => {
     const short = [bar(0), bar(1)];
-    expect(tameWicks(short)).toBe(short);
+    expect(repairBars(short)).toBe(short);
     const flat = Array.from({ length: 6 }, (_, i) => bar(i, { h: 100, l: 100, o: 100, c: 100 }));
-    expect(tameWicks(flat)).toBe(flat);
+    expect(repairBars(flat)).toBe(flat);
   });
 });

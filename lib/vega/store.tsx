@@ -11,6 +11,7 @@ import {
   type ReactNode,
 } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
+import { withAlertAdded } from "./alerts";
 import { makeSampleTrades } from "./sample";
 import {
   ALERTS_MAX,
@@ -91,10 +92,10 @@ export function VegaProvider({ children }: { children: ReactNode }) {
 
   const [state, setState] = useState<VegaState>(EMPTY_VEGA_STATE);
   const [ready, setReady] = useState(false);
+  // Written SYNCHRONOUSLY by every setter (hydration below, persist) so
+  // back-to-back mutates in one tick never read stale state — no mirror
+  // effect, one source of truth.
   const stateRef = useRef(state);
-  useEffect(() => {
-    stateRef.current = state;
-  }, [state]);
 
   useEffect(() => {
     if (!storageKey) {
@@ -108,6 +109,7 @@ export function VegaProvider({ children }: { children: ReactNode }) {
       stateRef.current = parsed ?? EMPTY_VEGA_STATE;
     } catch {
       setState(EMPTY_VEGA_STATE);
+      stateRef.current = EMPTY_VEGA_STATE;
     }
     setReady(true);
   }, [storageKey]);
@@ -220,10 +222,9 @@ export function VegaProvider({ children }: { children: ReactNode }) {
 
   const addAlert = useCallback(
     (a: Omit<PriceAlert, "id" | "createdAt" | "firedAt">) =>
-      mutate((s) => ({
-        ...s,
-        alerts: [
-          ...s.alerts,
+      mutate((s) => {
+        const next = withAlertAdded(
+          s.alerts,
           {
             ...a,
             symbol: cleanSymbol(a.symbol),
@@ -231,8 +232,12 @@ export function VegaProvider({ children }: { children: ReactNode }) {
             createdAt: new Date().toISOString(),
             firedAt: null,
           },
-        ].slice(-ALERTS_MAX),
-      })),
+          ALERTS_MAX
+        );
+        // null = the list is full of ARMED alerts — refuse rather than
+        // silently evict a level someone is counting on (UI shows the cap).
+        return next ? { ...s, alerts: next } : s;
+      }),
     [mutate]
   );
 

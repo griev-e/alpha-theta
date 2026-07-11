@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { armedAlerts, firedAlerts, pricesFromQuotes, sweepAlerts } from "./alerts";
+import { armedAlerts, firedAlerts, pricesFromQuotes, sweepAlerts, withAlertAdded } from "./alerts";
 import type { PriceAlert, VegaQuote } from "./types";
 
 const alert = (over: Partial<PriceAlert> = {}): PriceAlert => ({
@@ -91,5 +91,30 @@ describe("alert lists", () => {
       asOf: NOW,
     });
     expect(pricesFromQuotes({ A: q(10), B: q(0), C: q(NaN) })).toEqual({ A: 10 });
+  });
+});
+
+describe("withAlertAdded", () => {
+  const mk = (id: string, firedAt: string | null = null) =>
+    alert({ id, firedAt, createdAt: `2026-01-16T0${id.length % 10}:00:00.000Z` });
+
+  it("appends below the cap", () => {
+    const next = withAlertAdded([mk("a")], mk("b"), 40)!;
+    expect(next.map((a) => a.id)).toEqual(["a", "b"]);
+  });
+
+  it("evicts the oldest FIRED alert to make room at the cap", () => {
+    const list = [
+      mk("f-old", "2026-01-16T10:00:00.000Z"),
+      mk("f-new", "2026-01-16T14:00:00.000Z"),
+      mk("armed"),
+    ];
+    const next = withAlertAdded(list, mk("incoming"), 3)!;
+    expect(next.map((a) => a.id)).toEqual(["f-new", "armed", "incoming"]);
+  });
+
+  it("refuses the add when the cap is all armed alerts — never a silent eviction", () => {
+    const list = [mk("a"), mk("b"), mk("c")];
+    expect(withAlertAdded(list, mk("incoming"), 3)).toBeNull();
   });
 });

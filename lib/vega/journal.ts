@@ -159,13 +159,23 @@ export function journalStats(trades: Trade[]): JournalStats | null {
   };
 }
 
-/** Realized P&L bucketed by calendar day ("YYYY-MM-DD" of the exit). */
+/** LOCAL calendar-day key ("YYYY-MM-DD") for an ISO timestamp — the same
+ *  wall-clock day the trader (and every UI consumer: the cockpit's daily
+ *  circuit breaker, the risk page, the P&L calendar) lives in. Bucketing by
+ *  the raw UTC slice would file a 20:30 ET exit under tomorrow. */
+export function localDayKey(iso: string): string {
+  const d = new Date(iso);
+  if (!Number.isFinite(d.getTime())) return iso.slice(0, 10);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+/** Realized P&L bucketed by LOCAL calendar day of the exit. */
 export function dailyPnl(trades: Trade[]): Map<string, number> {
   const out = new Map<string, number>();
   for (const t of closedTrades(trades)) {
     const pnl = tradePnl(t);
     if (pnl === null) continue;
-    const day = (t.exitAt ?? t.entryAt).slice(0, 10);
+    const day = localDayKey(t.exitAt ?? t.entryAt);
     out.set(day, (out.get(day) ?? 0) + pnl);
   }
   return out;

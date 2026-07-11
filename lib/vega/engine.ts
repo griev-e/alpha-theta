@@ -1,3 +1,4 @@
+import { clamp } from "@/lib/analytics/mathUtils";
 import { ema, macd, rsi, atr, sessionVwap } from "./indicators";
 import { openingRange, floorPivots, priorDayFromIntraday } from "./levels";
 import { inRegularHours, minutesSinceOpen, splitSessions } from "./session";
@@ -122,32 +123,61 @@ const DRIVER_CUTOFF = 0.02;
 /** Bars needed before the engine will speak at all. */
 const MIN_BARS = 30;
 
-const clamp = (v: number, lo: number, hi: number): number =>
-  Math.min(hi, Math.max(lo, v));
-
 /* ── Percentile machinery ────────────────────────────────────────────── */
 
-/**
- * Rank `series[i]` against the series' own trailing distribution [0..i]:
- * percentile → 2p−1 ∈ [−1, +1]. The engine's "no hand-tuned thresholds"
- * primitive. Null when the value (or too little history) is missing.
- */
-function rankAt(series: (number | null)[], i: number): number | null {
-  const v = series[i];
-  if (v === null || !Number.isFinite(v)) return null;
-  let below = 0;
-  let equal = 0;
-  let count = 0;
-  for (let j = 0; j <= i; j++) {
-    const u = series[j];
-    if (u === null || !Number.isFinite(u)) continue;
-    count++;
-    if (u < v) below++;
-    else if (u === v) equal++;
+/** Binary search: index of the first element in `a` that is >= v. */
+function lowerBound(a: number[], v: number): number {
+  let lo = 0;
+  let hi = a.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (a[mid] < v) lo = mid + 1;
+    else hi = mid;
   }
-  if (count < 10) return null; // too little history to rank against
-  const p = (below + (equal - 1) / 2) / (count - 1 || 1);
-  return clamp(2 * p - 1, -1, 1);
+  return lo;
+}
+
+/** Binary search: index of the first element in `a` that is > v. */
+function upperBound(a: number[], v: number): number {
+  let lo = 0;
+  let hi = a.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (a[mid] <= v) lo = mid + 1;
+    else hi = mid;
+  }
+  return lo;
+}
+
+/**
+ * Rank each requested index's value against the series' own trailing
+ * distribution [0..i]: percentile → 2p−1 ∈ [−1, +1]. The engine's "no
+ * hand-tuned thresholds" primitive. A single sorted prefix (binary-search
+ * insertion) replaces the naive per-index rescan — same formula
+ * ((below + (equal−1)/2) / (count−1), ties count half, value ranked
+ * against a window that includes itself), ~two orders of magnitude cheaper
+ * across a session's worth of ribbon indices.
+ */
+function rankSeriesAt(
+  series: (number | null)[],
+  idxs?: Set<number>
+): (number | null)[] {
+  const n = series.length;
+  const scores: (number | null)[] = new Array(n).fill(null);
+  const sorted: number[] = [];
+  for (let i = 0; i < n; i++) {
+    const v = series[i];
+    if (v === null || !Number.isFinite(v)) continue;
+    const below = lowerBound(sorted, v);
+    sorted.splice(below, 0, v);
+    if (idxs && !idxs.has(i)) continue;
+    const count = sorted.length; // values in [0..i], self included
+    if (count < 10) continue; // too little history to rank against
+    const equal = upperBound(sorted, v) - below;
+    const p = (below + (equal - 1) / 2) / (count - 1);
+    scores[i] = clamp(2 * p - 1, -1, 1);
+  }
+  return scores;
 }
 
 /** Rolling least-squares slope of the last `win` values, per index. */
@@ -216,14 +246,7 @@ function barSignals(bars: Bar[], orMinutes: number): BarSignal[] {
   const n = bars.length;
   const closes = bars.map((b) => b.c);
   const out: BarSignal[] = [];
-  const rankSeries = (raw: (number | null)[], idxs?: Set<number>): (number | null)[] => {
-    const scores: (number | null)[] = new Array(n).fill(null);
-    for (let i = 0; i < n; i++) {
-      if (idxs && !idxs.has(i)) continue;
-      scores[i] = rankAt(raw, i);
-    }
-    return scores;
-  };
+  const rankSeries = rankSeriesAt;
   // Ribbon indices: only the latest session needs per-bar scores; earlier
   // bars just feed the distributions. The last index is always included.
   const sessions = splitSessions(bars);
@@ -331,11 +354,12 @@ function barSignals(bars: Bar[], orMinutes: number): BarSignal[] {
 
   /* Momentum */
   const r14 = rsi(closes, 14);
+  const r14Ranked = rankSeries(r14, ribbonIdx);
   add(
     "rsi",
     "RSI(14)",
     "momentum",
-    rankSeries(r14, ribbonIdx),
+    r14Ranked,
     (i) => (r14[i] as number).toFixed(0),
     "no data"
   );
@@ -493,9 +517,11 @@ function barSignals(bars: Bar[], orMinutes: number): BarSignal[] {
     },
     "no band yet"
   );
+  // Reuses the momentum signal's ranked RSI series — same distribution,
+  // computed once.
   const rsiExtreme: (number | null)[] = new Array(n).fill(null);
   for (const i of ribbonIdx) {
-    const ranked = rankAt(r14, i); // −1..+1 percentile of RSI in its own history
+    const ranked = r14Ranked[i]; // −1..+1 percentile of RSI in its own history
     if (ranked === null) continue;
     const p = (ranked + 1) / 2;
     rsiExtreme[i] = p > 0.9 ? -((p - 0.9) / 0.1) : p < 0.1 ? (0.1 - p) / 0.1 : 0;

@@ -534,26 +534,38 @@ apps via `components/shell/brand.tsx` (`AppKind`).
   (day OHLC, volume, 10d/3m averages, 52w range, extended hours) for up to 40
   symbols in ONE batched Yahoo call, 30s-cached; `/api/vega/intraday` returns
   OHLCV bars for one symbol (`1m|5m|15m|1d`, pre/post included intraday),
-  55s-cached. Client hooks `lib/vega/useVegaQuotes.ts` (30s poll) and
-  `useIntraday.ts` (60s poll, focused symbol only) are visibility-gated.
+  55s-cached (the route distinguishes a conclusive "no bars" 404 from a
+  transient provider failure — the latter is never negative-cached and serves
+  the last good series stale, so a hiccup can't blank a working chart).
+  Client hooks `lib/vega/useVegaQuotes.ts` (30s poll, identity-stable across
+  byte-identical payloads so consumer memos stay cold) and `useIntraday.ts`
+  (60s poll, focused symbol only; applies `repairBars` centrally and drops a
+  stale symbol's tape if a switch's first load fails) share the
+  `lib/useVisibilityPoll.ts` cadence hook.
   **Never add per-symbol fan-out** — the batch endpoint is what keeps vega
   inside the keyless provider's tolerance (the watchlist cap `WATCHLIST_MAX`
   exists for the same reason).
 - **Pure analytics (`lib/vega/*`, all unit-tested)** — `indicators.ts` (SMA/
   EMA/RSI/MACD/Bollinger/ATR + session-anchored VWAP with volume-weighted σ
-  bands, plus `tameWicks` bad-print hygiene), `session.ts` (ET session math
-  over bar timestamps — the VWAP anchor, opening range and "minutes into the
-  session" all derive from it), `levels.ts` (floor pivots, prior-day H/L/C,
-  opening/premarket range, swing S/R clustering), `profile.ts` (volume
+  bands, plus `repairBars` — three-pass bad-print repair whose body passes
+  only touch zero-volume bars, so volume-backed real moves are structurally
+  exempt), `session.ts` (ET session math over bar timestamps — the VWAP
+  anchor, opening range, the `displayWindow`/`replayStart` contracts shared
+  by the chart and bar replay, and "minutes into the session" all derive
+  from it), `levels.ts` (floor pivots, prior-day H/L/C, opening/premarket
+  range, swing S/R clustering — drawn on the chart as `SR` levels),
+  `profile.ts` (volume
   profile: POC + 70% value area), `scan.ts` (gap/RVOL/range metrics + the
   cross-sectional heat score — percentiles within the scanned set, the regime
   engine's no-hand-tuned-thresholds principle), `journal.ts` (P&L,
   R-multiples, equity curve/drawdown, streaks, groupings), `risk.ts`
   (stop-based position sizing, Kelly, the daily-loss circuit breaker),
   `csv.ts` (forgiving journal CSV round-trip over the shared `csvCore`
-  splitter), `alerts.ts` (true-cross price-alert sweep — pure; the live half
+  splitter), `alerts.ts` (true-cross price-alert sweep + the cap-aware
+  `withAlertAdded` — an armed alert is never silently evicted; the live half
   is `useAlertEngine.ts`, mounted once in `VegaShell`, riding the existing
-  quote poll), and `simulate.ts` (the expectancy simulator — a seeded
+  quote poll with its previous-price map pruned to the armed set), and
+  `simulate.ts` (the expectancy simulator — a seeded
   bootstrap Monte Carlo over the journal's own R-multiples: quantile fans,
   P(positive), drawdown-limit risk of ruin).
 - **The Edge Engine (`lib/vega/engine.ts` → `/vega/engine`)** — the intraday

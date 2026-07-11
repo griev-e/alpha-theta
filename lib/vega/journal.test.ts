@@ -10,6 +10,7 @@ import {
   journalStats,
   tradePnl,
   tradeR,
+  localDayKey,
 } from "./journal";
 import type { Trade } from "./types";
 
@@ -126,5 +127,29 @@ describe("groupings", () => {
     expect(closedTrades([t])).toHaveLength(1);
     expect(entryHourKey(t)).toMatch(/^\d{2}$/);
     expect(entryHourKey(trade({ entryAt: "garbage" }))).toBe("—");
+  });
+});
+
+describe("localDayKey / dailyPnl day bucketing", () => {
+  it("buckets by the trader's LOCAL calendar day, not the UTC slice", () => {
+    // 20:30 local on Jan 15 — build the ISO from a local-time Date so the
+    // assertion holds in any timezone the suite runs in.
+    const eveningLocal = new Date(2026, 0, 15, 20, 30).toISOString();
+    expect(localDayKey(eveningLocal)).toBe("2026-01-15");
+  });
+
+  it("dailyPnl keys match the cockpit's local todayKey convention", () => {
+    const exitAt = new Date(2026, 0, 15, 20, 30).toISOString();
+    const trades = [
+      {
+        id: "t1", symbol: "SPY", side: "long" as const, qty: 10,
+        entry: 100, exit: 99, entryAt: new Date(2026, 0, 15, 10, 0).toISOString(), exitAt,
+      },
+    ];
+    const daily = dailyPnl(trades);
+    expect(daily.get("2026-01-15")).toBe(-10);
+    // The UTC slice of a late-evening exit may be the NEXT day in western
+    // timezones — that key must not appear.
+    for (const key of daily.keys()) expect(key).toBe("2026-01-15");
   });
 });

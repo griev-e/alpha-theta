@@ -26,9 +26,11 @@ const quote = (over: Partial<VegaQuote>): VegaQuote => ({
 const NOW = "2026-01-15T16:30:00Z";
 
 describe("sessionElapsedFraction", () => {
-  it("pro-rates the regular session and floors premarket", () => {
+  it("pro-rates only the regular session", () => {
     expect(sessionElapsedFraction("REGULAR", NOW)).toBeCloseTo(120 / 390, 10);
-    expect(sessionElapsedFraction("PRE", NOW)).toBeCloseTo(0.06, 10);
+    // PRE is 1, not a small floor: the provider's volume field still holds
+    // the PRIOR session's total before the open (scanQuote nulls rvol then).
+    expect(sessionElapsedFraction("PRE", NOW)).toBe(1);
     expect(sessionElapsedFraction("POST", NOW)).toBe(1);
     expect(sessionElapsedFraction("CLOSED", NOW)).toBe(1);
   });
@@ -74,6 +76,24 @@ describe("scanQuote", () => {
   it("clamps range position for an extended-hours print outside the range", () => {
     const r = scanQuote(quote({ marketState: "POST", price: 110, regularPrice: 106 }), NOW);
     expect(r.rangePos).toBe(1);
+  });
+
+  it("premarket: live gap vs last close, stale session metrics go null", () => {
+    // Before the open the provider's open/high/low/volume describe the PRIOR
+    // session. price=108 is the premarket print, regularPrice=105 the last
+    // regular close — the LIVE gap; everything session-bound must be null,
+    // not yesterday's numbers wearing today's labels.
+    const r = scanQuote(
+      quote({ marketState: "PRE", price: 108, volume: 20_000_000 }),
+      "2026-01-15T13:00:00Z" // 08:00 ET
+    );
+    expect(r.gapPct).toBeCloseTo(108 / 105 - 1, 10);
+    expect(r.rvol).toBeNull();
+    expect(r.rangePct).toBeNull();
+    expect(r.rangePos).toBeNull();
+    expect(r.fromOpenPct).toBeNull();
+    expect(r.tags).toContain("gap ↑");
+    expect(r.tags).not.toContain("high rvol");
   });
 });
 

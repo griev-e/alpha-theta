@@ -1,22 +1,23 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { SkeletonBlock } from "@/components/ui/Skeleton";
 import { Tooltip } from "@/components/ui/Tooltip";
 import { EngineDial } from "@/components/vega/EngineDial";
 import { DriverStack, EngineLayers, ScoreRibbon } from "@/components/vega/EnginePanels";
+import { SymbolForm } from "@/components/vega/SymbolForm";
 import { ChangePct } from "@/components/vega/bits";
 import { Money } from "@/components/ui/Money";
 import { useAsyncCompute } from "@/lib/useAsyncCompute";
 import { edgeEngine } from "@/lib/vega/engine";
-import { tameWicks } from "@/lib/vega/indicators";
 import { useVega } from "@/lib/vega/store";
+import { ENGINE_BENCHMARK as BENCH } from "@/lib/vega/types";
 import { useIntraday } from "@/lib/vega/useIntraday";
 import { useVegaQuotes } from "@/lib/vega/useVegaQuotes";
 
-const BENCH = "SPY";
+const EMPTY_BARS: never[] = [];
 
 /** Small ⓘ affordance for a card header — hover reveals the methodology. */
 function Hint({ text }: { text: string }) {
@@ -38,7 +39,6 @@ function Hint({ text }: { text: string }) {
  */
 export default function EnginePage() {
   const { state, ready, setFocus } = useVega();
-  const [symbolInput, setSymbolInput] = useState("");
   const symbol = state.focus;
 
   const { series, loading, empty, degraded } = useIntraday(ready ? symbol : "", "5m");
@@ -46,7 +46,7 @@ export default function EnginePage() {
   const quote = quotes[symbol] ?? null;
   const benchmark = symbol === BENCH ? null : (quotes[BENCH] ?? null);
 
-  const bars = useMemo(() => tameWicks(series?.bars ?? []), [series]);
+  const bars = series?.bars ?? EMPTY_BARS;
   const { value: report, pending } = useAsyncCompute(
     () =>
       bars.length > 0
@@ -62,13 +62,6 @@ export default function EnginePage() {
     [bars, quote, benchmark, symbol, state.settings.orMinutes, asOf]
   );
 
-  const focusSymbol = (raw: string) => {
-    const sym = raw.trim().toUpperCase();
-    if (!sym) return;
-    setFocus(sym);
-    setSymbolInput("");
-  };
-
   const noData = !loading && (empty || bars.length === 0);
 
   return (
@@ -77,26 +70,7 @@ export default function EnginePage() {
         eyebrow="Trade"
         title={`${symbol} · Edge Engine`}
         description="Eight live signal layers — trend, VWAP posture, momentum, volume pressure, levels, relative strength, gap behavior, and a contrarian extension guard — fused into one directional read. Weights are earned from coverage and agreement, never hand-tuned."
-        right={
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              focusSymbol(symbolInput);
-            }}
-            className="flex items-center gap-2"
-          >
-            <input
-              value={symbolInput}
-              onChange={(e) => setSymbolInput(e.target.value)}
-              placeholder="Symbol…"
-              aria-label="Focus a symbol"
-              className="field h-8 w-28 uppercase"
-            />
-            <button type="submit" className="btn-secondary h-8">
-              Run
-            </button>
-          </form>
-        }
+        right={<SymbolForm onSubmit={setFocus} buttonLabel="Run" />}
       />
 
       {/* Quote strip */}

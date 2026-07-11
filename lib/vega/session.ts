@@ -1,4 +1,4 @@
-import type { Bar } from "./types";
+import type { Bar, Interval } from "./types";
 
 /**
  * US equity session math over bar timestamps, computed in exchange time
@@ -95,4 +95,34 @@ export function latestSession(bars: Bar[]): Bar[] {
  *  window (fetch spans carry weekend slack, so "2 days" is session-counted). */
 export function lastSessions(bars: Bar[], n: number): Bar[] {
   return splitSessions(bars).slice(-n).flat();
+}
+
+/** Sessions shown per intraday interval — the display-window contract shared
+ *  by the chart terminal and bar replay (1m tapes are only readable one
+ *  session at a time; daily bars show the full fetched span). */
+const WINDOW_SESSIONS: Record<Interval, number | null> = {
+  "1m": 1,
+  "5m": 2,
+  "15m": 5,
+  "1d": null,
+};
+
+/** The chart's display window for an interval — a fixed session count. */
+export function displayWindow(bars: Bar[], interval: Interval): Bar[] {
+  const n = WINDOW_SESSIONS[interval];
+  return n === null ? bars : lastSessions(bars, n);
+}
+
+/**
+ * Where bar replay rewinds to: the first bar of the latest session on
+ * intraday tapes, or a quarter of the way in on daily bars (every daily bar
+ * is its own ET session, so "latest session" would be the last bar — a
+ * zero-length replay). Both the start button and play-again-after-the-end
+ * use this, so the two can never disagree.
+ */
+export function replayStart(win: Bar[], interval: Interval): number {
+  if (interval === "1d") return Math.min(Math.floor(win.length * 0.25), Math.max(0, win.length - 2));
+  const sessions = splitSessions(win);
+  const lastLen = sessions[sessions.length - 1]?.length ?? 0;
+  return Math.max(Math.min(5, Math.max(0, win.length - 2)), win.length - lastLen);
 }

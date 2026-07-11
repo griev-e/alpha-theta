@@ -29,14 +29,25 @@ export async function GET(req: NextRequest) {
     ? (param as Interval)
     : "5m";
 
-  const series = await fetchIntraday(symbol, interval);
+  const { series, error } = await fetchIntraday(symbol, interval);
   if (!series) {
+    // 404 = the provider conclusively has nothing for this symbol;
+    // 503 = the provider call failed and we have no last-known bars —
+    // the client keeps its current tape and shows the degraded state
+    // instead of a false "no data" empty.
+    if (error) {
+      return NextResponse.json(
+        { error: "provider unavailable" },
+        { status: 503, headers: { "Cache-Control": "no-store" } }
+      );
+    }
     return NextResponse.json({ error: "no data" }, { status: 404 });
   }
   return NextResponse.json(series, {
     headers: {
-      "Cache-Control":
-        interval === "1d"
+      "Cache-Control": error
+        ? "no-store" // stale-served during an outage — don't pin it to the CDN
+        : interval === "1d"
           ? "public, s-maxage=600, stale-while-revalidate=3600"
           : "public, s-maxage=55, stale-while-revalidate=300",
     },

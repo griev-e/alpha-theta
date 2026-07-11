@@ -86,12 +86,3 @@ export const IconEngine = () => (
   </svg>
 );
 
-/** Levels — stacked horizontal price lines with a tick. */
-export const IconLevels = () => (
-  <svg {...base}>
-    <path d="M3.5 5.5 H16.5" opacity="0.5" />
-    <path d="M3.5 10 H16.5" />
-    <path d="M3.5 14.5 H16.5" opacity="0.5" />
-    <circle cx="12.5" cy="10" r="1.4" fill="currentColor" stroke="none" />
-  </svg>
-);

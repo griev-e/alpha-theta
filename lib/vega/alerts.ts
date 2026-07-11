@@ -62,6 +62,27 @@ export function sweepAlerts(
   return { fired, next: changed ? next : alerts };
 }
 
+/**
+ * Cap-aware insert. At the ALERTS_MAX ceiling the oldest FIRED alert makes
+ * room (it already rang; the list is history at that point) — but an armed
+ * alert is never silently evicted: when the list is all armed, the add is
+ * refused (returns null) so the UI can say "cap reached" instead of a level
+ * quietly vanishing while a trader is counting on it.
+ */
+export function withAlertAdded(
+  alerts: PriceAlert[],
+  alert: PriceAlert,
+  max: number
+): PriceAlert[] | null {
+  if (alerts.length < max) return [...alerts, alert];
+  const fired = alerts.filter((a) => a.firedAt);
+  if (fired.length === 0) return null;
+  const oldest = fired.reduce((a, b) =>
+    (a.firedAt as string) <= (b.firedAt as string) ? a : b
+  );
+  return [...alerts.filter((a) => a.id !== oldest.id), alert];
+}
+
 /** Armed (not-yet-fired) alerts for a symbol, nearest level first. */
 export function armedAlerts(alerts: PriceAlert[], symbol?: string): PriceAlert[] {
   return alerts

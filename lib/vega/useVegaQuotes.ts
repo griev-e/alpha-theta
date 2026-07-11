@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useVisibilityPoll } from "@/lib/useVisibilityPoll";
 import type { VegaQuote, VegaQuotesResponse } from "./types";
 
 const POLL_MS = 30_000;
@@ -30,6 +31,11 @@ export function useVegaQuotes(symbols: string[]): VegaQuotesData {
   const [asOf, setAsOf] = useState<string | null>(null);
   const [degraded, setDegraded] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  // Serialized last payload: server + CDN caches make byte-identical repeats
+  // routine (all weekend, every poll), and a fresh object identity per poll
+  // would rerun every consumer memo — including the Edge Engine's full
+  // compute — on data that didn't move. Same payload → same identities.
+  const lastPayloadRef = useRef("");
 
   const fetchQuotes = useCallback(async () => {
     if (!key) return;
@@ -38,8 +44,12 @@ export function useVegaQuotes(symbols: string[]): VegaQuotesData {
       if (!res.ok) throw new Error();
       const data = (await res.json()) as VegaQuotesResponse;
       if (keyRef.current !== key) return; // symbol set changed mid-flight
-      setQuotes(data.quotes);
-      setAsOf(data.asOf);
+      const payload = `${key}|${JSON.stringify(data.quotes)}`;
+      if (payload !== lastPayloadRef.current) {
+        lastPayloadRef.current = payload;
+        setQuotes(data.quotes);
+        setAsOf(data.asOf);
+      }
       setDegraded(false);
     } catch {
       if (keyRef.current !== key) return;
@@ -47,33 +57,12 @@ export function useVegaQuotes(symbols: string[]): VegaQuotesData {
     }
   }, [key]);
 
+  // Initial fetch on key change; steady-state cadence via the shared poll.
   useEffect(() => {
-    let timer: ReturnType<typeof setInterval> | null = null;
     void fetchQuotes();
-    const start = () => {
-      if (timer === null) timer = setInterval(() => void fetchQuotes(), POLL_MS);
-    };
-    const stop = () => {
-      if (timer !== null) {
-        clearInterval(timer);
-        timer = null;
-      }
-    };
-    const onVis = () => {
-      if (document.visibilityState === "visible") {
-        void fetchQuotes();
-        start();
-      } else {
-        stop();
-      }
-    };
-    if (document.visibilityState === "visible") start();
-    document.addEventListener("visibilitychange", onVis);
-    return () => {
-      stop();
-      document.removeEventListener("visibilitychange", onVis);
-    };
   }, [fetchQuotes]);
+  const tick = useCallback(() => void fetchQuotes(), [fetchQuotes]);
+  useVisibilityPoll(tick, POLL_MS);
 
   const refresh = useCallback(async () => {
     setRefreshing(true);

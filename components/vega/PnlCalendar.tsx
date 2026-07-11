@@ -1,5 +1,7 @@
 "use client";
 
+import { localDayKey } from "@/lib/vega/journal";
+
 import { m, useReducedMotion } from "framer-motion";
 import { useMemo, useState } from "react";
 import { Tooltip } from "@/components/ui/Tooltip";
@@ -35,7 +37,7 @@ export function PnlCalendar({
       for (let d = 4; d >= 0; d--) {
         const day = new Date(friday);
         day.setDate(friday.getDate() - w * 7 - d);
-        const key = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, "0")}-${String(day.getDate()).padStart(2, "0")}`;
+        const key = localDayKey(day.toISOString());
         col.push({
           key,
           pnl: daily.has(key) ? (daily.get(key) as number) : null,
