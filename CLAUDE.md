@@ -41,20 +41,22 @@ Tests live next to the code as `*.test.ts` (Vitest, `node` environment by
 default — see `vitest.config.ts`); shared fixtures are in
 `lib/__tests__/factory.ts`. The suite covers the pure analytics (risk,
 correlation, quality, factors, scenarios, rebalance, dividends, the optimizer,
-the regime engine and its `mathx` helpers plus each of the 8 signal layers,
-`buildPortfolio`), CSV parsing (both apps, incl. the shared `csvCore` splitter),
-the live-data merge layer (`lib/live/merge.ts`, `lib/live/cma.ts`), theta's
-compute/csv/categorize/simplefin modules plus its newer money-analytics layer
-(debt payoff, financial health + its ledger adapter, subscription detection,
-cash-flow forecast, net-worth Monte Carlo, goal feasibility, derived
-flow/net-worth history, the SimpleFIN merge/dedup rules, the alpha↔theta
-balance bridge), the client save-back layer (`lib/persist.ts`), the per-user DB
-queries' credential-isolation invariant (`lib/db/state.ts` — `getUserState`
-never selects the `simplefin` column), and server-side correctness
-(fundamentals sanitization + the Yahoo/Finnhub gap-fill merge, Yahoo/Finnhub
-provider math, the SimpleFIN mapper, the envelope-encryption round-trip in
-`lib/server/secretBox.ts`, the shared AI-endpoint plumbing — cache,
-generation/request limiters, cost math, error mapping — the login rate
+the Ledoit-Wolf covariance shrinkage in `lib/analytics/shrinkage.ts`, the
+regime engine and its `mathx` helpers plus each of the 8 signal layers,
+`buildPortfolio`, the cross-portfolio `lib/household.ts` blend), CSV parsing
+(both apps, incl. the shared `csvCore` splitter), the live-data merge layer
+(`lib/live/merge.ts`, `lib/live/cma.ts`), theta's compute/csv/categorize/simplefin
+modules plus its newer money-analytics layer (debt payoff, financial health +
+its ledger adapter, subscription detection, cash-flow forecast, the cash-flow
+Sankey model, net-worth Monte Carlo, goal feasibility, derived flow/net-worth
+history, the SimpleFIN merge/dedup rules, the alpha↔theta balance and
+risk-exposure bridges), the client save-back layer (`lib/persist.ts`), the
+per-user DB queries' credential-isolation invariant (`lib/db/state.ts` —
+`getUserState` never selects the `simplefin` column), and server-side
+correctness (fundamentals sanitization + the Yahoo/Finnhub gap-fill merge,
+Yahoo/Finnhub provider math, the SimpleFIN mapper, the envelope-encryption
+round-trip in `lib/server/secretBox.ts`, the shared AI-endpoint plumbing —
+cache, generation/request limiters, cost math, error mapping — the login rate
 limiter, and the AI-model contract guard in `lib/server/aiModels.test.ts`).
 
 **React hooks and components** are tested as `*.test.tsx` files that opt into a
@@ -169,6 +171,12 @@ model" goes negative in a high-rate regime) — it's the editable assumption.
   server mode — so the DB, `lib/persist.ts`, and per-user isolation need no
   change. `migrate()` transparently upgrades the legacy single-portfolio shape
   (`{ holdings, cash, asOf, isDemo? }`) into a one-entry set on first read.
+  When there's more than one book, `usePortfolio` also exposes a `household`
+  blend (`lib/household.ts`): the active portfolio contributes its live value,
+  every other book its last-known imported value, flagged so the UI never
+  implies the whole household is live. Reached via "Household" in the
+  `PortfolioSwitcher` dropdown (`/household`) — deliberately not in the main
+  `NAV`, since it only makes sense once a second book exists.
 - **`lib/analytics/build.ts`** (`buildPortfolio`) is the central enrichment
   step: it reprices holdings from live quotes, computes weights / cost basis /
   P&L / day-change, and merges fundamentals onto each position. **Most pages
@@ -290,7 +298,11 @@ descent for risk parity) over the same factor covariance and CAPM expected
 returns, producing optimal weights, an efficient frontier, and a trade list for
 eight objectives. Monte Carlo and the optimizer's multistart share a seeded PRNG
 (`mulberry32` in `lib/analytics/mathUtils.ts`) so both draw reproducible
-sequences without duplicating the generator.
+sequences without duplicating the generator. `shrinkage.ts` implements
+Ledoit-Wolf covariance shrinkage: when real return history is available it
+blends the structural factor-model covariance with the (noisy) sample
+covariance at the analytically-optimal intensity, rather than trusting either
+alone.
 
 **The market regime engine (`lib/analytics/regime/`)** is the most involved
 subsystem. It turns ~23 daily index series into 8 analytical layers
@@ -313,7 +325,15 @@ confidence, and UI all adapt automatically.
   Overview (`/`), Intelligence, Risk, Research, Dividends, Rebalance,
   Discover; Optimizer, Market Analysis, Quality, Benchmark & Factors,
   Correlation; Scenarios, Monte Carlo; Export Report (`/report`), Import &
-  Data (`/import`), Patch Notes.
+  Data (`/import`), Patch Notes. `/household` (see above) is a route that
+  deliberately isn't in `NAV`. `/design` is a dev-only design-system gallery
+  (`app/design/DesignGallery.tsx`) that 404s in production and is reachable
+  only by URL — update it when adding a new primitive or chart.
+- **Command palette** — `components/shell/CommandPalette.tsx` (⌘K) surfaces
+  page navigation, quick actions (refresh live data, load demo, jump to
+  theta), and portfolio switching in one searchable list; `navChords.ts`
+  backs single-key nav chords (e.g. `J`/`K` to step through the holdings
+  rail) documented in `components/shell/KeyboardMap.tsx`.
 - **Discover** (`/discover`) is an AI stock-idea generator: pick one of six
   research lenses (diversify / growth / value / defensive / quality /
   thematic), optionally flip the "Suggest ETFs" toggle off to restrict ideas to
@@ -342,6 +362,23 @@ confidence, and UI all adapt automatically.
   further: `lib/analytics/useMonteCarlo.ts` runs the sim in a Web Worker
   (`montecarlo.worker.ts`) to keep the main thread free, falling back to
   synchronous compute when Workers are unavailable.
+- **First-view/first-import choreography.** `lib/firstView.tsx`
+  (`useFirstView`) tracks, per navigation, whether a route is being seen for
+  the first time *this session* (a module-level set of visited paths reset on
+  full reload) so `Card`/`PageHeader`/staggered rows can run their entrance
+  animation once and render instantly on return visits; interaction motion
+  (hover springs, count-ups, chart draws) is never gated by it. `lib/firstImport.ts`
+  (`useOverture`) is the once-*ever* cousin, persisted in localStorage: it
+  drives Overview's one-time counting-up flourish the session real portfolio
+  data first lands. `lib/syncStatus.ts` is a tiny module-scope channel (set by
+  `lib/persist.ts`, read via `useSyncExternalStore`) that makes a failed or
+  conflicted server save visible in the shell's sync banner (`StatusCenter.tsx`)
+  instead of vanishing into `console.error`. `lib/marketSession.ts` derives the
+  US equity session (pre/open/post/closed) from the wall clock for the Overview
+  session ribbon (`MarketPulse.tsx`) — calendar-only, paired in the UI with the
+  live-price truth rather than replacing it. `lib/watchlist.ts` is a
+  localStorage-backed starred-symbol list broadcast across mounts via a
+  same-tab custom event.
 
 ### theta — the sister personal-finance app (`app/theta/*`)
 
@@ -423,6 +460,16 @@ with alpha, but otherwise has its own state, shell, and analytics:
     that account's balance with the linked alpha portfolio's live value
     (only the active alpha portfolio is live-priced, so unresolved links keep
     their manual balance rather than showing a stale one).
+  - `lib/theta/household.ts` — goes one step past the balance bridge to read
+    the linked alpha portfolio's *risk* (beta/volatility) and model
+    drawdown scenarios against net worth and liquid savings, answering how
+    exposed theta's safety net is to an equity shock. Pure numeric inputs, no
+    store coupling.
+  - `lib/theta/sankey.ts` — the cash-flow Sankey model backing the dashboard's
+    flow diagram (`components/charts/Sankey.tsx`): turns the current month's
+    transactions into a conserved income→hub→category graph, with any
+    overspend modeled as an extra inflow from savings so the ribbons always
+    balance.
 - **Bank sync (optional, accounts-only)** — `lib/theta/simplefin.ts` is the
   pure mapper from a SimpleFIN payload to theta `Account`/`Transaction` records
   (stable prefixed ids for dedup, account-kind inference, liability-sign
