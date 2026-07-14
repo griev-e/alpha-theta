@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatusDot } from "@/components/ui/StatusDot";
@@ -9,9 +9,10 @@ import { Table, type TableColumn } from "@/components/ui/Table";
 import { Money } from "@/components/ui/Money";
 import { ChangePct, RangeBar, RvolText, ScanTag, ScoreChip } from "@/components/vega/bits";
 import { ScanMap } from "@/components/vega/ScanMap";
+import { SymbolSearch } from "@/components/vega/SymbolSearch";
 import { rankScans, scanQuote, type ScanRow } from "@/lib/vega/scan";
 import { useVega } from "@/lib/vega/store";
-import { WATCHLIST_MAX } from "@/lib/vega/types";
+import { WATCHLIST_MAX, WATCHLIST_PRESETS } from "@/lib/vega/types";
 import { useVegaQuotes } from "@/lib/vega/useVegaQuotes";
 
 /**
@@ -22,10 +23,10 @@ import { useVegaQuotes } from "@/lib/vega/useVegaQuotes";
  * thresholds.
  */
 export default function ScannerPage() {
-  const { state, ready, setFocus, addToWatchlist, removeFromWatchlist } = useVega();
+  const { state, ready, setFocus, addToWatchlist, addManyToWatchlist, removeFromWatchlist } =
+    useVega();
   const router = useRouter();
   const { quotes, asOf, degraded } = useVegaQuotes(ready ? state.watchlist : []);
-  const [input, setInput] = useState("");
 
   const scans = useMemo(() => {
     const now = asOf ?? new Date().toISOString();
@@ -161,33 +162,12 @@ export default function ScannerPage() {
         title="Scanner"
         description="Cross-sectional heat over everything you're watching — ranked against today's set, not a magic threshold."
         right={
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              const sym = input.trim().toUpperCase();
-              if (sym) {
-                addToWatchlist(sym);
-                setInput("");
-              }
-            }}
-            className="flex items-center gap-2"
-          >
-            <input
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder="Add symbol…"
-              aria-label="Add a symbol to the watchlist"
-              className="field h-8 w-32 uppercase"
-              disabled={state.watchlist.length >= WATCHLIST_MAX}
-            />
-            <button
-              type="submit"
-              className="btn-secondary h-8"
-              disabled={state.watchlist.length >= WATCHLIST_MAX}
-            >
-              Watch
-            </button>
-          </form>
+          <SymbolSearch
+            onSelect={addToWatchlist}
+            buttonLabel="Watch"
+            placeholder="Add symbol or name…"
+            disabled={state.watchlist.length >= WATCHLIST_MAX}
+          />
         }
       />
 
@@ -227,11 +207,25 @@ export default function ScannerPage() {
         <div className="mt-3">
           {scans.length === 0 ? (
             <div className="px-5 pb-5 text-[13px] text-faint">
-              {degraded
-                ? "Quotes unreachable — the board lights back up when the feed returns."
-                : state.watchlist.length === 0
-                  ? "The watchlist is empty — add a symbol above."
-                  : "Loading the board…"}
+              {degraded ? (
+                "Quotes unreachable — the board lights back up when the feed returns."
+              ) : state.watchlist.length === 0 ? (
+                <span className="flex flex-wrap items-center gap-2">
+                  The watchlist is empty — add a symbol above, or load a board:
+                  {WATCHLIST_PRESETS.map((p) => (
+                    <button
+                      key={p.label}
+                      onClick={() => addManyToWatchlist([...p.symbols])}
+                      title={p.symbols.join(" · ")}
+                      className="btn-secondary h-7 px-2.5 text-[12px]"
+                    >
+                      {p.label}
+                    </button>
+                  ))}
+                </span>
+              ) : (
+                "Loading the board…"
+              )}
             </div>
           ) : (
             <Table

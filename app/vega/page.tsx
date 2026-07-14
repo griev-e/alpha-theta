@@ -11,9 +11,11 @@ import { StatusDot } from "@/components/ui/StatusDot";
 import { Table, type TableColumn } from "@/components/ui/Table";
 import { Money } from "@/components/ui/Money";
 import { ChangePct, InternalsChip, RangeBar, RvolText, ScanTag, ScoreChip } from "@/components/vega/bits";
+import { PositionsCard } from "@/components/vega/PositionsCard";
 import { fmtPct, fmtUSD } from "@/lib/format";
 import { armedAlerts, firedAlerts } from "@/lib/vega/alerts";
 import { localDayKey } from "@/lib/vega/journal";
+import { markOpenBook, openTrades } from "@/lib/vega/positions";
 import { dayRisk } from "@/lib/vega/risk";
 import { rankScans, scanQuote, type ScanRow } from "@/lib/vega/scan";
 import { useVega } from "@/lib/vega/store";
@@ -30,11 +32,18 @@ export default function CockpitPage() {
   const router = useRouter();
   const armed = useMemo(() => armedAlerts(state.alerts), [state.alerts]);
   const fired = useMemo(() => firedAlerts(state.alerts), [state.alerts]);
+  // Open journal positions ride the same batched poll — their symbols join
+  // the set so the working book marks live at zero extra provider cost.
+  const openSymbols = useMemo(
+    () => openTrades(state.trades).map((t) => t.symbol),
+    [state.trades]
+  );
   const symbols = useMemo(
-    () => [...new Set([...state.watchlist, ...INTERNALS_SYMBOLS, state.focus])],
-    [state.watchlist, state.focus]
+    () => [...new Set([...state.watchlist, ...INTERNALS_SYMBOLS, state.focus, ...openSymbols])],
+    [state.watchlist, state.focus, openSymbols]
   );
   const { quotes, asOf, degraded } = useVegaQuotes(ready ? symbols : []);
+  const book = useMemo(() => markOpenBook(state.trades, quotes), [state.trades, quotes]);
 
   const scans = useMemo(() => {
     const now = asOf ?? new Date().toISOString();
@@ -291,8 +300,18 @@ export default function CockpitPage() {
             </p>
           </Card>
 
+          {/* Working positions — live-marked open journal trades. */}
+          <PositionsCard
+            book={book}
+            i={4}
+            onFocus={(sym) => {
+              setFocus(sym);
+              router.push("/vega/chart");
+            }}
+          />
+
           {/* Alerts */}
-          <Card i={4} className="p-5">
+          <Card i={5} className="p-5">
             <CardHeader
               eyebrow="Alerts"
               title="Armed levels"
@@ -363,7 +382,7 @@ export default function CockpitPage() {
           </Card>
 
           {/* Movers */}
-          <Card i={5} className="p-5">
+          <Card i={6} className="p-5">
             <CardHeader eyebrow="Watchlist" title="Movers" />
             <ul className="mt-3 space-y-2">
               {[...scans]

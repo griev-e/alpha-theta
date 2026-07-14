@@ -7,16 +7,20 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { EmptyPanel } from "@/components/ui/EmptyState";
 import { Meter } from "@/components/ui/Meter";
 import { Segmented } from "@/components/ui/Segmented";
+import { Sparkline } from "@/components/charts/Sparkline";
 import { EquityCurve } from "@/components/vega/EquityCurve";
 import { SimFan } from "@/components/vega/SimFan";
-import { fmtNum, fmtUSD } from "@/lib/format";
+import { fmtNum, fmtPct, fmtUSD } from "@/lib/format";
 import { useAsyncCompute } from "@/lib/useAsyncCompute";
 import {
   closedTrades,
   entryHourKey,
+  entryWeekdayKey,
   equityCurve,
+  feeStats,
   groupStats,
   journalStats,
+  rollingExpectancy,
   tradeR,
   type GroupStat,
 } from "@/lib/vega/journal";
@@ -55,6 +59,18 @@ export default function AnalyticsPage() {
       ),
     [state.trades]
   );
+  const byWeekday = useMemo(() => {
+    const order = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+    return groupStats(state.trades, entryWeekdayKey).sort(
+      (a, b) => order.indexOf(a.key) - order.indexOf(b.key)
+    );
+  }, [state.trades]);
+  const bySide = useMemo(
+    () => groupStats(state.trades, (t) => (t.side === "long" ? "Long" : "Short")),
+    [state.trades]
+  );
+  const rolling = useMemo(() => rollingExpectancy(state.trades, 20), [state.trades]);
+  const fees = useMemo(() => feeStats(state.trades), [state.trades]);
 
   const rHist = useMemo(() => {
     if (rs.length === 0) return [];
@@ -202,8 +218,88 @@ export default function AnalyticsPage() {
         </div>
       </Card>
 
+      {/* Edge drift + cost drag */}
+      <div className="mt-4 grid gap-4 lg:grid-cols-3">
+        <Card i={5} className="p-5 lg:col-span-2">
+          <CardHeader
+            eyebrow="Trailing 20 trades"
+            title="Rolling expectancy"
+            right={
+              rolling.length > 0 ? (
+                <span className="font-mono tnum text-[11px] text-faint">
+                  now{" "}
+                  <span
+                    className={
+                      rolling[rolling.length - 1].expectancy >= 0 ? "text-pos" : "text-neg"
+                    }
+                  >
+                    {fmtUSD(rolling[rolling.length - 1].expectancy)}
+                  </span>{" "}
+                  · win {Math.round(rolling[rolling.length - 1].winRate * 100)}%
+                </span>
+              ) : undefined
+            }
+          />
+          {rolling.length >= 2 ? (
+            <>
+              <div className="mt-3">
+                <Sparkline
+                  values={rolling.map((p) => p.expectancy)}
+                  labels={rolling.map((p) => p.t.slice(0, 10))}
+                  baseline={0}
+                  height={92}
+                  color="var(--color-gold)"
+                  belowColor="var(--color-neg)"
+                  formatValue={(v) => fmtUSD(v)}
+                />
+              </div>
+              <p className="mt-2 text-[11px] leading-relaxed text-faint">
+                Mean P&L per trade over the trailing 20 closes, recomputed after every trade —
+                the drift the all-time average hides. Above zero, the recent edge pays.
+              </p>
+            </>
+          ) : (
+            <p className="mt-3 text-[12.5px] text-faint">
+              Needs at least two closed trades to draw the drift.
+            </p>
+          )}
+        </Card>
+
+        <Card i={6} className="p-5">
+          <CardHeader eyebrow="Round-trip costs" title="Fee drag" />
+          {fees === null || fees.fees === 0 ? (
+            <p className="mt-3 text-[12.5px] leading-relaxed text-faint">
+              No fees logged yet. Add commissions per trade and this shows what execution
+              actually costs the edge.
+            </p>
+          ) : (
+            <dl className="mt-3 space-y-2 text-[12.5px]">
+              {[
+                ["Total fees", fmtUSD(-fees.fees), "text-neg"],
+                ["Per trade", fmtUSD(-fees.perTrade), "text-mute"],
+                [
+                  "Of gross wins",
+                  fees.shareOfGrossWins !== null ? fmtPct(fees.shareOfGrossWins, 1) : "—",
+                  "text-warn",
+                ],
+              ].map(([label, value, cls]) => (
+                <div key={label as string} className="flex items-baseline justify-between gap-3">
+                  <dt className="text-faint">{label}</dt>
+                  <dd className={`font-mono tnum ${cls}`}>{value}</dd>
+                </div>
+              ))}
+            </dl>
+          )}
+          {fees !== null && fees.fees > 0 && (
+            <p className="mt-3 text-[11px] leading-relaxed text-faint">
+              Journal P&L is already net of fees — this is the drag the netting hides.
+            </p>
+          )}
+        </Card>
+      </div>
+
       {/* The expectancy simulator */}
-      <Card i={5} className="mt-4 p-5">
+      <Card i={7} className="mt-4 p-5">
         <CardHeader
           eyebrow="Bootstrap Monte Carlo"
           title={`If you keep trading this edge — the next ${horizon} trades`}
@@ -275,7 +371,7 @@ export default function AnalyticsPage() {
 
       <div className="mt-4 grid gap-4 lg:grid-cols-2">
         {/* R distribution */}
-        <Card i={6} className="p-5">
+        <Card i={8} className="p-5">
           <CardHeader eyebrow={`${rs.length} trades with a stop`} title="R-multiple distribution" />
           {rHist.length === 0 ? (
             <p className="mt-3 text-[12.5px] text-faint">
@@ -309,21 +405,33 @@ export default function AnalyticsPage() {
         </Card>
 
         {/* By hour */}
-        <Card i={7} className="p-5">
+        <Card i={9} className="p-5">
           <CardHeader eyebrow="Entry hour, local time" title="When the edge shows up" />
           <GroupList rows={byHour} />
         </Card>
 
         {/* By setup */}
-        <Card i={8} className="p-5">
+        <Card i={10} className="p-5">
           <CardHeader eyebrow="Playbook" title="P&L by setup" />
           <GroupList rows={bySetup} />
         </Card>
 
         {/* By symbol */}
-        <Card i={9} className="p-5">
+        <Card i={11} className="p-5">
           <CardHeader eyebrow="Tickers" title="P&L by symbol" />
           <GroupList rows={bySymbol.slice(0, 8)} />
+        </Card>
+
+        {/* By weekday */}
+        <Card i={12} className="p-5">
+          <CardHeader eyebrow="Entry weekday" title="Which days pay" />
+          <GroupList rows={byWeekday} />
+        </Card>
+
+        {/* Long vs short */}
+        <Card i={13} className="p-5">
+          <CardHeader eyebrow="Direction" title="Long vs short" />
+          <GroupList rows={bySide} />
         </Card>
       </div>
     </>

@@ -48,6 +48,8 @@ interface VegaStore {
 
   setFocus: (symbol: string) => void;
   addToWatchlist: (symbol: string) => void;
+  /** Cap-aware batch add (watchlist presets). Returns how many made it on. */
+  addManyToWatchlist: (symbols: string[]) => number;
   removeFromWatchlist: (symbol: string) => void;
 
   addTrade: (t: NewTrade) => void;
@@ -156,6 +158,21 @@ export function VegaProvider({ children }: { children: ReactNode }) {
           ? s
           : { ...s, watchlist: [...s.watchlist, sym].slice(0, WATCHLIST_MAX) }
       );
+    },
+    [mutate]
+  );
+
+  const addManyToWatchlist = useCallback(
+    (symbols: string[]): number => {
+      const cur = stateRef.current;
+      const cleaned = symbols.map(cleanSymbol).filter(Boolean);
+      const fresh = [...new Set(cleaned)].filter((s) => !cur.watchlist.includes(s));
+      const room = Math.max(0, WATCHLIST_MAX - cur.watchlist.length);
+      const added = fresh.slice(0, room);
+      if (added.length > 0) {
+        mutate((s) => ({ ...s, watchlist: [...s.watchlist, ...added] }));
+      }
+      return added.length;
     },
     [mutate]
   );
@@ -278,6 +295,7 @@ export function VegaProvider({ children }: { children: ReactNode }) {
       state,
       setFocus,
       addToWatchlist,
+      addManyToWatchlist,
       removeFromWatchlist,
       addTrade,
       updateTrade,
@@ -293,7 +311,7 @@ export function VegaProvider({ children }: { children: ReactNode }) {
     }),
     [
       ready, state,
-      setFocus, addToWatchlist, removeFromWatchlist,
+      setFocus, addToWatchlist, addManyToWatchlist, removeFromWatchlist,
       addTrade, updateTrade, deleteTrade, importTrades,
       addAlert, deleteAlert, applyAlertSweep,
       setSettings, loadSampleJournal, clearJournal, clearAll,

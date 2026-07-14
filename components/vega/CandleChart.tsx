@@ -7,6 +7,7 @@ import { ChartTooltip } from "@/components/charts/ChartTooltip";
 import { useElementWidth } from "@/lib/useElementWidth";
 import { fmtCompact, fmtNum } from "@/lib/format";
 import type { BollingerResult, Series, VwapResult } from "@/lib/vega/indicators";
+import type { TradeMarker } from "@/lib/vega/markers";
 import { etStamp, sessionKey } from "@/lib/vega/session";
 import type { VolumeProfile } from "@/lib/vega/profile";
 import type { Bar, Interval } from "@/lib/vega/types";
@@ -142,6 +143,7 @@ export function CandleChart({
   overlays = {},
   levels = [],
   profile = null,
+  markers = [],
   live = false,
 }: {
   bars: Bar[];
@@ -150,6 +152,8 @@ export function CandleChart({
   overlays?: ChartOverlays;
   levels?: ChartLevel[];
   profile?: VolumeProfile | null;
+  /** Journaled fills on this tape — entry/exit glyphs with a connector. */
+  markers?: TradeMarker[];
   /** Pulse the last close as a live tape. */
   live?: boolean;
 }) {
@@ -453,6 +457,59 @@ export function CandleChart({
               strokeWidth="1.6"
             />
           )}
+
+          {/* Trade markers — the journal's fills on this tape. Entry glyphs
+              point with the trade (▲ long / ▼ short), exits are squares toned
+              by the result, and closed round trips get a connector. */}
+          {markers.map((mk, mi) => {
+            const tone = mk.pnl === null ? "var(--color-sky)" : mk.pnl >= 0 ? POS : NEG;
+            const title = `${mk.side.toUpperCase()} ${mk.trade.qty} ${mk.trade.symbol} @ ${fmtPrice(mk.entryPrice)}${
+              mk.exitPrice !== null ? ` → ${fmtPrice(mk.exitPrice)}` : " (open)"
+            }`;
+            const entryOk = mk.entryIdx !== null && inRange(mk.entryPrice);
+            const exitOk = mk.exitIdx !== null && mk.exitPrice !== null && inRange(mk.exitPrice);
+            return (
+              <g key={`mk${mi}`} pointerEvents="bounding-box">
+                <title>{title}</title>
+                {entryOk && exitOk && (
+                  <line
+                    x1={x(mk.entryIdx as number)}
+                    y1={y(mk.entryPrice)}
+                    x2={x(mk.exitIdx as number)}
+                    y2={y(mk.exitPrice as number)}
+                    stroke={tone}
+                    strokeWidth="1"
+                    strokeOpacity="0.5"
+                    strokeDasharray="2 3"
+                  />
+                )}
+                {entryOk && (
+                  <path
+                    d={
+                      mk.side === "long"
+                        ? `M${x(mk.entryIdx as number) - 4},${y(mk.entryPrice) + 4} h8 l-4,-7 Z`
+                        : `M${x(mk.entryIdx as number) - 4},${y(mk.entryPrice) - 4} h8 l-4,7 Z`
+                    }
+                    fill={mk.side === "long" ? POS : NEG}
+                    stroke="rgba(0,0,0,0.55)"
+                    strokeWidth="0.75"
+                  />
+                )}
+                {exitOk && (
+                  <rect
+                    x={x(mk.exitIdx as number) - 3}
+                    y={y(mk.exitPrice as number) - 3}
+                    width={6}
+                    height={6}
+                    rx={1}
+                    fill={tone}
+                    stroke="rgba(0,0,0,0.55)"
+                    strokeWidth="0.75"
+                  />
+                )}
+              </g>
+            );
+          })}
 
           {/* Volume lane — memoized; the hovered bar gets a brighter overlay. */}
           {volumeField}

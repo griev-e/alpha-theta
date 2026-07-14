@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { RangeSlider } from "@/components/ui/RangeSlider";
@@ -10,11 +10,12 @@ import { Money } from "@/components/ui/Money";
 import { CandleChart, type ChartLevel, type ChartOverlays } from "@/components/vega/CandleChart";
 import { IndicatorPane, type IndicatorKind } from "@/components/vega/IndicatorPane";
 import { AlertPopover } from "@/components/vega/AlertPopover";
-import { SymbolForm } from "@/components/vega/SymbolForm";
+import { SymbolSearch } from "@/components/vega/SymbolSearch";
 import { ChangePct, RvolText, ScanTag } from "@/components/vega/bits";
 import { fmtNum } from "@/lib/format";
 import { armedAlerts } from "@/lib/vega/alerts";
 import { atr, bollinger, ema, rsi, sessionVwap } from "@/lib/vega/indicators";
+import { tradeMarkers } from "@/lib/vega/markers";
 import {
   floorPivots,
   openingRange,
@@ -27,7 +28,8 @@ import { volumeProfile } from "@/lib/vega/profile";
 import { displayWindow, latestSession, regularBars, replayStart } from "@/lib/vega/session";
 import { scanQuote } from "@/lib/vega/scan";
 import { useVega } from "@/lib/vega/store";
-import { ALERTS_MAX, type Bar, type Interval } from "@/lib/vega/types";
+import { ALERTS_MAX, INTERVALS, type Bar, type Interval } from "@/lib/vega/types";
+import { boolRecord, oneOf, useUiPref } from "@/lib/vega/uiPrefs";
 import { useIntraday } from "@/lib/vega/useIntraday";
 import { useVegaQuotes } from "@/lib/vega/useVegaQuotes";
 
@@ -46,7 +48,7 @@ const REPLAY_SPEEDS = [1, 2, 4, 8];
 /** Bars advanced per second at 1× — one bar every ~400ms reads as a tape. */
 const REPLAY_BASE_HZ = 2.5;
 
-type OverlayKey = "vwap" | "ema" | "bb" | "levels" | "profile";
+type OverlayKey = "vwap" | "ema" | "bb" | "levels" | "profile" | "trades";
 
 const OVERLAY_LABEL: Record<OverlayKey, string> = {
   vwap: "VWAP σ",
@@ -54,7 +56,19 @@ const OVERLAY_LABEL: Record<OverlayKey, string> = {
   bb: "Bollinger",
   levels: "Levels",
   profile: "Profile",
+  trades: "Trades",
 };
+
+const DEFAULT_OVERLAYS: Record<OverlayKey, boolean> = {
+  vwap: true,
+  ema: true,
+  bb: false,
+  levels: true,
+  profile: true,
+  trades: true,
+};
+
+const INDICATOR_CHOICES = ["rsi", "macd", "off"] as const;
 
 /**
  * The chart terminal — intraday candles with the full day-trading overlay
@@ -64,15 +78,19 @@ const OVERLAY_LABEL: Record<OverlayKey, string> = {
  */
 export default function ChartPage() {
   const { state, ready, setFocus, addToWatchlist, addAlert, deleteAlert } = useVega();
-  const [interval, setInterval] = useState<Interval>("5m");
-  const [indicator, setIndicator] = useState<IndicatorKind | "off">("rsi");
-  const [on, setOn] = useState<Record<OverlayKey, boolean>>({
-    vwap: true,
-    ema: true,
-    bb: false,
-    levels: true,
-    profile: true,
-  });
+  // The chart's dials survive a reload — persisted per browser as UI prefs
+  // (cosmetic choices, deliberately outside the versioned store blob).
+  const [interval, setInterval] = useUiPref<Interval>("chart.interval", "5m", oneOf(INTERVALS));
+  const [indicator, setIndicator] = useUiPref<IndicatorKind | "off">(
+    "chart.indicator",
+    "rsi",
+    oneOf(INDICATOR_CHOICES)
+  );
+  const [on, setOn] = useUiPref<Record<OverlayKey, boolean>>(
+    "chart.overlays",
+    DEFAULT_OVERLAYS,
+    boolRecord(DEFAULT_OVERLAYS)
+  );
   const [replay, setReplay] = useState<ReplayState | null>(null);
 
   const symbol = state.focus;
@@ -131,6 +149,64 @@ export default function ChartPage() {
       speed: 2,
     });
   };
+
+  // Transport controls shared by the buttons and the keyboard: playing past
+  // the end restarts the tape; scrubbing pauses it.
+  const togglePlay = useCallback(() => {
+    setReplay((r) =>
+      r
+        ? {
+            ...r,
+            cursor: r.cursor >= r.win.length - 1 ? replayStart(r.win, interval) : r.cursor,
+            playing: !r.playing,
+          }
+        : r
+    );
+  }, [interval]);
+  const stepReplay = useCallback((d: number) => {
+    setReplay((r) =>
+      r
+        ? {
+            ...r,
+            cursor: Math.min(r.win.length - 1, Math.max(5, r.cursor + d)),
+            playing: false,
+          }
+        : r
+    );
+  }, []);
+
+  // Replay transport keys — space play/pause, ←/→ scrub a bar (shift ×10),
+  // Esc exits. Armed only while replaying and never while a control has
+  // focus, so typing and button presses can't double-fire the tape.
+  useEffect(() => {
+    if (!replaying) return;
+    const onKey = (e: KeyboardEvent) => {
+      const el = e.target as HTMLElement | null;
+      if (
+        el &&
+        (el.tagName === "INPUT" ||
+          el.tagName === "TEXTAREA" ||
+          el.tagName === "SELECT" ||
+          el.tagName === "BUTTON" ||
+          el.isContentEditable)
+      )
+        return;
+      if (e.key === " ") {
+        e.preventDefault();
+        togglePlay();
+      } else if (e.key === "ArrowRight") {
+        e.preventDefault();
+        stepReplay(e.shiftKey ? 10 : 1);
+      } else if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        stepReplay(e.shiftKey ? -10 : -1);
+      } else if (e.key === "Escape") {
+        setReplay(null);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [replaying, togglePlay, stepReplay]);
 
   const computed = useMemo(() => {
     if (bars.length === 0) return null;
@@ -214,6 +290,13 @@ export default function ChartPage() {
     [quote, asOf]
   );
 
+  // The journal's fills for this symbol, mapped onto the displayed tape —
+  // fills outside the window (or off-symbol) simply don't mark.
+  const markers = useMemo(
+    () => (on.trades ? tradeMarkers(state.trades, symbol, bars, interval) : []),
+    [on.trades, state.trades, symbol, bars, interval]
+  );
+
   // Armed alert levels ride on the chart as flagged lines.
   const myAlerts = useMemo(() => armedAlerts(state.alerts, symbol), [state.alerts, symbol]);
   const levelList = useMemo<ChartLevel[]>(
@@ -235,7 +318,7 @@ export default function ChartPage() {
         eyebrow="Trade"
         title={`${symbol} · Chart terminal`}
         description="Candles with session VWAP bands, EMAs, key levels and the day's volume profile — the full pre-market markup, drawn live."
-        right={<SymbolForm onSubmit={setFocus} buttonLabel="Chart" />}
+        right={<SymbolSearch onSelect={setFocus} buttonLabel="Chart" />}
       />
 
       {/* Quote strip */}
@@ -306,7 +389,7 @@ export default function ChartPage() {
               {(Object.keys(OVERLAY_LABEL) as OverlayKey[]).map((k) => (
                 <button
                   key={k}
-                  onClick={() => setOn((o) => ({ ...o, [k]: !o[k] }))}
+                  onClick={() => setOn({ ...on, [k]: !on[k] })}
                   aria-pressed={on[k]}
                   className={`rounded px-2 py-0.5 font-mono text-[10.5px] transition-colors ${
                     on[k] ? "bg-white/[0.08] text-ink" : "text-faint hover:text-ink"
@@ -348,18 +431,7 @@ export default function ChartPage() {
               Replay
             </span>
             <button
-              onClick={() =>
-                setReplay((r) =>
-                  r
-                    ? {
-                        ...r,
-                        // Replaying past the end restarts the tape.
-                        cursor: r.cursor >= r.win.length - 1 ? replayStart(r.win, interval) : r.cursor,
-                        playing: !r.playing,
-                      }
-                    : r
-                )
-              }
+              onClick={togglePlay}
               aria-label={replay.playing ? "Pause replay" : "Play replay"}
               className="btn-secondary h-7 w-7 p-0"
             >
@@ -384,6 +456,9 @@ export default function ChartPage() {
             />
             <span className="font-mono tnum text-[10.5px] text-faint">
               {replay.cursor + 1}/{replay.win.length}
+            </span>
+            <span className="hidden font-mono text-[9.5px] uppercase tracking-[0.14em] text-faint md:inline">
+              space · ←→ · esc
             </span>
           </div>
         )}
@@ -413,6 +488,7 @@ export default function ChartPage() {
                 overlays={computed?.overlays ?? {}}
                 levels={levelList}
                 profile={computed?.profile ?? null}
+                markers={markers}
                 live={interval !== "1d" && !replaying}
                 height={430}
               />
@@ -465,7 +541,9 @@ export default function ChartPage() {
         ±1σ/2σ volume-weighted deviation bands. Pivots are classic floor-trader levels off the prior
         regular session; the opening range spans the first {state.settings.orMinutes} minutes. The
         volume profile bins today&apos;s regular-session volume at typical price — OHLCV resolution, not
-        tick data. Bars arrive from the live feed and are never imputed.
+        tick data. Trade markers are your own journaled fills mapped onto the tape (▲▼ entries,
+        squares for exits, toned by the result). Bars arrive from the live feed and are never
+        imputed. Interval, overlays and the indicator pane persist in this browser.
       </p>
     </>
   );

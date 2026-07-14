@@ -7,7 +7,7 @@ import { SkeletonBlock } from "@/components/ui/Skeleton";
 import { Tooltip } from "@/components/ui/Tooltip";
 import { EngineDial } from "@/components/vega/EngineDial";
 import { DriverStack, EngineLayers, ScoreRibbon } from "@/components/vega/EnginePanels";
-import { SymbolForm } from "@/components/vega/SymbolForm";
+import { SymbolSearch } from "@/components/vega/SymbolSearch";
 import { ChangePct } from "@/components/vega/bits";
 import { Money } from "@/components/ui/Money";
 import { useAsyncCompute } from "@/lib/useAsyncCompute";
@@ -70,7 +70,7 @@ export default function EnginePage() {
         eyebrow="Trade"
         title={`${symbol} · Edge Engine`}
         description="Eight live signal layers — trend, VWAP posture, momentum, volume pressure, levels, relative strength, gap behavior, and a contrarian extension guard — fused into one directional read. Weights are earned from coverage and agreement, never hand-tuned."
-        right={<SymbolForm onSubmit={setFocus} buttonLabel="Run" />}
+        right={<SymbolSearch onSelect={setFocus} buttonLabel="Run" />}
       />
 
       {/* Quote strip */}
