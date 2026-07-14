@@ -168,6 +168,17 @@ export const INTERNALS_SYMBOLS = ["SPY", "QQQ", "IWM", "DIA", "^VIX", "^TNX"] as
  *  cap keeps that call (and the scanner math) comfortably bounded. */
 export const WATCHLIST_MAX = 24;
 
+/** Curated starter boards — one tap fills the watchlist with a coherent
+ *  theme instead of typing eight tickers. Adding is cap-aware and additive;
+ *  nothing is ever silently evicted. All keyless major-venue tickers. */
+export const WATCHLIST_PRESETS: readonly { label: string; symbols: readonly string[] }[] = [
+  { label: "Mega tech", symbols: ["AAPL", "MSFT", "NVDA", "AMZN", "META", "GOOGL", "TSLA"] },
+  { label: "Semis", symbols: ["NVDA", "AMD", "AVGO", "TSM", "MU", "SMCI", "ARM"] },
+  { label: "Index ETFs", symbols: ["SPY", "QQQ", "IWM", "DIA", "SMH", "XLK"] },
+  { label: "High beta", symbols: ["TSLA", "COIN", "PLTR", "MSTR", "HOOD", "SOFI"] },
+  { label: "Energy & rates", symbols: ["XLE", "XOM", "CVX", "OXY", "TLT", "XLF"] },
+];
+
 /** The Edge Engine's relative-strength benchmark. Lives here with the other
  *  symbol constants so every surface that assembles engine input agrees. */
 export const ENGINE_BENCHMARK = "SPY";

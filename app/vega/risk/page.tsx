@@ -6,10 +6,13 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { Meter } from "@/components/ui/Meter";
 import { Segmented } from "@/components/ui/Segmented";
 import { fmtNum, fmtUSD } from "@/lib/format";
+import { PositionsCard } from "@/components/vega/PositionsCard";
 import { journalStats, localDayKey } from "@/lib/vega/journal";
+import { markOpenBook, openTrades } from "@/lib/vega/positions";
 import { dayRisk, kellyFraction, positionSize } from "@/lib/vega/risk";
 import { useVega } from "@/lib/vega/store";
 import type { TradeSide } from "@/lib/vega/types";
+import { useVegaQuotes } from "@/lib/vega/useVegaQuotes";
 
 const parse = (s: string): number | undefined => {
   const v = Number(s.replace(/[$,%\s]/g, ""));
@@ -22,7 +25,7 @@ const parse = (s: string): number | undefined => {
  * that keep a day trader alive, wired to the journal.
  */
 export default function RiskPage() {
-  const { state, setSettings } = useVega();
+  const { state, ready, setSettings } = useVega();
   const { settings } = state;
 
   const [side, setSide] = useState<TradeSide>("long");
@@ -49,6 +52,14 @@ export default function RiskPage() {
   const risk = dayRisk(state.trades, settings, todayKey);
   const stats = useMemo(() => journalStats(state.trades), [state.trades]);
   const kelly = stats ? kellyFraction(stats.winRate, stats.avgWin, stats.avgLoss) : null;
+
+  // The working book, marked live — what's at risk beyond the next trade.
+  const openSymbols = useMemo(
+    () => [...new Set(openTrades(state.trades).map((t) => t.symbol))],
+    [state.trades]
+  );
+  const { quotes } = useVegaQuotes(ready ? openSymbols : []);
+  const book = useMemo(() => markOpenBook(state.trades, quotes), [state.trades, quotes]);
 
   const settingField = (
     label: string,
@@ -120,6 +131,12 @@ export default function RiskPage() {
             ))}
           </div>
 
+          {risk.halted && (
+            <div className="panel-tinted neg mt-4 px-3 py-2 text-[12px] text-neg">
+              The daily circuit breaker is hit — the right size for the next trade is zero.
+            </div>
+          )}
+
           {sizing === null || !sizing.valid ? (
             <p className="mt-5 text-[13px] text-mute">
               {sizing?.reason ?? "Enter an entry and a stop to size the trade."}
@@ -139,6 +156,13 @@ export default function RiskPage() {
                   </div>
                 ))}
               </div>
+              {sizing.notional > settings.accountSize && (
+                <p className="mt-3 text-[11.5px] leading-relaxed text-warn">
+                  Heads up — this size is {fmtNum(sizing.notional / settings.accountSize, 1)}× the
+                  account. The stop math holds, but it&apos;s a margin position: the risk budget
+                  assumes the fill and the stop both happen.
+                </p>
+              )}
               <div className="mt-5 rounded-lg border border-edge bg-[var(--surface-2)] p-4">
                 <div className="eyebrow mb-2">Scale-out ladder</div>
                 <div className="flex flex-wrap gap-x-6 gap-y-1.5 font-mono tnum text-[12.5px]">
@@ -206,6 +230,9 @@ export default function RiskPage() {
               </>
             )}
           </Card>
+
+          {/* The working book, marked live. */}
+          <PositionsCard book={book} i={3} />
         </div>
       </div>
 

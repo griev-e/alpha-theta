@@ -527,7 +527,10 @@ apps via `components/shell/brand.tsx` (`AppKind`).
   transparently). Deliberately browser-local even in accounts mode — no
   `user_state` schema change — but the storage key is suffixed with the
   signed-in userId so journals stay isolated on a shared machine. The sample
-  journal (`lib/vega/sample.ts`) is flagged `isSample` and badged.
+  journal (`lib/vega/sample.ts`) is flagged `isSample` and badged. Cosmetic
+  chart choices (interval, overlay toggles, indicator pane) persist separately
+  under `vega.ui.v1` via `lib/vega/uiPrefs.ts` — per-browser UI prefs,
+  deliberately outside the versioned/migrated store blob.
 - **Data plumbing** — two vega-specific proxies over `lib/server/intraday.ts`
   (which has its own `sanitizeVegaSymbols` that keeps `^`/`=` so index and
   futures tickers survive): `/api/vega/quotes` returns rich day-trading quotes
@@ -561,7 +564,12 @@ apps via `components/shell/brand.tsx` (`AppKind`).
   R-multiples, equity curve/drawdown, streaks, groupings), `risk.ts`
   (stop-based position sizing, Kelly, the daily-loss circuit breaker),
   `csv.ts` (forgiving journal CSV round-trip over the shared `csvCore`
-  splitter), `alerts.ts` (true-cross price-alert sweep + the cap-aware
+  splitter), `positions.ts` (the working book marked live: unrealized P&L and
+  open R against the quote poll, dollars-at-risk-to-stop totals, honest
+  unpriced/no-stop counts — open symbols simply join the existing quote batch),
+  `markers.ts` (journal fills mapped onto chart bar indices by timestamp —
+  binary search over the tape, off-window fills stay unmarked),
+  `alerts.ts` (true-cross price-alert sweep + the cap-aware
   `withAlertAdded` — an armed alert is never silently evicted; the live half
   is `useAlertEngine.ts`, mounted once in `VegaShell`, riding the existing
   quote poll with its previous-price map pruned to the armed set), and
@@ -589,7 +597,11 @@ apps via `components/shell/brand.tsx` (`AppKind`).
   and idle-hum rings; `EnginePanels.tsx` — layer gauges, driver stacks, score
   ribbon), `ScanMap.tsx` (the scanner's gap × RVOL bubble map, spring-animated
   re-ranking), `SimFan.tsx` (the bootstrap quantile fan), `AlertPopover.tsx`
-  (arm/manage price alerts from the chart), `EquityCurve.tsx`,
+  (arm/manage price alerts from the chart), `SymbolSearch.tsx` (the debounced
+  ticker/company typeahead over `/api/search` shared by the chart/engine
+  headers and every watchlist add-form; Enter still resolves raw text as a
+  literal symbol), `PositionsCard.tsx` (the live-marked working book, shared
+  by cockpit and risk), `EquityCurve.tsx`,
   `PnlCalendar.tsx`, and `bits.tsx` (change/RVOL/range/score/tag chips).
   Shared primitives still come from `components/ui/*`; charts stay hand-built
   SVG. The chart page also owns **bar replay** (freeze the fetched tape, scrub

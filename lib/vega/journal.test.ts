@@ -3,11 +3,14 @@ import {
   closedTrades,
   dailyPnl,
   entryHourKey,
+  entryWeekdayKey,
   equityCurve,
+  feeStats,
   groupStats,
   holdMinutes,
   isClosed,
   journalStats,
+  rollingExpectancy,
   tradePnl,
   tradeR,
   localDayKey,
@@ -127,6 +130,51 @@ describe("groupings", () => {
     expect(closedTrades([t])).toHaveLength(1);
     expect(entryHourKey(t)).toMatch(/^\d{2}$/);
     expect(entryHourKey(trade({ entryAt: "garbage" }))).toBe("—");
+  });
+});
+
+describe("rollingExpectancy", () => {
+  it("computes trailing-window expectancy and win rate in exit order", () => {
+    const pts = rollingExpectancy(
+      [
+        trade({ exit: 51, exitAt: "2026-01-12T15:00:00Z" }), // +100
+        trade({ exit: 49, exitAt: "2026-01-13T15:00:00Z" }), // −100
+        trade({ exit: 53, exitAt: "2026-01-14T15:00:00Z" }), // +300
+      ],
+      2
+    );
+    expect(pts.map((p) => p.expectancy)).toEqual([100, 0, 100]);
+    expect(pts[2].winRate).toBe(0.5); // window = [−100, +300]
+    expect(pts[0].winRate).toBe(1);
+  });
+
+  it("ignores open trades and returns [] on an empty journal", () => {
+    expect(rollingExpectancy([trade({ exit: null, exitAt: null })])).toEqual([]);
+    expect(rollingExpectancy([])).toEqual([]);
+  });
+});
+
+describe("feeStats & entryWeekdayKey", () => {
+  it("totals fees and their share of gross wins", () => {
+    const s = feeStats([
+      trade({ exit: 51, fees: 5 }), // net +95, gross win 100
+      trade({ exit: 49, fees: 5 }), // net −105, no gross win
+    ])!;
+    expect(s.fees).toBe(10);
+    expect(s.perTrade).toBe(5);
+    expect(s.shareOfGrossWins).toBeCloseTo(0.1, 10);
+  });
+
+  it("returns null share with no gross wins, null stats with no closes", () => {
+    expect(feeStats([trade({ exit: 49, fees: 2 })])!.shareOfGrossWins).toBeNull();
+    expect(feeStats([trade({ exit: null, exitAt: null })])).toBeNull();
+  });
+
+  it("labels the entry weekday in local time", () => {
+    // Built from a local-time Date so the assertion holds in any timezone.
+    const wed = new Date(2026, 0, 14, 10, 0).toISOString(); // Wed Jan 14 2026
+    expect(entryWeekdayKey(trade({ entryAt: wed }))).toBe("Wed");
+    expect(entryWeekdayKey(trade({ entryAt: "garbage" }))).toBe("—");
   });
 });
 

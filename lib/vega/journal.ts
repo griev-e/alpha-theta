@@ -216,3 +216,71 @@ export function entryHourKey(t: Trade): string {
     ? String(d.getHours()).padStart(2, "0")
     : "—";
 }
+
+const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
+
+/** Entry weekday label ("Mon"…) in the trader's local time. */
+export function entryWeekdayKey(t: Trade): string {
+  const d = new Date(t.entryAt);
+  return Number.isFinite(d.getTime()) ? WEEKDAYS[d.getDay()] : "—";
+}
+
+export interface RollingPoint {
+  /** Exit timestamp of the trade closing this window. */
+  t: string;
+  /** Mean P&L per trade over the trailing window ending here. */
+  expectancy: number;
+  /** Win rate over the same window. */
+  winRate: number;
+}
+
+/**
+ * Trailing-window expectancy after each closed trade — the edge's drift over
+ * time, which the all-time aggregate hides. Windows shorter than `window`
+ * (the first trades) use what exists so the series starts at trade one.
+ */
+export function rollingExpectancy(trades: Trade[], window = 20): RollingPoint[] {
+  const closed = closedTrades(trades);
+  const out: RollingPoint[] = [];
+  const pnls: number[] = [];
+  for (const t of closed) {
+    const pnl = tradePnl(t);
+    if (pnl === null) continue;
+    pnls.push(pnl);
+    const win = pnls.slice(-window);
+    out.push({
+      t: t.exitAt ?? t.entryAt,
+      expectancy: win.reduce((s, p) => s + p, 0) / win.length,
+      winRate: win.filter((p) => p > 0).length / win.length,
+    });
+  }
+  return out;
+}
+
+export interface FeeStats {
+  /** Total commissions/fees across closed trades. */
+  fees: number;
+  /** Mean fee per closed trade. */
+  perTrade: number;
+  /** Share of gross wins consumed by costs; null with no gross wins. */
+  shareOfGrossWins: number | null;
+}
+
+/** What the round trips actually cost — journal P&L is already net of fees,
+ *  so this surfaces the drag that netting hides. */
+export function feeStats(trades: Trade[]): FeeStats | null {
+  const closed = closedTrades(trades);
+  if (closed.length === 0) return null;
+  const fees = closed.reduce((s, t) => s + (t.fees ?? 0), 0);
+  const grossWins = closed
+    .map((t) => {
+      const pnl = tradePnl(t);
+      return pnl === null ? 0 : Math.max(0, pnl + (t.fees ?? 0));
+    })
+    .reduce((s, p) => s + p, 0);
+  return {
+    fees,
+    perTrade: fees / closed.length,
+    shareOfGrossWins: grossWins > 0 ? fees / grossWins : null,
+  };
+}

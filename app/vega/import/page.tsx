@@ -4,9 +4,10 @@ import { useRef, useState } from "react";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { useToast } from "@/components/ui/Toast";
+import { SymbolSearch } from "@/components/vega/SymbolSearch";
 import { parseTradesCsv, tradesToCsv } from "@/lib/vega/csv";
 import { useVega } from "@/lib/vega/store";
-import { WATCHLIST_MAX } from "@/lib/vega/types";
+import { WATCHLIST_MAX, WATCHLIST_PRESETS } from "@/lib/vega/types";
 
 /**
  * Import & Data — journal CSV round-trip, the watchlist editor, sample data,
@@ -18,6 +19,7 @@ export default function VegaImportPage() {
     state,
     importTrades,
     addToWatchlist,
+    addManyToWatchlist,
     removeFromWatchlist,
     loadSampleJournal,
     clearJournal,
@@ -25,8 +27,18 @@ export default function VegaImportPage() {
   } = useVega();
   const toast = useToast();
   const fileRef = useRef<HTMLInputElement>(null);
-  const [symbolInput, setSymbolInput] = useState("");
   const [confirmClear, setConfirmClear] = useState<null | "journal" | "all">(null);
+
+  const loadPreset = (label: string, symbols: readonly string[]) => {
+    const n = addManyToWatchlist([...symbols]);
+    toast(
+      n > 0
+        ? `Added ${n} from ${label}`
+        : state.watchlist.length >= WATCHLIST_MAX
+          ? "The board is full — remove something first"
+          : "Already watching all of those"
+    );
+  };
 
   const onFile = async (file: File) => {
     const text = await file.text();
@@ -135,29 +147,12 @@ export default function VegaImportPage() {
           eyebrow={`${state.watchlist.length} of ${WATCHLIST_MAX}`}
           title="Watchlist"
           right={
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                const sym = symbolInput.trim().toUpperCase();
-                if (sym) {
-                  addToWatchlist(sym);
-                  setSymbolInput("");
-                }
-              }}
-              className="flex items-center gap-2"
-            >
-              <input
-                value={symbolInput}
-                onChange={(e) => setSymbolInput(e.target.value)}
-                placeholder="Add symbol…"
-                aria-label="Add symbol"
-                className="field h-8 w-32 uppercase"
-                disabled={state.watchlist.length >= WATCHLIST_MAX}
-              />
-              <button type="submit" className="btn-secondary h-8" disabled={state.watchlist.length >= WATCHLIST_MAX}>
-                Add
-              </button>
-            </form>
+            <SymbolSearch
+              onSelect={addToWatchlist}
+              buttonLabel="Add"
+              placeholder="Add symbol or name…"
+              disabled={state.watchlist.length >= WATCHLIST_MAX}
+            />
           }
         />
         <div className="mt-4 flex flex-wrap gap-2">
@@ -182,6 +177,22 @@ export default function VegaImportPage() {
           {state.watchlist.length === 0 && (
             <span className="text-[12.5px] text-faint">Empty board — add a symbol above.</span>
           )}
+        </div>
+        {/* Preset boards — one tap fills a coherent theme, cap-aware. */}
+        <div className="mt-4 border-t border-edge pt-3">
+          <span className="eyebrow">Preset boards</span>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {WATCHLIST_PRESETS.map((p) => (
+              <button
+                key={p.label}
+                onClick={() => loadPreset(p.label, p.symbols)}
+                title={p.symbols.join(" · ")}
+                className="btn-secondary h-7 px-2.5 text-[12px]"
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
         </div>
         <p className="mt-3 text-[11px] leading-relaxed text-faint">
           The whole board quotes in one batched request per 30s poll, so the {WATCHLIST_MAX}-symbol

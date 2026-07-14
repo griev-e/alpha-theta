@@ -8,6 +8,21 @@ export type PatchNote = {
 // Newest first. Add an entry here whenever a notable change ships.
 export const PATCH_NOTES: PatchNote[] = [
   {
+    version: "1.62",
+    date: "2026-07-14",
+    title: "vega build three — the live book, trade markers, and a journal that edits",
+    changes: [
+      "The working book, marked live: every open journal trade now prices against the existing 30s quote poll — unrealized P&L, open R-multiples, dollars still at risk to each stop, and honest coverage counts (unpriced symbols and stop-less positions are called out, never imputed). Surfaced as a positions card on the cockpit and risk pages, and inline on the journal's open list, where a new 'mark' button prefills the exit with the live print. Open symbols simply join the batched quote call — zero extra provider cost.",
+      "Trade markers on the chart: your journaled fills draw on the tape — ▲▼ entries pointing with the trade, squares for exits toned by the result, and a connector across each closed round trip. Fills are mapped to bars by timestamp (binary search, no clamping), so anything outside the displayed window honestly doesn't mark. Toggleable like every other overlay.",
+      "Symbol search everywhere: the raw ticker inputs on the chart, engine, scanner and watchlist editor became a debounced company/ticker typeahead over the existing cached search endpoint — arrow keys navigate, Enter still resolves exact tickers directly, and provider failures degrade to an empty list.",
+      "The journal grew up: any trade — open or closed — can now be edited in place (the entry form flips to an edit mode with every field, so clearing a stop actually clears it), and the trade log filters by setup, side, or symbol/notes text with a running net-P&L readout for the slice.",
+      "Analytics went deeper: a rolling-expectancy sparkline (trailing 20 trades — the drift the all-time average hides), P&L by weekday and by direction (long vs short), and a fee-drag card showing what execution costs actually consume of gross wins.",
+      "Risk page: the sizer warns when a plan needs margin-grade buying power, repeats the circuit-breaker halt where you'd act on it, and the working book with its at-risk total sits alongside.",
+      "Watchlist presets: one-tap themed boards (mega tech, semis, index ETFs, high beta, energy & rates) on the scanner and the watchlist editor — cap-aware and additive, nothing silently evicted.",
+      "Chart polish: interval, overlays and the indicator pane persist per browser; bar replay answers the keyboard (space play/pause, ←/→ scrub a bar, shift ×10, esc exits) without ever fighting a focused control.",
+    ],
+  },
+  {
     version: "1.61",
     date: "2026-07-11",
     title: "vega build two — the Edge Engine, bar replay, alerts, and the expectancy simulator",
