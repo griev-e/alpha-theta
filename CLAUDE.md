@@ -290,19 +290,32 @@ plaintext rows pass through unchanged and reseal on their next write.
 All pure, client-side, model-based estimates. Methodology notes live next to the
 math. Key pieces: `risk.ts`, `correlation.ts` (single-market-factor model with
 sector affinity), `quality.ts` (weighted scorecard vs S&P 500; multiples use
-weighted harmonic mean), `factors.ts`, `scenarios.ts`, `montecarlo.ts` (seeded
-GBM — deterministic per portfolio), `rebalance.ts`, `dividends/`. The
+weighted harmonic mean), `factors.ts`, `scenarios.ts` (the rate-shock scenario
+uses each holding's *empirical* rate beta when available — see below —
+falling back to a structural estimate), `montecarlo.ts` (seeded GBM —
+deterministic per portfolio), `rebalance.ts`, `dividends/`. The
 **optimizer** lives in `lib/optimizer/optimize.ts` — a deterministic constrained
 solver (projected gradient ascent on a capped simplex, plus cyclical coordinate
-descent for risk parity) over the same factor covariance and CAPM expected
-returns, producing optimal weights, an efficient frontier, and a trade list for
-eight objectives. Monte Carlo and the optimizer's multistart share a seeded PRNG
-(`mulberry32` in `lib/analytics/mathUtils.ts`) so both draw reproducible
-sequences without duplicating the generator. `shrinkage.ts` implements
-Ledoit-Wolf covariance shrinkage: when real return history is available it
-blends the structural factor-model covariance with the (noisy) sample
-covariance at the analytically-optimal intensity, rather than trusting either
-alone.
+descent for risk parity) over the same factor covariance and Black-Litterman-
+style implied-equilibrium expected returns (`lib/optimizer/impliedReturns.ts`
+— `π = δ·Σ·w_cap`, reverse-optimizing the market's own cap-weighted allocation
+so returns stay consistent with the covariance structure instead of
+collapsing to a beta sort; falls back to CAPM, rf + β·ERP, when any name in
+the universe lacks a market cap), producing optimal weights, an efficient
+frontier, and a trade list for eight objectives. Monte Carlo and the
+optimizer's multistart share a seeded PRNG (`mulberry32` in
+`lib/analytics/mathUtils.ts`) so both draw reproducible sequences without
+duplicating the generator. `shrinkage.ts` implements Ledoit-Wolf covariance
+shrinkage: when real return history is available it blends the structural
+factor-model covariance with the (noisy) sample covariance at the
+analytically-optimal intensity, rather than trusting either alone. That
+history comes from `lib/live/returns.ts` — a primed module-scope singleton
+(mirroring `getCMA()`/`getAssumptions()`) fed by `lib/live/useReturnHistory.ts`,
+which fetches ~1y of daily bars per symbol from `/api/history`; `getReturns()`
+feeds the shrinkage estimator in `correlation.ts` and `getRateBeta()` feeds
+the scenario engine's empirical rate-beta path above. With no history primed
+(first paint, tests, provider outage) both fall back to their structural
+estimates exactly as before.
 
 **The market regime engine (`lib/analytics/regime/`)** is the most involved
 subsystem. It turns ~23 daily index series into 8 analytical layers
@@ -358,10 +371,13 @@ confidence, and UI all adapt automatically.
 - `lib/useAsyncCompute.ts` — runs expensive synchronous analytics off the
   critical render path (paints UI first, computes on the next tick, keeps the
   previous value so charts don't unmount). Use this for heavy page-level
-  computations rather than computing inline. **Monte Carlo** goes one step
-  further: `lib/analytics/useMonteCarlo.ts` runs the sim in a Web Worker
-  (`montecarlo.worker.ts`) to keep the main thread free, falling back to
-  synchronous compute when Workers are unavailable.
+  computations rather than computing inline. **Monte Carlo and the optimizer**
+  each go one step further: `lib/analytics/useMonteCarlo.ts` runs the sim in a
+  Web Worker (`montecarlo.worker.ts`), and `lib/optimizer/useOptimizer.ts`
+  mirrors the same contract for the multistart solve + efficient frontier
+  (`optimize.worker.ts`) — both paint the previous result while the next one
+  is in flight and fall back to a deferred synchronous compute when Workers
+  are unavailable.
 - **First-view/first-import choreography.** `lib/firstView.tsx`
   (`useFirstView`) tracks, per navigation, whether a route is being seen for
   the first time *this session* (a module-level set of visited paths reset on
