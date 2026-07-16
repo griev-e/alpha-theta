@@ -1,6 +1,6 @@
-# alpha · theta — Private Financial Intelligence
+# alpha · theta · vega — Private Financial Intelligence
 
-A dark, institutional-grade personal-finance suite: two apps, one deployment.
+A dark, institutional-grade personal-finance suite: three apps, one deployment.
 
 - **alpha** is a portfolio analytics terminal. Import your holdings as CSV and
   get allocation, risk, research, quality, factor, scenario, correlation, and
@@ -8,6 +8,10 @@ A dark, institutional-grade personal-finance suite: two apps, one deployment.
 - **theta** is alpha's sister budgeting/net-worth app. Import transactions (or
   sync a bank via SimpleFIN) and get spending analytics, debt payoff planning,
   cash-flow forecasting, goal tracking, and a net-worth Monte Carlo.
+- **vega** is the suite's day-trading terminal. Chart any symbol intraday with
+  a candlestick + volume-profile view, run it through an eight-layer Edge
+  Engine read, scan a watchlist for gap/RVOL setups, and track a trade journal
+  with P&L, R-multiples, and a bootstrap expectancy simulator.
 
 Every chart is hand-built animated SVG — there is no charting library. By
 default there are no accounts and no database: your data lives entirely in the
@@ -34,9 +38,10 @@ tools for understanding your own money.
   is asserted by an end-to-end suite that runs with zero network stubs.
 - **No accounts required.** The whole thing runs as a single-user, zero-backend
   tool by default. Accounts are additive, not a requirement to get started.
-- **Deterministic simulations.** Monte Carlo (both apps) and the optimizer's
-  multistart search all use a seeded PRNG, so results are reproducible for a
-  given portfolio/ledger rather than jittering on every reload.
+- **Deterministic simulations.** Monte Carlo (alpha and theta), the optimizer's
+  multistart search, and vega's expectancy simulator all use a seeded PRNG, so
+  results are reproducible for a given portfolio/ledger/journal rather than
+  jittering on every reload.
 
 ## alpha — portfolio analytics
 
@@ -114,6 +119,32 @@ Bank sync (SimpleFIN) preserves your manual edits — a re-sync never clobbers a
 category or account type you've corrected, and a deleted account stays
 deleted.
 
+## vega — day trading
+
+A companion day-trading terminal at `/vega`, sharing the deployment with alpha
+and theta but with its own state, shell, and analytics. Its journal and
+watchlist stay browser-local (`localStorage`) even with accounts turned on —
+only the storage key is namespaced per signed-in user so it isn't shared on a
+machine:
+
+| Page | What it does |
+| --- | --- |
+| **Cockpit** | Watchlist quotes (change, RVOL, range, scan tag), the live-marked working book, and account-level P&L in one dashboard |
+| **Chart** | Candlestick chart with a volume lane, moving averages/Bollinger/VWAP overlays, an in-plot volume profile, support/resistance levels, price alerts, and bar-by-bar replay |
+| **Edge Engine** | An eight-layer intraday read (trend structure, VWAP posture, momentum, volume pressure, range & levels, relative strength vs SPY, gap behavior, an extension guard) into one conviction score, mirroring alpha's regime engine |
+| **Scanner** | A gap × RVOL bubble map across your watchlist, ranked by a cross-sectional heat score |
+| **Journal** | Trade log with P&L, R-multiples, equity curve/drawdown, streaks, and a P&L calendar |
+| **Analytics** | Performance breakdowns by symbol/setup/time, plus a bootstrap Monte Carlo over your own R-multiples — quantile fans, P(positive), risk of ruin |
+| **Risk** | Stop-based position sizing, Kelly fraction, and a daily-loss circuit breaker against the open book |
+| **Import & Data** | CSV round-trip for the trade journal, watchlist editor, sample data, and reset switches |
+
+The Edge Engine and the regime engine share the same house rule: signals are
+ranked against their own trailing distribution rather than a fixed threshold,
+and layer weight is earned from coverage and internal agreement, not asserted.
+Quotes and intraday bars are proxied through the same keyless Yahoo Finance
+path as alpha, batched into one call per watchlist refresh to stay inside the
+provider's rate tolerance.
+
 ## Data model — read this once
 
 - **Your positions / transactions** are the source of truth for shares, cost
@@ -151,7 +182,9 @@ Off by default — the app is a fully client-side, single-user tool with no
 sign-in. Set `AUTH_SECRET` + `DATABASE_URL` and it gains real
 username/password logins (NextAuth, bcrypt), with each person's alpha
 portfolio and theta ledger saved server-side instead of in `localStorage`.
-There's no public sign-up; provision each login yourself:
+vega's journal and watchlist stay in `localStorage` either way — namespaced
+per signed-in user, but never sent to the server. There's no public sign-up;
+provision each login yourself:
 
 ```bash
 npm run db:push                              # create the tables
@@ -187,10 +220,10 @@ app — every feature degrades gracefully when its variable is unset.
 
 Next.js 16 (App Router) · React 19 · TypeScript (strict) · Tailwind CSS 4 ·
 Framer Motion. All charts (treemap, donut, radar, heatmap, fan chart,
-histogram, scatter, Sankey, gauges, sparklines, price chart) are hand-built
-SVG — no chart library. Server code is a thin set of caching proxies to
-Yahoo Finance, Finnhub, and the Anthropic API; the analytics themselves run
-entirely client-side.
+histogram, scatter, Sankey, gauges, sparklines, price chart, candlestick +
+volume profile) are hand-built SVG — no chart library. Server code is a thin
+set of caching proxies to Yahoo Finance, Finnhub, and the Anthropic API; the
+analytics themselves run entirely client-side.
 
 ## Deploy to Vercel
 
@@ -208,7 +241,7 @@ your `DATABASE_URL`.
 
 ## Disclaimer
 
-alpha and theta are analysis tools, not investment or financial advice.
+alpha, theta, and vega are analysis tools, not investment or financial advice.
 Live fundamentals and prices come from third-party providers and may be
 incomplete or delayed; simulations are models with thinner tails than real
 markets.
